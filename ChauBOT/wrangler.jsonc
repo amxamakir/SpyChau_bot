@@ -1,0 +1,32 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "spychau-bot",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-22",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/webhooks/*", "/health"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "spychau-bot-dev",
+      "database_id": "REPLACE_WITH_DEV_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "env": {
+    "production": {
+      "name": "spychau-bot-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "spychau-bot-production",
+          "database_id": "REPLACE_WITH_PRODUCTION_DATABASE_ID",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}

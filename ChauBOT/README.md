@@ -1,0 +1,35 @@
+# SpyChau_bot
+
+Telegram Mini App and Cloudflare Worker for an opt-in archive of Telegram Business updates.
+
+## Current status
+
+- The existing interface is served as static assets by Cloudflare Workers.
+- `src/worker.js` provides the API and Telegram webhook routes.
+- `migrations/` contains versioned Cloudflare D1 schema changes.
+- The original Python API remains available for local development, but Cloudflare runs the Worker implementation.
+- Telegram authentication and webhook handling require secrets configured in Cloudflare.
+- Subscription payments and media storage are not implemented yet.
+
+## Local preview
+
+Install Wrangler, then run:
+
+```powershell
+npm install --save-dev wrangler
+npx wrangler dev
+```
+
+For authenticated Mini App API requests, create `.dev.vars` locally with `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`. This file is ignored by Git. Do not commit tokens or real message data.
+
+## Cloudflare setup
+
+Follow [CLOUDFLARE_SETUP.md](./CLOUDFLARE_SETUP.md) to create separate D1 databases for development and production, configure Worker secrets, apply migrations, and connect GitHub Builds.
+
+The GitHub repository is the canonical source and version history. Cloudflare Workers Builds publishes each push on the configured branch and keeps deployment versions. Database backups and retention are separate from code deployments.
+
+## Telegram constraints
+
+Read [TELEGRAM_POLICY.md](./TELEGRAM_POLICY.md) before processing real data. Access is limited to chats the account owner explicitly connects through Telegram Business and updates that Telegram delivers after connection. Secret Chats are not available through the official Bot API. Timed media is best-effort; the product must not promise universal recovery or preservation.
+
+Digital services sold inside Telegram must be paid for in Telegram Stars (`XTR`).

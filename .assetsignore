@@ -1,0 +1,8 @@
+*
+!index.html
+!app.js
+!src/
+src/worker.js
+!src/styles.css
+!assets/
+!assets/**
