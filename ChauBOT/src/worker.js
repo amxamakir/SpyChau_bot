@@ -164,7 +164,8 @@ async function validateInitData(raw, env) {
     .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
-  const secret = await hmacSha256(env.TELEGRAM_BOT_TOKEN, "WebAppData");
+  // Telegram derives the signing key with WebAppData as the HMAC key.
+  const secret = await hmacSha256("WebAppData", env.TELEGRAM_BOT_TOKEN);
   const expectedHash = bytesToHex(await hmacSha256(secret, checkString));
   if (!constantTimeEqual(expectedHash, receivedHash)) throw new Error("Invalid initData signature");
 
