@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "spychau-bot-dev",
-      "database_id": "REPLACE_WITH_DEV_DATABASE_ID",
+      "database_id": "35ee6b34-0c59-4ec2-8b24-4b18b4356120",
       "migrations_dir": "migrations"
     }
   ],
@@ -23,7 +23,7 @@
         {
           "binding": "DB",
           "database_name": "spychau-bot-production",
-          "database_id": "REPLACE_WITH_PRODUCTION_DATABASE_ID",
+          "database_id": "740e8473-d7f0-4a72-9e26-4af8f8303a0a",
           "migrations_dir": "migrations"
         }
       ]
