@@ -75,10 +75,11 @@ business_connection
 business_message
 edited_business_message
 deleted_business_messages
+message
 ```
 
 Test with a Telegram Business connection that you control before inviting users. Confirm the consent screen, archive behavior, revocation behavior, deletion, and privacy text before enabling real use.
 
 ## Release and data handling
 
-Commit and push each code change. Cloudflare Workers Builds records deployments tied to commits. Apply every new D1 migration to the target environment before deploying code that depends on it. Configure D1 backup/retention separately; a Worker deployment is not a backup of user data.
+Follow [RELEASES.md](./RELEASES.md) for version numbers, descriptive GitHub commits, Cloudflare version labels, and rollback. Cloudflare Workers Builds publishes each push to `main` and records deployments tied to commits. The configured Deploy command uses the commit title as the Cloudflare version title and tag. Telegram keeps opening the app at the same Worker URL, so BotFather does not need changes for normal releases. Apply every new D1 migration to the target environment before deploying code that depends on it. Configure D1 backup/retention separately; a Worker deployment is not a backup of user data.

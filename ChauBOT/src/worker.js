@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.2.0" });
+      return json({ status: "ok", service: "spychau-api", version: "0.2.1" });
     }
 
     if (route === "/api/auth/telegram" && request.method === "POST") {
@@ -41,7 +41,6 @@ export default {
             user,
             connections: connections.results,
             events: events.results.map(eventRow),
-            subscription: { status: "inactive" },
           });
         }
 
@@ -71,7 +70,17 @@ export default {
       return json({ error: "payments are not configured" }, 501);
     }
 
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (route === "/" || route === "/index.html" || route === "/app.js" || route === "/src/styles.css") {
+      const headers = new Headers(assetResponse.headers);
+      headers.set("Cache-Control", "no-cache");
+      return new Response(assetResponse.body, {
+        status: assetResponse.status,
+        statusText: assetResponse.statusText,
+        headers,
+      });
+    }
+    return assetResponse;
   },
 };
 
