@@ -1,33 +1,28 @@
 # SpyChau release process
 
-## Version numbers
+## Every production update
 
-Use `vMAJOR.MINOR.PATCH` for every production release.
+1. Use the next semantic version: `PATCH` for a fix, `MINOR` for a backward-compatible feature, and `MAJOR` for a breaking change or a change that needs a user action.
+2. Commit the complete change directly to the Cloudflare-connected GitHub branch (`main`) with a title in this format:
 
-- Increase `PATCH` for fixes and small changes.
-- Increase `MINOR` for a backward-compatible feature.
-- Increase `MAJOR` for a change that requires a migration or user action.
+   ```text
+   v0.2.2: Show Telegram profile photos
+   ```
 
-Every production commit to `main` deploys automatically. Put one release in each commit and use this title format:
+   The version and short change description in this commit title are also the Cloudflare deployment title. Keep the colon; the configured deploy command uses the part before it as the version tag.
+3. GitHub sends the new `main` commit to Cloudflare Workers Builds. It deploys the Worker and assets at the existing Worker URL, which is the URL opened by Telegram. Users see the new app when they open or reload it; no BotFather URL change is needed for normal app updates.
+4. In Cloudflare, confirm the latest deployment shows the expected `vX.Y.Z: change` title and succeeded before announcing the release.
 
-```text
-v0.3.0: Add connection management
-```
-
-## What Cloudflare records
-
-The production Deploy command reads the Git commit title and applies it as the Worker version message. It also sets the Worker version tag to the text before the colon, such as `v0.3.0`. This is configured in **Workers & Pages → spychau-bot → Settings → Builds**:
+Cloudflare's production Deploy command must be:
 
 ```sh
 npx wrangler deploy --env production --name spychau-bot --message "$(git log -1 --pretty=%s)" --tag "$(git log -1 --pretty=%s | cut -d: -f1)"
 ```
 
-Cloudflare then publishes every push on `main` and keeps its Worker versions in **Deployments**. For a permanent version tag in GitHub, create a GitHub Release with the same version and change title after the Cloudflare build succeeds.
+For a database schema change, add a new numbered SQL migration in `migrations/` and apply it to production before deploying code that depends on it. Never edit a migration already applied in production.
 
-## Roll back
+## Roll back application code
 
-In Cloudflare, open **Workers & Pages → spychau-bot → Deployments**, select the known-good Worker version, and choose **Rollback**. Wrangler can also roll back to a version ID with `npx wrangler rollback <VERSION_ID>`. A rollback creates a new active deployment using the selected old Worker version.
+In Cloudflare, open **Workers & Pages → spychau-bot → Deployments**, select the known-good Worker version, and choose **Rollback**. Alternatively, use `npx wrangler rollback <VERSION_ID>` from a signed-in Wrangler project. Record the rollback in GitHub with a commit using a new version number so the source history matches production.
 
-A Worker rollback restores Worker code and configuration. It does not undo D1 data writes or schema migrations. Never edit a migration already applied in production. Repair production schema or data with a new forward migration, and back up important production data separately.
-
-For each release, apply any required D1 migration before deploying code that depends on it, then confirm the Cloudflare build and deployment succeeded.
+A Worker rollback restores code and configuration associated with that version. It does not undo D1 writes or schema migrations. Back up production data before risky migrations and use a new forward migration to repair production data/schema; do not assume rolling back Worker code reverses database changes.
