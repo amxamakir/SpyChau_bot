@@ -89,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, {"events": [event_row(row) for row in events]})
             connections = db.execute("SELECT connection_id,enabled,updated_at FROM connections WHERE owner_id=?",(owner,)).fetchall()
             events = db.execute("SELECT id,chat_id,message_id,event_type,message_json,created_at FROM events WHERE owner_id=? ORDER BY id DESC LIMIT 25",(owner,)).fetchall()
-            return self._json(200,{"user":user,"connections":[dict(r) for r in connections],"events":[event_row(r) for r in events],"subscription":{"status":"inactive"}})
+            return self._json(200,{"user":user,"connections":[dict(r) for r in connections],"events":[event_row(r) for r in events]})
         except (ValueError, KeyError, json.JSONDecodeError) as error:
             return self._json(401,{"error":str(error)})
 
