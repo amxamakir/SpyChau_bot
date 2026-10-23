@@ -16,6 +16,16 @@
       "migrations_dir": "migrations"
     }
   ],
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "spychau-bot-dev",
+        "database_id": "35ee6b34-0c59-4ec2-8b24-4b18b4356120",
+        "migrations_dir": "migrations"
+      }
+    ]
+  },
   "env": {
     "production": {
       "name": "spychau-bot-production",
