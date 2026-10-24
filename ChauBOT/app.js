@@ -37,7 +37,8 @@ function escapeHtml(value) {
 }
 
 function racer(small = false) {
-  return `<div class="racer ${small ? 'racer-small' : ''}" aria-hidden="true"><img src="./assets/mcqueen-cutout.png" alt="" /></div>`;
+  const image = small ? './assets/mcqueen-cutout.png' : './assets/mascot/spy-chau-happy.png';
+  return `<div class="racer ${small ? 'racer-small' : ''}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
 }
 
 function displayName() {
