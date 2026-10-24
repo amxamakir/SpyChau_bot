@@ -37,7 +37,7 @@ function escapeHtml(value) {
 }
 
 function racer(small = false) {
-  const image = small ? './assets/mcqueen-cutout.png' : './assets/mascot/spy-chau-happy.png';
+  const image = small ? './assets/mcqueen-cutout.png' : './assets/spy-chau-happy.png';
   return `<div class="racer ${small ? 'racer-small' : ''}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
 }
 
