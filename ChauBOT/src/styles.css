@@ -51,7 +51,7 @@ body{background:#100b0c}
 @media(max-width:430px){.racer:not(.racer-small){width:145px;height:213px;right:1px;bottom:-12px;transform:rotate(-2deg);}}
 /* Fit the contour-cut car art into the hero and compact illustration slots. */
 .racer:not(.racer-small){width:240px;height:169px;right:0;bottom:12px;transform:rotate(-2deg);}
-.racer img{object-fit:contain;object-position:center;mix-blend-mode:normal}.hero-card .racer:not(.racer-small) img{clip-path:inset(0 0 0 15.5%)}
+.racer img{object-fit:contain;object-position:center;mix-blend-mode:normal}
 .racer-small{width:144px;height:101px;}
 .racer-small img{object-fit:contain;object-position:center;}
 @media(max-width:430px){.racer:not(.racer-small){width:154px;height:109px;right:-2px;bottom:14px;transform:rotate(-2deg);}}
