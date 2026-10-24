@@ -46,7 +46,7 @@ function displayName() {
 }
 
 function topbar() {
-  return `<header class="topbar"><div class="brand-mark"><span>SC</span><i></i></div><div class="brand-copy"><strong>SpyChau</strong><span>Привет, ${escapeHtml(displayName())}</span></div><button class="icon-button" aria-label="О приложении" data-action="about">${icon('help', 19)}</button><button class="icon-button sun-button" aria-label="Безопасность и данные" data-action="privacy">${icon('shield', 19)}</button></header>`;
+  return `<header class="topbar"><div class="brand-mark">${state.authenticated && typeof state.user?.photo_url === 'string' && state.user.photo_url.toLowerCase().startsWith('https://') ? `<img src="${escapeHtml(state.user.photo_url)}" alt="" referrerpolicy="no-referrer">` : '<span>SC</span>'}<i></i></div><div class="brand-copy"><strong>SpyChau</strong><span>Привет, ${escapeHtml(displayName())}</span></div><button class="icon-button" aria-label="О приложении" data-action="about">${icon('help', 19)}</button><button class="icon-button sun-button" aria-label="Безопасность и данные" data-action="privacy">${icon('shield', 19)}</button></header>`;
 }
 
 function statusLabel() {
