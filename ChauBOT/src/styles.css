@@ -125,3 +125,86 @@ body{background:#100b0c}
 
 /* Archive category filters stay on one horizontal row. */
 .archive-filters{display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;margin:0 0 15px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.archive-filters::-webkit-scrollbar{display:none}.archive-filter{flex:0 0 auto;white-space:nowrap;border:1px solid rgba(255,192,91,.14);border-radius:999px;background:#321a1c;color:#d7b9ad;padding:8px 11px;font-size:11px;line-height:1.2;font-weight:800;cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease}.archive-filter.active{background:#e82c3d;border-color:#ff7856;color:#fff}
+
+/* Mobile layout refinements: keep content inside narrow screens and device safe areas. */
+html{width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+body{width:100%;overflow-x:hidden;min-width:320px}
+button,input{min-width:0}
+img,svg{max-width:100%}
+.app-shell{width:100%;min-height:100vh;min-height:100dvh;overflow-x:clip;padding-top:max(14px,env(safe-area-inset-top));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+.topbar,.page{width:100%;max-width:680px;min-width:0}
+.topbar{gap:9px}
+.brand-mark{flex:none}
+.brand-copy{min-width:0;overflow:hidden}
+.brand-copy strong,.brand-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-button{flex:none}
+.hero-card{min-width:0;min-height:220px;padding:17px 16px;border-radius:23px}
+.hero-copy{min-width:0;max-width:64%}
+.hero-card .subscription-heading{min-width:0;overflow-wrap:anywhere}
+.hero-card p{overflow-wrap:anywhere}
+.hero-card .button{max-width:100%;min-height:42px;white-space:normal;text-align:center}
+.section-heading{min-width:0;gap:8px;align-items:center}
+.section-heading h2{min-width:0;overflow-wrap:anywhere}
+.section-heading> :last-child{flex:none}
+.connect-card,.profile-card,.service-card,.coming-card,.identity-card,.events-list,.empty-events{min-width:0;max-width:100%}
+.connect-card,.profile-card{padding-left:12px;padding-right:12px}
+.connect-row,.profile-row{min-width:0;gap:9px}
+.connect-row>.row-copy,.profile-row>.row-copy,.service-card-top>.row-copy{min-width:0}
+.connect-row .row-copy strong,.connect-row .row-copy span,.profile-row .row-copy strong,.profile-row .row-copy small,.service-card h2,.service-card p{overflow-wrap:anywhere}
+.connect-row>svg,.profile-row>svg,.connection-indicator{flex:none}
+.service-card,.coming-card{padding:15px;border-radius:20px}
+.service-card-top{min-width:0;gap:10px}
+.service-icon.large{width:46px;height:46px;flex:none}
+.service-card-bottom{min-width:0;flex-wrap:wrap;align-items:center;row-gap:9px}
+.service-card-bottom>.button{max-width:100%;white-space:normal}
+.coming-content{min-width:0;gap:8px}
+.coming-content>div:first-child{min-width:0}
+.archive-page,.archive-page .search-field,.archive-page .archive-list{width:100%;min-width:0;max-width:100%}
+.archive-page .search-field{padding-inline:10px}
+.archive-page .search-field input{min-width:0}
+.archive-filters{width:100%;max-width:100%;overscroll-behavior-x:contain}
+.archive-filter{min-height:38px;padding-inline:10px}
+.event-row{min-width:0;gap:8px;padding:11px 10px}
+.event-copy{min-width:0;overflow-wrap:anywhere}
+.event-title-line{min-width:0;flex-wrap:wrap;gap:3px 8px}
+.event-title-line strong{min-width:0;overflow-wrap:anywhere}
+.event-title-line time{margin-left:auto}
+.modal-backdrop{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));padding-top:max(12px,env(safe-area-inset-top))}
+.modal{width:100%;max-width:480px;max-height:calc(100dvh - 24px - env(safe-area-inset-top));overflow-y:auto;padding-left:18px;padding-right:18px}
+.bottom-nav{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));width:auto;max-width:680px;height:calc(66px + env(safe-area-inset-bottom));margin:0 auto;transform:none;padding:5px}
+.bottom-nav button{min-width:0;min-height:54px;padding-inline:3px;gap:3px;font-size:10px}
+.bottom-nav button svg,.bottom-nav button .user-icon{flex:none}
+@media(max-width:380px){
+  .app-shell{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+  .topbar{gap:8px}
+  .brand-mark{width:40px;height:40px}
+  .brand-mark img{inset:4px;width:32px;height:32px}
+  .brand-copy strong{font-size:16px}
+  .brand-copy span{font-size:10px}
+  .icon-button{width:36px;height:36px}
+  .hero-card{min-height:208px;padding:15px 13px}
+  .hero-copy{max-width:67%}
+  .hero-card .subscription-heading{font-size:19px;letter-spacing:-.6px;gap:6px;margin-bottom:10px}
+  .subscription-dot{width:10px;height:10px;margin-top:5px}
+  .hero-card p{font-size:10px;line-height:1.45;margin-bottom:11px}
+  .hero-card .button{padding:10px;font-size:10px}
+  .racer:not(.racer-small){width:132px;height:94px;right:-4px;bottom:11px}
+  .section-heading h2{font-size:16px}
+  .connect-card-heading strong{font-size:13px}
+  .connect-row .row-copy strong{font-size:12px}
+  .connect-row .row-copy span{font-size:9px}
+  .profile-row{gap:8px}
+  .profile-row .service-icon{width:34px;height:34px}
+  .service-card,.coming-card{padding:13px}
+  .service-card-bottom .button{font-size:10px;padding:9px}
+  .coming-content .racer-small{width:100px;height:80px}
+  .page-title h1{font-size:26px}
+  .profile-intro{padding-bottom:18px}
+}
+@media(max-width:340px){
+  .hero-copy{max-width:70%}
+  .hero-card .subscription-heading{font-size:18px}
+  .racer:not(.racer-small){width:116px;height:84px;right:-5px}
+  .archive-filter{font-size:10px;padding-inline:9px}
+  .bottom-nav button{font-size:9px}
+}
