@@ -31,21 +31,37 @@ export default {
       try {
         await saveUser(env.DB, user);
         if (route === "/api/me" && request.method === "GET") {
+          const ownerId = String(user.id);
+          const subscription = await getSubscription(env.DB, ownerId);
           const [connections, events] = await Promise.all([
             env.DB.prepare("SELECT connection_id, enabled, updated_at FROM connections WHERE owner_id = ? ORDER BY updated_at DESC")
-              .bind(String(user.id)).all(),
-            env.DB.prepare("SELECT id, chat_id, message_id, event_type, message_json, created_at FROM events WHERE owner_id = ? ORDER BY id DESC LIMIT 25")
-              .bind(String(user.id)).all(),
+              .bind(ownerId).all(),
+            subscription.active
+              ? env.DB.prepare("SELECT id, chat_id, message_id, event_type, message_json, created_at FROM events WHERE owner_id = ? ORDER BY id DESC LIMIT 25").bind(ownerId).all()
+              : Promise.resolve({ results: [] }),
           ]);
           return json({
             user,
             connections: connections.results,
             events: events.results.map(eventRow),
-            subscription: await getSubscription(env.DB, String(user.id)),
+            subscription,
+            can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
           });
         }
 
+        if (route === "/api/subscription/test-override" && request.method === "POST") {
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) return json({ error: "not found" }, 404);
+          const body = await readJson(request);
+          if (typeof body.active !== "boolean") return json({ error: "active must be a boolean" }, 400);
+          await env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscription_test_overrides (owner_id TEXT PRIMARY KEY, active INTEGER NOT NULL CHECK(active IN (0, 1)), updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
+          await env.DB.prepare(`INSERT INTO subscription_test_overrides(owner_id, active) VALUES(?, ?) ON CONFLICT(owner_id) DO UPDATE SET active = excluded.active, updated_at = CURRENT_TIMESTAMP`).bind(ownerId, Number(body.active)).run();
+          return json({ subscription: await getSubscription(env.DB, ownerId) });
+        }
+
         if (route === "/api/archive" && request.method === "GET") {
+          const subscription = await getSubscription(env.DB, String(user.id));
+          if (!subscription.active) return json({ error: "subscription_required" }, 403);
           const events = await env.DB.prepare(
             "SELECT id, chat_id, message_id, event_type, message_json, created_at FROM events WHERE owner_id = ? ORDER BY id DESC LIMIT 200",
           ).bind(String(user.id)).all();
@@ -204,12 +220,19 @@ async function userFromRequest(request, env) {
   try {
     row = await db.prepare("SELECT expires_at FROM subscriptions WHERE owner_id = ?").bind(ownerId).first();
   } catch (error) {
-    if (/no such table: subscriptions/i.test(String(error?.message || error))) return { active: false, expires_at: null };
-    throw error;
+    if (!/no such table: subscriptions/i.test(String(error?.message || error))) throw error;
   }
   const expiresAt = row?.expires_at || null;
   const expiresTime = expiresAt ? Date.parse(expiresAt) : NaN;
-  return { active: Number.isFinite(expiresTime) && expiresTime > Date.now(), expires_at: expiresAt };
+  const paidActive = Number.isFinite(expiresTime) && expiresTime > Date.now();
+  let override = null;
+  try {
+    const test = await db.prepare("SELECT active FROM subscription_test_overrides WHERE owner_id = ?").bind(ownerId).first();
+    if (test) override = Boolean(test.active);
+  } catch (error) {
+    if (!/no such table: subscription_test_overrides/i.test(String(error?.message || error))) throw error;
+  }
+  return { active: override === null ? paidActive : override, expires_at: expiresAt, test_override: override };
 }
 
 async function saveUser(db, user) {
