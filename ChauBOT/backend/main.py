@@ -85,7 +85,40 @@ class Handler(BaseHTTPRequestHandler):
             user = self._user(); owner = str(user["id"]); db = connect_db()
             db.execute("INSERT INTO users(telegram_id,username,first_name,language_code) VALUES(?,?,?,?) ON CONFLICT(telegram_id) DO UPDATE SET username=excluded.username,first_name=excluded.first_name,language_code=excluded.language_code", (owner,user.get("username"),user.get("first_name"),user.get("language_code")))
             if route == "/api/archive":
-                events = db.execute("SELECT id,chat_id,message_id,event_type,message_json,created_at FROM events WHERE owner_id=? ORDER BY id DESC LIMIT 200", (owner,)).fetchall()
+                events = db.execute("""
+                    WITH archive_events AS (
+                      SELECT id, owner_id, chat_id, message_id, event_type
+                      FROM events
+                      WHERE owner_id=? AND (
+                        event_type IN ('edited','deleted')
+                        OR json_extract(message_json, '$.ephemeral_message_id') IS NOT NULL
+                        OR json_extract(message_json, '$.receiver_user.id') IS NOT NULL
+                        OR COALESCE(CAST(json_extract(message_json, '$.ttl_period') AS INTEGER), 0) > 0
+                      )
+                    ),
+                    snapshot_ids AS (
+                      SELECT (
+                        SELECT previous.id FROM events previous
+                        WHERE previous.owner_id=archive_events.owner_id
+                          AND previous.chat_id=archive_events.chat_id
+                          AND previous.message_id=archive_events.message_id
+                          AND previous.id < archive_events.id
+                          AND previous.event_type != 'deleted'
+                        ORDER BY previous.id DESC LIMIT 1
+                      ) AS id
+                      FROM archive_events
+                      WHERE event_type IN ('edited','deleted')
+                    ),
+                    selected_ids AS (
+                      SELECT id FROM archive_events
+                      UNION
+                      SELECT id FROM snapshot_ids WHERE id IS NOT NULL
+                    )
+                    SELECT events.id, events.chat_id, events.message_id, events.event_type,
+                           events.message_json, events.created_at
+                    FROM events JOIN selected_ids ON selected_ids.id=events.id
+                    ORDER BY events.id DESC
+                """, (owner,)).fetchall()
                 return self._json(200, {"events": [event_row(row) for row in events]})
             connections = db.execute("SELECT connection_id,enabled,updated_at FROM connections WHERE owner_id=?",(owner,)).fetchall()
             events = db.execute("SELECT id,chat_id,message_id,event_type,message_json,created_at FROM events WHERE owner_id=? ORDER BY id DESC LIMIT 25",(owner,)).fetchall()

@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.12" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.13" });
     }
 
     const mediaMatch = route.match(/^\/api\/media\/(\d+)$/);
@@ -79,7 +79,38 @@ export default {
           const subscription = await getSubscription(env.DB, String(user.id));
           if (!subscription.active) return json({ error: "subscription_required" }, 403);
           const events = await env.DB.prepare(
-            "SELECT id, owner_id, chat_id, message_id, event_type, message_json, created_at FROM events WHERE owner_id = ? ORDER BY id DESC LIMIT 200",
+            `WITH archive_events AS (
+              SELECT id, owner_id, chat_id, message_id, event_type
+              FROM events
+              WHERE owner_id = ? AND (
+                event_type IN ('edited', 'deleted')
+                OR json_extract(message_json, '$.ephemeral_message_id') IS NOT NULL
+                OR json_extract(message_json, '$.receiver_user.id') IS NOT NULL
+                OR COALESCE(CAST(json_extract(message_json, '$.ttl_period') AS INTEGER), 0) > 0
+              )
+            ),
+            snapshot_ids AS (
+              SELECT (
+                SELECT previous.id FROM events previous
+                WHERE previous.owner_id = archive_events.owner_id
+                  AND previous.chat_id = archive_events.chat_id
+                  AND previous.message_id = archive_events.message_id
+                  AND previous.id < archive_events.id
+                  AND previous.event_type != 'deleted'
+                ORDER BY previous.id DESC LIMIT 1
+              ) AS id
+              FROM archive_events
+              WHERE event_type IN ('edited', 'deleted')
+            ),
+            selected_ids AS (
+              SELECT id FROM archive_events
+              UNION
+              SELECT id FROM snapshot_ids WHERE id IS NOT NULL
+            )
+            SELECT events.id, events.owner_id, events.chat_id, events.message_id,
+                   events.event_type, events.message_json, events.created_at
+            FROM events JOIN selected_ids ON selected_ids.id = events.id
+            ORDER BY events.id DESC`,
           ).bind(String(user.id)).all();
           return json({ events: await Promise.all(events.results.map((row) => eventRow(row, env))) });
         }
