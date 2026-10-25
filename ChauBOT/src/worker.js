@@ -41,6 +41,7 @@ export default {
             user,
             connections: connections.results,
             events: events.results.map(eventRow),
+            subscription: await getSubscription(env.DB, String(user.id)),
           });
         }
 
@@ -198,6 +199,17 @@ async function userFromRequest(request, env) {
   const authorization = request.headers.get("Authorization") || "";
   if (!authorization.startsWith("tma ")) throw new Error("Telegram initData required");
   return validateInitData(authorization.slice(4), env);
+}async function getSubscription(db, ownerId) {
+  let row;
+  try {
+    row = await db.prepare("SELECT expires_at FROM subscriptions WHERE owner_id = ?").bind(ownerId).first();
+  } catch (error) {
+    if (/no such table: subscriptions/i.test(String(error?.message || error))) return { active: false, expires_at: null };
+    throw error;
+  }
+  const expiresAt = row?.expires_at || null;
+  const expiresTime = expiresAt ? Date.parse(expiresAt) : NaN;
+  return { active: Number.isFinite(expiresTime) && expiresTime > Date.now(), expires_at: expiresAt };
 }
 
 async function saveUser(db, user) {
