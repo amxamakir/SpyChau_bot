@@ -1,5 +1,9 @@
 # SpyChau release process
 
+## Recent releases
+
+- `v0.7.5: Use Rubik and enlarge profile text` — применён шрифт Rubik и увеличена типографика в профиле.
+
 ## Every production update
 
 1. Use the next semantic version: `PATCH` for a fix, `MINOR` for a backward-compatible feature, and `MAJOR` for a breaking change or a change that needs a user action.
