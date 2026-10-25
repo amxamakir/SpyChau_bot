@@ -3,6 +3,8 @@ const icon = (name, size = 20) => {
     home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2m2 0-.8 14H6.8L6 6m4 4v6m4-6v6"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
     chat: '<path d="M21 11.5a8.5 8.5 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.8L3 21l1.8-4.5A8.5 8.5 0 1 1 21 11.5Z"/>',
     people: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
     archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v11h14V9M10 13h4"/>',
@@ -27,9 +29,16 @@ const icon = (name, size = 20) => {
 
 const state = {
   tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  notificationPreferences: loadNotificationPreferences(),
   loading: false, archiveLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
+
+function loadNotificationPreferences() {
+  const defaults = { deleted_messages: false, edited_messages: false, group_messages: false, deleted_by_owner: false, edited_by_owner: false };
+  try { return { ...defaults, ...JSON.parse(localStorage.getItem('spychau-notification-preferences') || '{}') }; }
+  catch { return defaults; }
+}
 const app = document.querySelector('#root');
 
 function syncTelegramSafeArea() {
@@ -270,7 +279,9 @@ function profile() {
 }
 
 function notificationsPage() {
-  return `<section class="page profile-page notifications-page"><div class="page-title"><span class="eyebrow">МОЙ АККАУНТ</span><h1>Уведомления</h1><p>Настройки оповещений приложения.</p></div><div class="profile-card notifications-placeholder"><div class="profile-row"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Настройки появятся здесь</strong><small>Отдельный раздел для управления оповещениями.</small></span></div></div><button class="text-button" data-tab="profile">${icon('chevron', 17)} Назад в профиль</button></section>`;
+  const preferences = state.notificationPreferences;
+  const switchRow = (key, title, description, iconName, color, disabled = false) => `<button type="button" class="profile-row notification-switch-row" role="switch" aria-checked="${Boolean(preferences[key])}" aria-label="${escapeHtml(title)}" data-notification-toggle="${key}" ${disabled || !state.authenticated ? 'disabled' : ''}><span class="service-icon ${color}">${icon(iconName, 19)}</span><span class="row-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span><span class="test-switch ${preferences[key] ? 'on' : ''}" aria-hidden="true"><i></i></span></button>`;
+  return `<section class="page profile-page notifications-page"><div class="page-title"><span class="eyebrow">МОЙ АККАУНТ</span><h1>Уведомления</h1><p>Выбери, какие типы событий учитывать.</p></div><span class="list-label">СООБЩЕНИЯ СОБЕСЕДНИКОВ</span><div class="profile-card">${switchRow('deleted_messages', 'Удалённые сообщения', 'События удаления в подключённых чатах', 'trash', 'red')}${switchRow('edited_messages', 'Изменённые сообщения', 'События изменения в подключённых чатах', 'edit', 'yellow')}${switchRow('group_messages', 'Сообщения в группах', 'Групповые чаты пока не подключены', 'people', 'purple', true)}</div><span class="list-label">МОИ ДЕЙСТВИЯ</span><div class="profile-card">${switchRow('deleted_by_owner', 'Удалённые мной', 'Telegram не сообщает, кто удалил сообщение', 'trash', 'blue', true)}${switchRow('edited_by_owner', 'Изменённые мной', 'Telegram не сообщает, кто изменил сообщение', 'edit', 'blue', true)}</div><div class="notification-note">${state.preview ? 'Открой приложение через Telegram, чтобы сохранять настройки.' : 'Настройки сохраняются на этом устройстве. Отправка уведомлений ботом пока не подключена.'} Одноразовые сообщения пока доступны в архиве.</div><button class="text-button" data-tab="profile">${icon('chevron', 17)} Назад в профиль</button></section>`;
 }
 
 function subscriptionPage() {
@@ -399,7 +410,7 @@ app.addEventListener('submit', async event => {
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab], [data-archive-filter], [data-contact-id]');
+  const target = event.target.closest('[data-action], [data-tab], [data-archive-filter], [data-contact-id], [data-notification-toggle]');
   if (!target) return;
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.contactId) {
@@ -431,6 +442,17 @@ app.addEventListener('click', async event => {
   if (target.dataset.archiveFilter) {
     state.archiveFilter = target.dataset.archiveFilter;
     render();
+    return;
+  }
+  if (target.dataset.notificationToggle) {
+    const key = target.dataset.notificationToggle;
+    if (!['deleted_messages', 'edited_messages'].includes(key)) return;
+    const next = { ...state.notificationPreferences, [key]: !state.notificationPreferences[key] };
+    state.notificationPreferences = next;
+    try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(next)); }
+    catch { toast('Не удалось сохранить выбор на этом устройстве.'); }
+    render();
+    toast('Выбор сохранён на этом устройстве.');
     return;
   }
   const action = target.dataset.action;

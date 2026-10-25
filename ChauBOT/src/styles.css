@@ -368,3 +368,7 @@ img,svg{max-width:100%}
 .contact-count,.contact-detail-copy>p:last-child,.archive-summary{color:#fff8ee}
 .contact-list .contact-copy small:not(.contact-identity-line){color:#fff8ee}
 .contact-event-row .event-title-line time{color:#fff8ee}
+.service-icon.red{background:rgba(238,41,56,.16);color:#ff7368}
+.notification-switch-row:disabled{opacity:.62;cursor:not-allowed}
+.notification-switch-row .test-switch.on{background:#e82c3d;border-color:#ff7856}
+.notification-note{margin:12px 3px;color:#b49d94;font-size:11px;line-height:1.5}
