@@ -108,3 +108,10 @@ body{background:#100b0c}
 .connect-card{margin-top:6px}
 .brand-mark img{position:absolute;inset:5px;width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #ffd766}
 @media(min-width:740px){.topbar{margin-bottom:15px}}
+
+/* Subscription status on the home card */
+.hero-card .subscription-heading{display:flex;align-items:flex-start;gap:8px;font-size:25px;line-height:1.13;margin:0 0 14px;max-width:260px}
+.subscription-dot{flex:none;width:11px;height:11px;margin-top:8px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,.13)}
+.subscription-dot.active{background:#26d976}
+.subscription-dot.inactive{background:#ed3046}
+@media(max-width:430px){.hero-card .subscription-heading{font-size:22px;gap:7px;margin-bottom:13px}.subscription-dot{margin-top:6px}}
