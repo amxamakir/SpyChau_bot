@@ -164,10 +164,18 @@ function archiveEventRow(event) {
   return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(archiveEventText(event))}</span></div></article>`;
 }
 
+function homeContactRow(contact) {
+  const kinds = [...new Set(contact.events.map(event => {
+    const kind = archiveEventKind(event);
+    return kind === 'deleted' ? 'Удалено' : kind === 'edited' ? 'Изменено' : 'Одноразовое';
+  }))];
+  return `<button type="button" class="contact-row home-contact-row" data-contact-id="${escapeHtml(contact.id)}"><span class="contact-avatar">${escapeHtml(contact.name.slice(0, 1).toLocaleUpperCase('ru'))}</span><span class="contact-copy"><strong>${escapeHtml(contact.name)}</strong><small>${escapeHtml(kinds.join(' · '))}</small></span><span class="contact-count">${contact.events.length} ${plural(contact.events.length, 'событие', 'события', 'событий')}</span>${icon('chevron', 16)}</button>`;
+}
+
 function home() {
   const subscriptionActive = Boolean(state.subscription?.active);
-  const latest = state.events.slice(0, 3);
-  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionActive ? 'Подписка активна' : 'Подписка не активна'}</h1><p>${subscriptionActive ? 'Я в гонке, сохраняю все изменения и удаления' : 'Я не на дороге и не сохраняю удаленное. Подключай - и вернусь в гонку.'}</p><button class="button button-light" data-action="${state.preview ? 'telegram' : 'connect'}">Подключить ${icon('chevron', 16)}</button></div>${racer()}<div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div></div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2><p>Последние события в архиве</p></div><button class="text-button" data-tab="archive">Весь архив ${icon('chevron', 17)}</button></div>${state.loading ? `<div class="empty-events"><div class="loading-indicator"></div><strong>Загружаем архив</strong><p>Получаем состояние аккаунта.</p></div>` : latest.length ? `<div class="events-list">${latest.map(eventCard).join('')}</div>` : `<div class="empty-events"><div class="empty-art search-mascot"><img src="./assets/mascot/spy-chau-searching.png" alt="SpyChau ищет в телефоне с лупой" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока тихо на трассе'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
+  const contacts = archiveContacts().slice(0, 3);
+  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionActive ? 'Подписка активна' : 'Подписка не активна'}</h1><p>${subscriptionActive ? 'Я в гонке, сохраняю все изменения и удаления' : 'Я не на дороге и не сохраняю удаленное. Подключай - и вернусь в гонку.'}</p><button class="button button-light" data-action="${state.preview ? 'telegram' : 'connect'}">Подключить ${icon('chevron', 16)}</button></div>${racer()}<div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div></div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2><p>Контакты и связанные события</p></div><button class="text-button" data-tab="archive">Весь архив ${icon('chevron', 17)}</button></div>${state.loading ? `<div class="empty-events"><div class="loading-indicator"></div><strong>Загружаем архив</strong><p>Получаем состояние аккаунта.</p></div>` : contacts.length ? `<div class="contact-list home-contact-list">${contacts.map(homeContactRow).join('')}</div>` : `<div class="empty-events"><div class="empty-art search-mascot"><img src="./assets/mascot/spy-chau-searching.png" alt="SpyChau ищет в телефоне с лупой" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока тихо на трассе'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
 
 function services() {
@@ -357,6 +365,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.contactId) {
     state.archiveContactId = target.dataset.contactId;
     state.archiveFilter = 'all';
+    state.tab = 'archive';
     render();
     return;
   }
