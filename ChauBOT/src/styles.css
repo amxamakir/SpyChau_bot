@@ -365,3 +365,6 @@ img,svg{max-width:100%}
 .event-type-icon.one-time{color:var(--archive-one-time);background:rgba(75,52,76,.38)}
 .contact-copy .contact-identity-line,.contact-detail-copy p.contact-identity-line{color:#edbd78;font-weight:600}
 .contact-detail-copy p.contact-identity-line{overflow-wrap:anywhere}
+.contact-count,.contact-detail-copy>p:last-child,.archive-summary{color:#fff8ee}
+.contact-list .contact-copy small:not(.contact-identity-line){color:#fff8ee}
+.contact-event-row .event-title-line time{color:#fff8ee}
