@@ -363,3 +363,7 @@ img,svg{max-width:100%}
 .event-type-icon.deleted{color:var(--archive-deleted);background:rgba(125,41,50,.28)}
 .event-type-icon.edited{color:var(--archive-edited);background:rgba(118,80,24,.28)}
 .event-type-icon.one-time{color:var(--archive-one-time);background:rgba(75,52,76,.38)}
+.contact-copy .contact-identity-line,.contact-detail-copy p.contact-identity-line{color:#edbd78;font-weight:600}
+.contact-detail-copy p.contact-identity-line{overflow-wrap:anywhere}
+.contact-event-context{margin:-5px 0 10px 59px;color:#b49d94;font-size:11px;line-height:1.45}
+@media(max-width:360px){.contact-event-context{margin-left:48px}}

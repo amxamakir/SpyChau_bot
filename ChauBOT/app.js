@@ -134,6 +134,12 @@ function eventContactName(event) {
     || `Контакт ${String(event.chat_id || '').slice(-4)}`;
 }
 
+function eventContactIdentity(contact) {
+  return [contact.username ? `@${contact.username}` : '', contact.telegramId ? `ID чата: ${contact.telegramId}` : '']
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function previousMessageSnapshot(event) {
   return state.events.find(candidate => candidate.event_type !== 'deleted'
     && String(candidate.chat_id) === String(event.chat_id)
@@ -165,11 +171,20 @@ function archiveContacts() {
     if (!chatId) continue;
     let contact = contacts.get(chatId);
     if (!contact) {
-      contact = { id: chatId, name: eventContactName(event), events: [], latestId: Number(event.id) || 0 };
+      contact = {
+        id: chatId,
+        name: eventContactName(event),
+        username: chat.username || '',
+        telegramId: String(chat.id || chatId),
+        events: [],
+        latestId: Number(event.id) || 0,
+      };
       contacts.set(chatId, contact);
     }
     contact.events.push(event);
     contact.latestId = Math.max(contact.latestId, Number(event.id) || 0);
+    if (chat.username) contact.username = chat.username;
+    if (chat.id) contact.telegramId = String(chat.id);
     if (contact.name.startsWith('Контакт ')) contact.name = eventContactName(event);
   }
   return [...contacts.values()].sort((left, right) => right.latestId - left.latestId);
@@ -221,7 +236,8 @@ function archive() {
   if (selectedContact) {
     const selectedEvents = selectedContact.events.filter(event => state.archiveFilter === 'all' || archiveEventKind(event) === state.archiveFilter);
     const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
-    return `<section class="page archive-page"><button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading"><div class="contact-avatar">${escapeHtml(selectedContact.name.slice(0, 1).toLocaleUpperCase('ru'))}</div><div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1><p>${selectedContact.events.length} ${plural(selectedContact.events.length, 'событие', 'события', 'событий')}</p></div><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(archiveEventRow).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
+    const identity = eventContactIdentity(selectedContact);
+    return `<section class="page archive-page"><button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading"><div class="contact-avatar">${escapeHtml(selectedContact.name.slice(0, 1).toLocaleUpperCase('ru'))}</div><div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}<p>${selectedContact.events.length} ${plural(selectedContact.events.length, 'событие', 'события', 'событий')}</p></div><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div><p class="contact-event-context">События в переписке с этим контактом. Telegram не показывает, кто нажал «Удалить».</p><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(archiveEventRow).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
   }
 
   const matchingContacts = contacts.filter(contact => {
@@ -229,7 +245,7 @@ function archive() {
     const content = `${contact.name} ${contact.events.map(archiveEventText).join(' ')}`.toLocaleLowerCase('ru');
     return content.includes(query);
   });
-  const contactRows = matchingContacts.map(contact => `<button type="button" class="contact-row" data-contact-id="${escapeHtml(contact.id)}"><span class="contact-avatar">${escapeHtml(contact.name.slice(0, 1).toLocaleUpperCase('ru'))}</span><span class="contact-copy"><strong>${escapeHtml(contact.name)}</strong><small>${escapeHtml(eventTitle(contact.events[0]))} · ${escapeHtml(formatDate(contact.events[0].created_at))}</small></span><span class="contact-count">${contact.events.length} ${plural(contact.events.length, 'событие', 'события', 'событий')}</span>${icon('chevron', 16)}</button>`).join('');
+  const contactRows = matchingContacts.map(contact => `<button type="button" class="contact-row" data-contact-id="${escapeHtml(contact.id)}"><span class="contact-avatar">${escapeHtml(contact.name.slice(0, 1).toLocaleUpperCase('ru'))}</span><span class="contact-copy"><strong>${escapeHtml(contact.name)}</strong>${eventContactIdentity(contact) ? `<small class="contact-identity-line">${escapeHtml(eventContactIdentity(contact))}</small>` : ''}<small>${escapeHtml(eventTitle(contact.events[0]))} · ${escapeHtml(formatDate(contact.events[0].created_at))}</small></span><span class="contact-count">${contact.events.length} ${plural(contact.events.length, 'событие', 'события', 'событий')}</span>${icon('chevron', 16)}</button>`).join('');
   return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ЛИЧНЫХ ЧАТОВ</span><h1>Контакты</h1><p>Диалоги, в которых были события.</p></div><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск контакта или события" autocomplete="off"></label>${contacts.length ? `<div class="archive-summary"><span>${matchingContacts.length} ${plural(matchingContacts.length, 'контакт', 'контакта', 'контактов')} с событиями</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div>${contactRows ? `<div class="contact-list">${contactRows}</div>` : emptyState}` : emptyState}${disclaimer}</section>`;
 }
 
