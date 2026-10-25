@@ -105,6 +105,9 @@ function services() {
 }
 
 function archive() {
+  if (!state.preview && !state.subscription?.active) {
+    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>Подписка не активна</strong><p>Архив событий и функции подписки будут доступны после подключения подписки.</p><button class="subtle-button" data-action="subscription-info">Как подключить ${icon('chevron', 15)}</button></div></section>`;
+  }
   const filtered = state.events.filter(event => {
     const text = `${eventTitle(event)} ${eventDescription(event)} ${event.chat_id} ${event.message_id}`.toLowerCase();
     return text.includes(state.query.toLowerCase());
@@ -122,12 +125,14 @@ function plural(number, one, few, many) {
 
 function profile() {
   const user = state.user;
+  const testOverride = state.subscription?.test_override;
+  const testActive = testOverride === null || testOverride === undefined ? Boolean(state.subscription?.active) : Boolean(testOverride);
   const activeCount = state.connections.filter(connection => Number(connection.enabled) === 1).length;
   const title = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Пользователь Telegram' : 'Предпросмотр';
   const secondary = user?.username ? `@${user.username}` : 'Аккаунт Telegram';
   const telegramId = state.authenticated && user?.id ? String(user.id) : null;
   const photoUrl = state.authenticated && typeof user?.photo_url === 'string' && /^https:\/\//i.test(user.photo_url) ? user.photo_url : null;
-  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id" style="color:#d9b890">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">ТВОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong><small>${state.preview ? 'Вход через Telegram не выполнен' : `${activeCount} активных · ${state.connections.length} всего`}</small></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="archive"><span class="service-icon cyan">${icon('archive', 19)}</span><span class="row-copy"><strong>Архив событий</strong><small>${state.preview ? 'Открой приложение через Telegram' : `${state.events.length} последних событий`}</small></span>${icon('chevron', 18)}</button><button class="profile-row" data-action="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong><small>Доступ и ограничения Telegram</small></span>${icon('chevron', 18)}</button></div><span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-action="support"><span class="service-icon blue">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong><small>Контакт поддержки добавим перед запуском</small></span>${icon('chevron', 18)}</button><button class="profile-row" data-action="delete-data"><span class="service-icon muted">${icon('close', 19)}</span><span class="row-copy"><strong>Удалить мои данные</strong><small>Очистить профиль и события из архива</small></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpyChau · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
+  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id" style="color:#d9b890">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">ТВОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong><small>${state.preview ? 'Вход через Telegram не выполнен' : `${activeCount} активных · ${state.connections.length} всего`}</small></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="archive"><span class="service-icon cyan">${icon('archive', 19)}</span><span class="row-copy"><strong>Архив событий</strong><small>${state.preview ? 'Открой приложение через Telegram' : `${state.events.length} последних событий`}</small></span>${icon('chevron', 18)}</button><button class="profile-row" data-action="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong><small>Доступ и ограничения Telegram</small></span>${icon('chevron', 18)}</button></div>${state.subscription?.can_test_override ? `<span class="list-label">ТЕСТОВЫЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Тестовая подписка</strong><small>${state.subscriptionToggleLoading ? 'Сохраняем…' : testActive ? 'Включена · доступны функции подписки' : 'Выключена · функции ограничены'}</small></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button></div>` : ''}<span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-action="support"><span class="service-icon blue">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong><small>Контакт поддержки добавим перед запуском</small></span>${icon('chevron', 18)}</button><button class="profile-row" data-action="delete-data"><span class="service-icon muted">${icon('close', 19)}</span><span class="row-copy"><strong>Удалить мои данные</strong><small>Очистить профиль и события из архива</small></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpyChau · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
 }
 
 function nav() {
@@ -142,6 +147,7 @@ function modal() {
   if (state.modal === 'telegram') body = `<div class="modal-icon blue">${icon('user', 23)}</div><span class="eyebrow">TELEGRAM MINI APP</span><h2>Как открыть приложение в Telegram</h2><p>Сейчас Mini App ещё не привязана к кнопке бота. После загрузки обновлённого приложения настроим кнопку запуска через BotFather.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
   if (state.modal === 'privacy' || state.modal === 'about') body = `<div class="modal-icon green">${icon('shield', 23)}</div><span class="eyebrow">${state.modal === 'about' ? 'О SPYCHAU' : 'ПРОЗРАЧНОСТЬ'}</span><h2>${state.modal === 'about' ? 'Архив событий подключённых чатов' : 'Доступ и данные под твоим контролем'}</h2><p>Бот может получать только те события и сообщения, которые Telegram передаёт после того, как владелец аккаунта подключил бизнес-бота и выбрал чаты.</p><div class="privacy-points"><div>${icon('check', 16)}<span>Секретные чаты не доступны официальному Bot API</span></div><div>${icon('check', 16)}<span>Содержимое до подключения не появится в архиве</span></div><div>${icon('check', 16)}<span>Удалить профиль и сохранённые события можно из раздела «Профиль»</span></div></div><button class="button button-blue modal-primary" data-action="close">Закрыть ${icon('chevron', 16)}</button>`;
   if (state.modal === 'groups') body = `<div class="modal-icon purple">${icon('people', 23)}</div><span class="eyebrow">ГРУППОВЫЕ ЧАТЫ</span><h2>Это отдельная функция</h2><p>Подключение Telegram Business работает с разрешёнными личными чатами. Для группового режима нужно отдельно добавить бота в группу и корректно настроить его права. Этот сценарий пока не реализован.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
+  if (state.modal === 'subscription') body = `<div class="modal-icon blue">${icon('lock', 23)}</div><span class="eyebrow">ПОДПИСКА</span><h2>Подключение подписки</h2><p>Покупка подписки пока не подключена. Сейчас её статус проверяется на сервере, а тестовый переключатель доступен владельцу приложения в профиле.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
   if (state.modal === 'support') body = `<div class="modal-icon blue">${icon('help', 23)}</div><span class="eyebrow">ПОДДЕРЖКА</span><h2>Контакт поддержки ещё не настроен</h2><p>Добавим его до запуска сервиса для пользователей.</p><button class="button button-blue modal-primary" data-action="close">Закрыть ${icon('chevron', 16)}</button>`;
   return `<div class="modal-backdrop" data-action="backdrop"><div class="modal">${body}<button class="modal-close" data-action="close" aria-label="Закрыть">${icon('close', 18)}</button></div></div>`;
 }
@@ -182,13 +188,14 @@ async function loadMe() {
     const result = await api('/api/me');
     state.user = result.user;
     state.connections = result.connections || [];
-    state.subscription = result.subscription || null;
+    state.subscription = { ...(result.subscription || {}), can_test_override: Boolean(result.can_test_override) };
     state.events = result.events || [];
     state.authenticated = true;
   } catch (error) {
     state.apiError = error.message || 'Не удалось загрузить данные';
   } finally {
     state.loading = false;
+    state.subscriptionToggleLoading = false;
     render();
   }
 }
@@ -202,7 +209,12 @@ async function loadArchive() {
     const result = await api('/api/archive');
     state.events = result.events || [];
   } catch (error) {
-    state.apiError = error.message || 'Не удалось загрузить архив';
+    if (error.message === 'subscription_required') {
+      state.subscription = { ...state.subscription, active: false };
+      state.events = [];
+    } else {
+      state.apiError = error.message || 'Не удалось загрузить архив';
+    }
   } finally {
     state.archiveLoading = false;
     state.tab = 'archive';
@@ -225,6 +237,22 @@ app.addEventListener('click', async event => {
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
+  if (action === 'toggle-test-subscription') {
+    if (!state.subscription?.can_test_override || state.subscriptionToggleLoading) return;
+    state.subscriptionToggleLoading = true;
+    render();
+    try {
+      await api('/api/subscription/test-override', { method: 'POST', body: JSON.stringify({ active: !Boolean(state.subscription.active) }) });
+      await loadMe();
+      toast(`Тестовая подписка ${state.subscription?.active ? 'включена' : 'выключена'}.`);
+    } catch (error) {
+      state.subscriptionToggleLoading = false;
+      toast(error.message || 'Не удалось изменить тестовую подписку.');
+      render();
+    }
+    return;
+  }
+  if (action === 'subscription-info') { state.modal = 'subscription'; render(); return; }
   if (action === 'delete-data') {
     if (!state.authenticated) { toast('Открой Mini App из Telegram для управления данными.'); return; }
     if (!window.confirm('Удалить профиль и все события из архива? Это действие нельзя отменить.')) return;
