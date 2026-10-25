@@ -39,7 +39,9 @@ function syncTelegramSafeArea() {
   const visualHeight = Number(window.visualViewport?.height) || 0;
   const viewportHeight = stableHeight || visualHeight || window.innerHeight;
   const insetTop = Math.max(safeTop, contentTop);
-  const fullscreenFallback = Math.min(152, Math.max(120, viewportHeight * 0.15));
+  // Telegram overlays its controls on the WebView in fullscreen. Keep the
+  // app header below them even on clients that report a zero content inset.
+  const fullscreenFallback = Math.min(184, Math.max(144, viewportHeight * 0.18));
   const topInset = state.telegram?.isFullscreen
     ? Math.max(insetTop + 12, fullscreenFallback)
     : insetTop;
@@ -473,6 +475,13 @@ if (state.telegram) {
   state.telegram.expand?.();
   state.telegram.setHeaderColor?.('#14080c');
   state.telegram.setBackgroundColor?.('#14080c');
+  if (!state.telegram.isFullscreen && typeof state.telegram.requestFullscreen === 'function') {
+    try {
+      Promise.resolve(state.telegram.requestFullscreen()).then(syncTelegramSafeArea).catch(syncTelegramSafeArea);
+    } catch {
+      syncTelegramSafeArea();
+    }
+  }
   state.user = state.telegram.initDataUnsafe?.user || null;
 }
 render();
