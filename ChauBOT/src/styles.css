@@ -159,7 +159,8 @@ img,svg{max-width:100%}
 .service-card-bottom>.button{max-width:100%;white-space:normal}
 .coming-content{min-width:0;gap:8px}
 .coming-content>div:first-child{min-width:0}
-.archive-page,.archive-page .search-field,.archive-page .archive-list{width:100%;min-width:0;max-width:100%}
+.archive-page{width:100%;min-width:0}
+.archive-page .search-field,.archive-page .archive-list{width:100%;min-width:0;max-width:100%}
 .archive-page .search-field{padding-inline:10px}
 .archive-page .search-field input{min-width:0}
 .archive-filters{width:100%;max-width:100%;overscroll-behavior-x:contain}
