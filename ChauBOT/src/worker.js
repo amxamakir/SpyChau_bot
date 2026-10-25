@@ -33,7 +33,8 @@ export default {
         if (route === "/api/me" && request.method === "GET") {
           const ownerId = String(user.id);
           const subscription = await getSubscription(env.DB, ownerId);
-          const [connections, events] = await Promise.all([
+          const [profile, connections, events] = await Promise.all([
+            env.DB.prepare("SELECT receipt_email FROM users WHERE telegram_id = ?").bind(ownerId).first(),
             env.DB.prepare("SELECT connection_id, enabled, updated_at FROM connections WHERE owner_id = ? ORDER BY updated_at DESC")
               .bind(ownerId).all(),
             subscription.active
@@ -41,7 +42,7 @@ export default {
               : Promise.resolve({ results: [] }),
           ]);
           return json({
-            user,
+            user: { ...user, receipt_email: profile?.receipt_email || null },
             connections: connections.results,
             events: events.results.map(eventRow),
             subscription,
@@ -57,6 +58,16 @@ export default {
           await env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscription_test_overrides (owner_id TEXT PRIMARY KEY, active INTEGER NOT NULL CHECK(active IN (0, 1)), updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
           await env.DB.prepare(`INSERT INTO subscription_test_overrides(owner_id, active) VALUES(?, ?) ON CONFLICT(owner_id) DO UPDATE SET active = excluded.active, updated_at = CURRENT_TIMESTAMP`).bind(ownerId, Number(body.active)).run();
           return json({ subscription: await getSubscription(env.DB, ownerId) });
+        }
+
+        if (route === "/api/me/receipt-email" && request.method === "PUT") {
+          const body = await readJson(request);
+          const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+          if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return json({ error: "invalid_email" }, 400);
+          }
+          await env.DB.prepare("UPDATE users SET receipt_email = ? WHERE telegram_id = ?").bind(email, String(user.id)).run();
+          return json({ receipt_email: email });
         }
 
         if (route === "/api/archive" && request.method === "GET") {
