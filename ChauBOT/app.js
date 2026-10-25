@@ -35,7 +35,7 @@ const app = document.querySelector('#root');
 function syncTelegramSafeArea() {
   const safeTop = Number(state.telegram?.safeAreaInset?.top) || 0;
   const contentTop = Number(state.telegram?.contentSafeAreaInset?.top) || 0;
-  const topInset = Math.max(56, contentTop, safeTop + 12);
+  const topInset = Math.max(88, contentTop, safeTop + 20);
   document.documentElement.style.setProperty('--app-mobile-top-inset', `${topInset}px`);
 }
 
