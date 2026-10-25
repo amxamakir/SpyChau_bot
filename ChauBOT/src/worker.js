@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.6.0" });
+      return json({ status: "ok", service: "spychau-api", version: "0.7.0" });
     }
 
     if (route === "/api/auth/telegram" && request.method === "POST") {

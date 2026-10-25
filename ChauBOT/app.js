@@ -448,6 +448,9 @@ if (state.telegram) {
   state.telegram.expand?.();
   state.telegram.setHeaderColor?.('#100b0c');
   state.telegram.setBackgroundColor?.('#100b0c');
+  if (!state.telegram.isFullscreen && typeof state.telegram.requestFullscreen === 'function') {
+    try { state.telegram.requestFullscreen(); } catch { /* Keep the embedded layout if fullscreen is unavailable. */ }
+  }
   state.user = state.telegram.initDataUnsafe?.user || null;
 }
 render();
