@@ -115,6 +115,7 @@ body{background:#100b0c}
 .receipt-email-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;width:100%}
 .receipt-email-heading strong{flex:none}
 .receipt-email-value{min-width:0;max-width:62%;margin-left:auto;color:#d9b890;font-size:10px;font-weight:600;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.connect-card-heading{transform:translateY(3px)}
 
 /* Home spacing and Telegram profile photo */
 .topbar{margin-bottom:11px}
