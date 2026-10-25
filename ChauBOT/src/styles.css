@@ -289,3 +289,64 @@ img,svg{max-width:100%}
 .profile-page .profile-row .row-copy strong{font-size:14px;line-height:1.35;letter-spacing:-.15px}
 .profile-page .profile-row .row-copy small{font-size:12px;line-height:1.45}
 .profile-page .profile-footer{font-size:11px;line-height:1.5}
+
+/* Mobile typography tuned for iPhone 14 Pro Max logical viewport (430 CSS px). */
+@media(max-width:600px){
+  .brand-copy strong{font-size:20px}
+  .brand-copy span{font-size:14px}
+  .hero-card .subscription-heading{font-size:24px;line-height:1.18}
+  .hero-card p{font-size:13px;line-height:1.5}
+  .hero-card .button,.button{font-size:13px}
+  .hero-card .button{padding:12px 14px}
+  .section-heading h2{font-size:19px;line-height:1.25}
+  .section-heading p,.page-title p{font-size:13px;line-height:1.45}
+  .connect-card-heading strong{font-size:15px}
+  .count-badge{font-size:12px}
+  .connect-row .row-copy strong,.profile-row .row-copy strong{font-size:15px;line-height:1.3}
+  .connect-row .row-copy span,.connect-row .row-copy small,.profile-row .row-copy small{font-size:12px;line-height:1.4}
+  .connect-row .button-compact{font-size:0}
+  .contact-copy strong{font-size:14px}
+  .contact-copy small,.contact-count{font-size:11px}
+  .text-button{font-size:13px}
+  .trust-note{font-size:12px;line-height:1.4}
+  .bottom-nav button{font-size:10px}
+  .page-title h1{font-size:28px;line-height:1.15}
+  .eyebrow{font-size:10px}
+  .service-card h2{font-size:17px;line-height:1.3}
+  .service-card p,.service-card-bottom .button{font-size:13px;line-height:1.45}
+  .service-card-bottom .green-label,.service-card-bottom .muted-price,.service-card-bottom .lock-label{font-size:11px}
+  .archive-filter{font-size:12px}
+  .archive-summary{font-size:12px}
+  .event-title-line strong{font-size:13px}
+  .event-title-line time{font-size:10px}
+  .event-copy>span,.contact-event-row .event-copy>span{font-size:12px;line-height:1.5}
+  .event-copy small,.contact-event-row .event-title-line time{font-size:10px}
+  .archive-state strong,.empty-events>strong{font-size:15px}
+  .archive-state p,.empty-events>p{font-size:12px;line-height:1.5}
+  .archive-disclaimer,.profile-footer{font-size:11px;line-height:1.5}
+  .identity-copy strong{font-size:13px}
+  .identity-copy span{font-size:14px}
+  .identity-copy small{font-size:11px}
+  .identity-badge,.soon-tag{font-size:10px}
+  .profile-page .profile-intro h1{font-size:25px}
+  .profile-page .profile-account-line{font-size:15px!important}
+  .profile-page .profile-row .row-copy strong{font-size:15px}
+  .profile-page .profile-row .row-copy small{font-size:13px}
+  .receipt-email-value{font-size:12px}
+  .search-field input{font-size:13px}
+  .modal h2{font-size:24px;line-height:1.25}
+  .modal>p,.privacy-points{font-size:14px;line-height:1.5}
+  .steps>div{font-size:13px}
+  .modal-callout{font-size:12px;line-height:1.5}
+  .subtle-button{font-size:12px}
+}
+
+@media(max-width:380px){
+  .brand-copy strong{font-size:18px}
+  .hero-card .subscription-heading{font-size:22px}
+  .hero-card p{font-size:12px}
+  .section-heading h2{font-size:18px}
+  .connect-row .row-copy strong,.profile-row .row-copy strong{font-size:14px}
+  .connect-row .row-copy span,.connect-row .row-copy small,.profile-row .row-copy small{font-size:11px}
+  .bottom-nav button{font-size:9px}
+}
