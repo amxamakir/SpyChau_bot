@@ -26,7 +26,7 @@ const icon = (name, size = 20) => {
 };
 
 const state = {
-  tab: 'home', modal: null, query: '', user: null, connections: [], events: [], subscription: null,
+  tab: 'home', modal: null, query: '', archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
   loading: false, archiveLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
@@ -109,10 +109,17 @@ function archive() {
     return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>Подписка не активна</strong><p>Архив событий и функции подписки будут доступны после подключения подписки.</p><button class="subtle-button" data-action="subscription-info">Как подключить ${icon('chevron', 15)}</button></div></section>`;
   }
   const filtered = state.events.filter(event => {
+    const message = event.message || {};
+    const matchesFilter = state.archiveFilter === 'all'
+      || (state.archiveFilter === 'deleted' && event.event_type === 'deleted')
+      || (state.archiveFilter === 'edited' && event.event_type === 'edited')
+      || (state.archiveFilter === 'one-time' && Number(message.ttl_period) > 0);
     const text = `${eventTitle(event)} ${eventDescription(event)} ${event.chat_id} ${event.message_id}`.toLowerCase();
-    return text.includes(state.query.toLowerCase());
+    return matchesFilter && text.includes(state.query.toLowerCase());
   });
-  return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События, которые Telegram передал после подключения.</p></div><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Чат, текст или ID сообщения" autocomplete="off"></label>${state.archiveLoading ? `<div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем архив…</strong></div>` : filtered.length ? `<div class="archive-summary"><span>${filtered.length} ${plural(filtered.length, 'событие', 'события', 'событий')}</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div><div class="events-list archive-list">${filtered.map(eventCard).join('')}</div>` : `<div class="archive-state">${icon(state.preview ? 'lock' : 'archive', 24)}<strong>${state.query ? 'Ничего не найдено' : state.preview ? 'Открой приложение в Telegram' : 'Событий пока нет'}</strong><p>${state.query ? 'Измени запрос или очисти строку поиска.' : state.preview ? 'Личный архив доступен после входа через Telegram Mini App.' : state.apiError ? 'Не удалось получить данные. Попробуй обновить страницу.' : 'Новые события появятся здесь, если Telegram передаст их подключённому боту.'}</p>${state.apiError && !state.preview ? `<button class="subtle-button" data-action="refresh-archive">Повторить</button>` : ''}</div>`}<div class="archive-disclaimer">${icon('shield', 16)}<span>SpyChau не может восстановить данные, которые Telegram не передал боту. Секретные чаты не поддерживаются.</span></div></section>`;
+  const filters = [['all', 'Все'], ['deleted', 'Удалено'], ['edited', 'Изменено'], ['one-time', 'Одноразовые']];
+  const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
+  return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События, которые Telegram передал после подключения.</p></div><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Чат, текст или ID сообщения" autocomplete="off"></label><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${state.archiveLoading ? `<div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем архив…</strong></div>` : filtered.length ? `<div class="archive-summary"><span>${filtered.length} ${plural(filtered.length, 'событие', 'события', 'событий')}</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div><div class="events-list archive-list">${filtered.map(eventCard).join('')}</div>` : `<div class="archive-state">${icon(state.preview ? 'lock' : 'archive', 24)}<strong>${state.query || state.archiveFilter !== 'all' ? 'Ничего не найдено' : state.preview ? 'Открой приложение в Telegram' : 'Событий пока нет'}</strong><p>${state.query || state.archiveFilter !== 'all' ? 'Измени запрос или выбери другую категорию.' : state.preview ? 'Личный архив доступен после входа через Telegram Mini App.' : state.apiError ? 'Не удалось получить данные. Попробуй обновить страницу.' : 'Новые события появятся здесь, если Telegram передаст их подключённому боту.'}</p>${state.apiError && !state.preview ? `<button class="subtle-button" data-action="refresh-archive">Повторить</button>` : ''}</div>`}<div class="archive-disclaimer">${icon('shield', 16)}<span>SpyChau не может восстановить данные, которые Telegram не передал боту. Секретные чаты не поддерживаются.</span></div></section>`;
 }
 
 function plural(number, one, few, many) {
@@ -250,13 +257,18 @@ app.addEventListener('submit', async event => {
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab]');
+  const target = event.target.closest('[data-action], [data-tab], [data-archive-filter]');
   if (!target) return;
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.tab) {
     state.modal = null;
     if (target.dataset.tab === 'archive') { await loadArchive(); return; }
     state.tab = target.dataset.tab;
+    render();
+    return;
+  }
+  if (target.dataset.archiveFilter) {
+    state.archiveFilter = target.dataset.archiveFilter;
     render();
     return;
   }
