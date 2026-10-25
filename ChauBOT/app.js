@@ -26,7 +26,7 @@ const icon = (name, size = 20) => {
 };
 
 const state = {
-  tab: 'home', modal: null, query: '', archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
   loading: false, archiveLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
@@ -63,7 +63,16 @@ function connectCard() {
   return `<div class="connect-card"><div class="connect-card-heading"><strong>Подключения</strong><span class="count-badge" style="border:0;background:none;padding:0;color:var(--muted)">${count}</span></div><div class="connect-row"><div class="service-icon blue">${icon('chat', 20)}</div><div class="row-copy"><strong>Личные чаты</strong><span>${activeCount ? 'Подключение активно' : state.preview ? 'Открой приложение через Telegram' : 'Подключение настраивается позже'}</span></div><button class="button button-blue button-compact" data-action="connect">${state.preview ? 'Открыть в Telegram' : 'Подробнее'} ${icon('chevron', 15)}</button></div><div class="divider"></div><div class="connect-row"><div class="service-icon purple">${icon('people', 20)}</div><div class="row-copy"><strong>Группы</strong><span>Пока не подключены</span></div><button class="button button-blue button-compact" data-action="groups">Подробнее ${icon('chevron', 15)}</button></div></div>`;
 }
 
+function archiveEventKind(event) {
+  const message = event.message || {};
+  if (message.ephemeral_message_id != null || message.receiver_user?.id != null || Number(message.ttl_period) > 0) return 'one-time';
+  if (event.event_type === 'deleted') return 'deleted';
+  if (event.event_type === 'edited') return 'edited';
+  return null;
+}
+
 function eventTitle(event) {
+  if (archiveEventKind(event) === 'one-time') return 'Одноразовое сообщение';
   if (event.event_type === 'deleted') return 'Сообщение удалено';
   if (event.event_type === 'edited') return 'Сообщение изменено';
   return 'Новое сообщение';
@@ -78,6 +87,7 @@ function eventDescription(event) {
   if (message.voice) return 'Голосовое сообщение';
   if (message.video_note) return 'Видеосообщение';
   if (message.document) return 'Файл';
+  if (archiveEventKind(event) === 'one-time') return 'Одноразовое сообщение';
   if (event.event_type === 'deleted') return `ID сообщения: ${event.message_id || '—'}`;
   return 'Содержимое события получено от Telegram';
 }
@@ -89,8 +99,69 @@ function formatDate(value) {
 }
 
 function eventCard(event) {
-  const type = event.event_type === 'deleted' ? 'deleted' : event.event_type === 'edited' ? 'edited' : 'new';
-  return `<article class="event-row"><div class="event-type-icon ${type}">${icon(event.event_type === 'deleted' ? 'close' : event.message?.voice ? 'mic' : event.message?.photo ? 'image' : 'chat', 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(eventDescription(event))}</span><small>Чат ${escapeHtml(event.chat_id || '—')} · сообщение ${escapeHtml(event.message_id || '—')}</small></div></article>`;
+  const kind = archiveEventKind(event);
+  const type = kind || 'new';
+  const iconName = kind === 'deleted' ? 'close' : kind === 'one-time' ? 'clock' : event.message?.voice ? 'mic' : event.message?.photo ? 'image' : 'chat';
+  return `<article class="event-row"><div class="event-type-icon ${type}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(eventDescription(event))}</span><small>Чат ${escapeHtml(event.chat_id || '—')} · сообщение ${escapeHtml(event.message_id || '—')}</small></div></article>`;
+}
+
+function eventChat(event) {
+  return event.message?.chat || {};
+}
+
+function eventContactName(event) {
+  const chat = eventChat(event);
+  return [chat.first_name, chat.last_name].filter(Boolean).join(' ')
+    || chat.title
+    || (chat.username ? `@${chat.username}` : '')
+    || `Контакт ${String(event.chat_id || '').slice(-4)}`;
+}
+
+function previousMessageSnapshot(event) {
+  return state.events.find(candidate => candidate.event_type !== 'deleted'
+    && String(candidate.chat_id) === String(event.chat_id)
+    && String(candidate.message_id) === String(event.message_id)
+    && Number(candidate.id) < Number(event.id)) || null;
+}
+
+function archiveEventText(event) {
+  const kind = archiveEventKind(event);
+  const previous = previousMessageSnapshot(event);
+  if (kind === 'deleted') {
+    return previous ? eventDescription(previous) : `Текст не сохранился · ID сообщения ${event.message_id || '—'}`;
+  }
+  const currentText = eventDescription(event);
+  if (kind === 'edited' && previous) {
+    const previousText = eventDescription(previous);
+    if (previousText !== currentText) return `Было: ${previousText} · Стало: ${currentText}`;
+  }
+  return currentText;
+}
+
+function archiveContacts() {
+  const contacts = new Map();
+  for (const event of state.events) {
+    if (!archiveEventKind(event)) continue;
+    const chat = eventChat(event);
+    if (chat.type && chat.type !== 'private') continue;
+    const chatId = String(event.chat_id || chat.id || '');
+    if (!chatId) continue;
+    let contact = contacts.get(chatId);
+    if (!contact) {
+      contact = { id: chatId, name: eventContactName(event), events: [], latestId: Number(event.id) || 0 };
+      contacts.set(chatId, contact);
+    }
+    contact.events.push(event);
+    contact.latestId = Math.max(contact.latestId, Number(event.id) || 0);
+    if (contact.name.startsWith('Контакт ')) contact.name = eventContactName(event);
+  }
+  return [...contacts.values()].sort((left, right) => right.latestId - left.latestId);
+}
+
+function archiveEventRow(event) {
+  const kind = archiveEventKind(event);
+  const iconName = kind === 'deleted' ? 'close' : kind === 'one-time' ? 'clock' : 'chat';
+  return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(archiveEventText(event))}</span></div></article>`;
 }
 
 function home() {
@@ -108,18 +179,30 @@ function archive() {
   if (!state.preview && !state.subscription?.active) {
     return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>Подписка не активна</strong><p>Архив событий и функции подписки будут доступны после подключения подписки.</p><button class="subtle-button" data-action="subscription-info">Как подключить ${icon('chevron', 15)}</button></div></section>`;
   }
-  const filtered = state.events.filter(event => {
-    const message = event.message || {};
-    const matchesFilter = state.archiveFilter === 'all'
-      || (state.archiveFilter === 'deleted' && event.event_type === 'deleted')
-      || (state.archiveFilter === 'edited' && event.event_type === 'edited')
-      || (state.archiveFilter === 'one-time' && Number(message.ttl_period) > 0);
-    const text = `${eventTitle(event)} ${eventDescription(event)} ${event.chat_id} ${event.message_id}`.toLowerCase();
-    return matchesFilter && text.includes(state.query.toLowerCase());
+  const contacts = archiveContacts();
+  const query = state.query.trim().toLocaleLowerCase('ru');
+  const selectedContact = contacts.find(contact => contact.id === state.archiveContactId);
+  const filters = [['all', 'Все'], ['deleted', 'Удалено'], ['edited', 'Изменено'], ['one-time', 'Одноразовое']];
+  const disclaimer = `<div class="archive-disclaimer">${icon('shield', 16)}<span>События сгруппированы по личным чатам. Telegram не передаёт боту историю до подключения.</span></div>`;
+  const emptyState = `<div class="archive-state">${icon(state.preview ? 'lock' : 'archive', 24)}<strong>${query ? 'Ничего не найдено' : state.preview ? 'Открой приложение в Telegram' : 'Пока нет событий'}</strong><p>${query ? 'Попробуй поискать по имени контакта или тексту события.' : state.preview ? 'Личный архив доступен после входа через Telegram Mini App.' : state.apiError ? 'Не удалось получить данные. Попробуй обновить страницу.' : 'Контакты появятся здесь, когда в личном чате будет удаление, изменение или одноразовое сообщение.'}</p>${state.apiError && !state.preview ? `<button class="subtle-button" data-action="refresh-archive">Повторить</button>` : ''}</div>`;
+
+  if (state.archiveLoading) {
+    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ЛИЧНЫХ ЧАТОВ</span><h1>Контакты</h1><p>Диалоги, в которых были события.</p></div><div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем архив…</strong></div></section>`;
+  }
+
+  if (selectedContact) {
+    const selectedEvents = selectedContact.events.filter(event => state.archiveFilter === 'all' || archiveEventKind(event) === state.archiveFilter);
+    const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
+    return `<section class="page archive-page"><button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading"><div class="contact-avatar">${escapeHtml(selectedContact.name.slice(0, 1).toLocaleUpperCase('ru'))}</div><div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1><p>${selectedContact.events.length} ${plural(selectedContact.events.length, 'событие', 'события', 'событий')}</p></div><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(archiveEventRow).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
+  }
+
+  const matchingContacts = contacts.filter(contact => {
+    if (!query) return true;
+    const content = `${contact.name} ${contact.events.map(archiveEventText).join(' ')}`.toLocaleLowerCase('ru');
+    return content.includes(query);
   });
-  const filters = [['all', 'Все'], ['deleted', 'Удалено'], ['edited', 'Изменено'], ['one-time', 'Одноразовые']];
-  const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
-  return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События, которые Telegram передал после подключения.</p></div><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Чат, текст или ID сообщения" autocomplete="off"></label><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${state.archiveLoading ? `<div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем архив…</strong></div>` : filtered.length ? `<div class="archive-summary"><span>${filtered.length} ${plural(filtered.length, 'событие', 'события', 'событий')}</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div><div class="events-list archive-list">${filtered.map(eventCard).join('')}</div>` : `<div class="archive-state">${icon(state.preview ? 'lock' : 'archive', 24)}<strong>${state.query || state.archiveFilter !== 'all' ? 'Ничего не найдено' : state.preview ? 'Открой приложение в Telegram' : 'Событий пока нет'}</strong><p>${state.query || state.archiveFilter !== 'all' ? 'Измени запрос или выбери другую категорию.' : state.preview ? 'Личный архив доступен после входа через Telegram Mini App.' : state.apiError ? 'Не удалось получить данные. Попробуй обновить страницу.' : 'Новые события появятся здесь, если Telegram передаст их подключённому боту.'}</p>${state.apiError && !state.preview ? `<button class="subtle-button" data-action="refresh-archive">Повторить</button>` : ''}</div>`}<div class="archive-disclaimer">${icon('shield', 16)}<span>SpyChau не может восстановить данные, которые Telegram не передал боту. Секретные чаты не поддерживаются.</span></div></section>`;
+  const contactRows = matchingContacts.map(contact => `<button type="button" class="contact-row" data-contact-id="${escapeHtml(contact.id)}"><span class="contact-avatar">${escapeHtml(contact.name.slice(0, 1).toLocaleUpperCase('ru'))}</span><span class="contact-copy"><strong>${escapeHtml(contact.name)}</strong><small>${escapeHtml(eventTitle(contact.events[0]))} · ${escapeHtml(formatDate(contact.events[0].created_at))}</small></span><span class="contact-count">${contact.events.length} ${plural(contact.events.length, 'событие', 'события', 'событий')}</span>${icon('chevron', 16)}</button>`).join('');
+  return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ЛИЧНЫХ ЧАТОВ</span><h1>Контакты</h1><p>Диалоги, в которых были события.</p></div><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск контакта или события" autocomplete="off"></label>${contacts.length ? `<div class="archive-summary"><span>${matchingContacts.length} ${plural(matchingContacts.length, 'контакт', 'контакта', 'контактов')} с событиями</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div>${contactRows ? `<div class="contact-list">${contactRows}</div>` : emptyState}` : emptyState}${disclaimer}</section>`;
 }
 
 function plural(number, one, few, many) {
@@ -268,12 +351,30 @@ app.addEventListener('submit', async event => {
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab], [data-archive-filter]');
+  const target = event.target.closest('[data-action], [data-tab], [data-archive-filter], [data-contact-id]');
   if (!target) return;
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
+  if (target.dataset.contactId) {
+    state.archiveContactId = target.dataset.contactId;
+    state.archiveFilter = 'all';
+    render();
+    return;
+  }
+  if (target.dataset.action === 'archive-back') {
+    state.archiveContactId = null;
+    state.archiveFilter = 'all';
+    render();
+    return;
+  }
   if (target.dataset.tab) {
     state.modal = null;
-    if (target.dataset.tab === 'archive') { await loadArchive(); return; }
+    if (target.dataset.tab === 'archive') {
+      state.archiveContactId = null;
+      state.archiveFilter = 'all';
+      state.query = '';
+      await loadArchive();
+      return;
+    }
     state.tab = target.dataset.tab;
     render();
     return;

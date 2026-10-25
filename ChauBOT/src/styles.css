@@ -163,6 +163,29 @@ img,svg{max-width:100%}
 .archive-page .search-field{padding-inline:10px}
 .archive-page .search-field input{min-width:0}
 .archive-filters{width:100%;max-width:100%;overscroll-behavior-x:contain}
+.contact-list{width:100%;max-width:680px;overflow:hidden;border:1px solid rgba(255,192,91,.13);border-radius:19px;background:rgba(36,19,20,.94)}
+.contact-row{width:100%;min-height:68px;display:flex;align-items:center;gap:10px;padding:11px 13px;background:transparent;border:0;color:#fff8ee;text-align:left;cursor:pointer}
+.contact-row+.contact-row{border-top:1px solid rgba(255,192,91,.12)}
+.contact-avatar{width:42px;height:42px;flex:none;display:grid;place-items:center;border:1px solid rgba(255,211,106,.35);border-radius:50%;background:linear-gradient(145deg,#ffb936,#d92336);color:white;font-size:15px;font-weight:800}
+.contact-copy{min-width:0;flex:1;display:grid;gap:4px}
+.contact-copy strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-copy small{font-size:9px;color:#b49d94;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-count{font-size:9px;font-weight:800;color:#ffd2a1;white-space:nowrap}
+.contact-row>svg{color:#c79a70;flex:none}
+.archive-back{display:inline-flex;align-items:center;gap:5px;padding:4px 0;border:0;background:transparent;color:#ff8c7c;font-size:11px;font-weight:800;cursor:pointer}
+.archive-back svg{transform:rotate(180deg)}
+.contact-detail-heading{display:flex;align-items:center;gap:11px;margin:15px 0 13px}
+.contact-detail-heading .contact-avatar{width:48px;height:48px;font-size:17px}
+.contact-detail-copy{min-width:0;flex:1}
+.contact-detail-copy h1{font-size:18px;line-height:1.2;letter-spacing:-.4px;margin:0;overflow-wrap:anywhere}
+.contact-detail-copy p{font-size:10px;color:#b49d94;margin:4px 0 0}
+.contact-detail-heading .text-button{white-space:nowrap}
+.contact-event-row{padding:14px}
+.contact-event-row .event-copy>span{font-size:11px;line-height:1.5}
+.contact-event-row .event-title-line strong{font-size:10px}
+.contact-event-row .event-title-line time{font-size:9px}
+.event-type-icon.one-time{color:#d0a4ff;background:rgba(157,108,236,.16)}
+@media(max-width:360px){.contact-row{gap:8px;padding-inline:10px}.contact-count{font-size:8px}.contact-detail-heading{gap:8px}.contact-detail-heading .text-button{font-size:9px}.contact-detail-heading .contact-avatar{height:40px;width:40px}}
 .archive-filter{min-height:38px;padding-inline:10px}
 .event-row{min-width:0;gap:8px;padding:11px 10px}
 .event-copy{min-width:0;overflow-wrap:anywhere}
