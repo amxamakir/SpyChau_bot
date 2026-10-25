@@ -32,6 +32,13 @@ const state = {
 };
 const app = document.querySelector('#root');
 
+function syncTelegramSafeArea() {
+  const safeTop = Number(state.telegram?.safeAreaInset?.top) || 0;
+  const contentTop = Number(state.telegram?.contentSafeAreaInset?.top) || 0;
+  const topInset = Math.max(56, contentTop, safeTop + 12);
+  document.documentElement.style.setProperty('--app-mobile-top-inset', `${topInset}px`);
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -447,6 +454,10 @@ app.addEventListener('keydown', event => {
 });
 
 if (state.telegram) {
+  syncTelegramSafeArea();
+  state.telegram.onEvent?.('safeAreaChanged', syncTelegramSafeArea);
+  state.telegram.onEvent?.('contentSafeAreaChanged', syncTelegramSafeArea);
+  state.telegram.onEvent?.('fullscreenChanged', syncTelegramSafeArea);
   state.telegram.ready?.();
   state.telegram.expand?.();
   state.telegram.setHeaderColor?.('#14080c');
