@@ -119,6 +119,9 @@ body{background:#100b0c}
 .hero-card{display:flex;align-items:center}
 .hero-copy{width:52%;max-width:52%}
 .connect-card-heading{transform:translateY(6px)}
+body{background:#14080c}
+.app-shell{background:radial-gradient(ellipse at 50% 10%,rgba(108,18,39,.16),transparent 48%),linear-gradient(155deg,#190a10 0%,#14080c 48%,#10070a 100%)}
+.ambient-one,.ambient-two{background:#a51e35;opacity:.08}
 
 /* Home spacing and Telegram profile photo */
 .topbar{margin-bottom:11px}

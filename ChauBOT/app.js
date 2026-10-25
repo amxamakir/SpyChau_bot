@@ -449,8 +449,8 @@ app.addEventListener('keydown', event => {
 if (state.telegram) {
   state.telegram.ready?.();
   state.telegram.expand?.();
-  state.telegram.setHeaderColor?.('#100b0c');
-  state.telegram.setBackgroundColor?.('#100b0c');
+  state.telegram.setHeaderColor?.('#14080c');
+  state.telegram.setBackgroundColor?.('#14080c');
   if (!state.telegram.isFullscreen && typeof state.telegram.requestFullscreen === 'function') {
     try { state.telegram.requestFullscreen(); } catch { /* Keep the embedded layout if fullscreen is unavailable. */ }
   }
