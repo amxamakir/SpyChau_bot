@@ -38,8 +38,11 @@ function syncTelegramSafeArea() {
   const stableHeight = Number(state.telegram?.viewportStableHeight) || 0;
   const visualHeight = Number(window.visualViewport?.height) || 0;
   const viewportHeight = stableHeight || visualHeight || window.innerHeight;
-  const fallbackTop = Math.min(104, Math.max(88, viewportHeight * 0.11));
-  const topInset = contentTop > 0 ? contentTop : safeTop > 0 ? safeTop + 44 : fallbackTop;
+  const insetTop = Math.max(safeTop, contentTop);
+  const fullscreenFallback = Math.min(152, Math.max(120, viewportHeight * 0.15));
+  const topInset = state.telegram?.isFullscreen
+    ? Math.max(insetTop + 12, fullscreenFallback)
+    : insetTop;
   document.documentElement.style.setProperty('--app-mobile-top-inset', `${topInset}px`);
   document.documentElement.style.setProperty('--app-viewport-height', `${Math.round(viewportHeight)}px`);
 }
@@ -470,9 +473,6 @@ if (state.telegram) {
   state.telegram.expand?.();
   state.telegram.setHeaderColor?.('#14080c');
   state.telegram.setBackgroundColor?.('#14080c');
-  if (!state.telegram.isFullscreen && typeof state.telegram.requestFullscreen === 'function') {
-    try { state.telegram.requestFullscreen(); } catch { /* Keep the embedded layout if fullscreen is unavailable. */ }
-  }
   state.user = state.telegram.initDataUnsafe?.user || null;
 }
 render();
