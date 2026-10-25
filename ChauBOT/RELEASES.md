@@ -2,6 +2,7 @@
 
 ## Recent releases
 
+- `v0.8.1: Enlarge profile identity` — аватар, тег и Telegram ID в профиле увеличены на 15%.
 - `v0.8.0: Show photos in deleted message events` — фото из удалённых сообщений показываются по сохранённому Telegram file ID через защищённую ссылку.
 
 - `v0.7.7: Bundle Rubik font locally` — файлы Rubik лежат рядом с приложением, чтобы шрифт загружался без обращения к Google Fonts.

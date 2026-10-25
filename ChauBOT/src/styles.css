@@ -109,6 +109,10 @@ body{background:#100b0c}
 .identity-card{width:min(100%,680px);margin:0 auto 22px;padding:14px;display:flex;align-items:center;gap:11px;border:1px solid rgba(155,174,231,.16);border-radius:16px;background:rgba(17,24,50,.82)}.identity-copy{min-width:0;display:grid;gap:4px;flex:1}.identity-copy strong{font-size:11px}.identity-copy span{font-size:12px;font-weight:800;letter-spacing:.03em;overflow-wrap:anywhere}.identity-copy small{font-size:9px;color:#8e9abd}.identity-badge{font-size:8px;font-weight:800;color:#ffcf55;background:rgba(255,192,58,.12);padding:6px 7px;border-radius:7px;white-space:nowrap}.identity-badge.verified{color:#42d795;background:rgba(66,215,149,.12)}
 .avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover}
 
+/* Profile identity: scale avatar, Telegram tag and ID by about 15%. */
+.profile-intro .avatar{width:83px;height:83px;font-size:30px}
+.profile-intro .profile-account-line{font-size:15px!important}
+
 /* Home spacing and Telegram profile photo */
 .topbar{margin-bottom:11px}
 .connect-card{margin-top:6px}
