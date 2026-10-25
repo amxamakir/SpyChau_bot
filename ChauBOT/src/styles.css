@@ -255,3 +255,5 @@ img,svg{max-width:100%}
   .bottom-nav button{font-size:8px}
   .hero-card .subscription-dot{left:-8px;top:7px}
 }
+
+@media(min-width:740px){.app-shell{padding-top:clamp(96px,18vh,195px)}}
