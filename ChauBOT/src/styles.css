@@ -350,3 +350,16 @@ img,svg{max-width:100%}
   .connect-row .row-copy span,.connect-row .row-copy small,.profile-row .row-copy small{font-size:11px}
   .bottom-nav button{font-size:9px}
 }
+
+/* Archive filters and event icons share one color per event category. */
+:root{--archive-all:#ff654d;--archive-deleted:#ff6a72;--archive-edited:#ffdc75;--archive-one-time:#d9b5ef}
+.archive-filter[data-archive-filter="deleted"]{color:var(--archive-deleted);background:rgba(125,41,50,.28);border-color:rgba(255,106,114,.2)}
+.archive-filter[data-archive-filter="edited"]{color:var(--archive-edited);background:rgba(118,80,24,.28);border-color:rgba(255,220,117,.2)}
+.archive-filter[data-archive-filter="one-time"]{color:var(--archive-one-time);background:rgba(75,52,76,.38);border-color:rgba(217,181,239,.2)}
+.archive-filter[data-archive-filter="deleted"].active{color:var(--archive-deleted);background:rgba(125,41,50,.48);border-color:var(--archive-deleted);box-shadow:inset 0 0 0 1px rgba(255,106,114,.14)}
+.archive-filter[data-archive-filter="edited"].active{color:var(--archive-edited);background:rgba(118,80,24,.5);border-color:var(--archive-edited);box-shadow:inset 0 0 0 1px rgba(255,220,117,.14)}
+.archive-filter[data-archive-filter="one-time"].active{color:var(--archive-one-time);background:rgba(75,52,76,.6);border-color:var(--archive-one-time);box-shadow:inset 0 0 0 1px rgba(217,181,239,.14)}
+.archive-filter[data-archive-filter="all"].active{background:var(--archive-all);border-color:#ff856f;color:#fff}
+.event-type-icon.deleted{color:var(--archive-deleted);background:rgba(125,41,50,.28)}
+.event-type-icon.edited{color:var(--archive-edited);background:rgba(118,80,24,.28)}
+.event-type-icon.one-time{color:var(--archive-one-time);background:rgba(75,52,76,.38)}
