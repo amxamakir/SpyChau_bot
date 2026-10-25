@@ -2,6 +2,7 @@
 
 ## Recent releases
 
+- `v0.7.7: Bundle Rubik font locally` — файлы Rubik лежат рядом с приложением, чтобы шрифт загружался без обращения к Google Fonts.
 - `v0.7.6: Use Rubik throughout the app` — распространён шрифт Rubik на все разделы; версия API health обновлена.
 - `v0.7.5: Use Rubik and enlarge profile text` — применён шрифт Rubik и увеличена типографика в профиле.
 
