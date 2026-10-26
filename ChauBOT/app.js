@@ -319,7 +319,7 @@ function subscriptionPage() {
   const expiryLabel = parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
     ? parsedExpiry.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : 'Срок окончания не указан';
-  return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус подписки для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row"><span class="service-icon ${active ? 'green' : 'muted'}">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong><small>${active ? 'Подписка активна' : 'Подписка не активна'}</small></span></div><div class="profile-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy"><strong>Действует до</strong><small>${expiryLabel}</small></span></div></div></section>`;
+  return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус подписки для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row subscription-row"><span class="service-icon ${active ? 'green' : 'muted'}">${icon('lock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Моя подписка</strong></span><span class="subscription-status"><i class="${active ? 'active' : 'inactive'}"></i>${active ? 'Активна' : 'Не активна'}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Действует до</strong></span><span class="subscription-row-value">${escapeHtml(expiryLabel)}</span></div></div></section>`;
 }
 
 function nav() {
