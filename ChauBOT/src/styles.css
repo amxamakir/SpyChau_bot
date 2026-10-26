@@ -430,3 +430,7 @@ img,svg{max-width:100%}
 :root[data-theme="light"] .modal>p{color:#6f5750}
 :root[data-theme="light"] .modal-close{background:#f4e9e2;color:#6f5750;border-color:rgba(115,64,48,.16)}
 :root[data-theme="light"] .search-field input{color:#281719}
+.brand-mark{box-shadow:none}
+.brand-mark i{display:none}
+.brand-mark img{border:0}
+.brand-mark span{border:0}
