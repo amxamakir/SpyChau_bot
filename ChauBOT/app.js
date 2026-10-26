@@ -285,7 +285,7 @@ function notificationsPage() {
 }
 
 function profileDetailHeader(eyebrow, title, description) {
-  return `<button type="button" class="profile-detail-back" data-tab="profile">${icon('chevron', 16)} Профиль</button><div class="page-title"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1><p>${description}</p></div>`;
+  return `<button type="button" class="profile-detail-back" data-tab="profile">${icon('chevron', 16)} Профиль</button><div class="page-title">${eyebrow && eyebrow !== 'МОЙ АККАУНТ' ? `<span class="eyebrow">${eyebrow}</span>` : ''}<h1>${title}</h1><p>${description}</p></div>`;
 }
 
 function supportPage() {
