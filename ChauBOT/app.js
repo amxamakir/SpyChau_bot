@@ -293,7 +293,14 @@ function supportPage() {
 }
 
 function privacyPage() {
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Безопасность и данные', 'Как SpyChau получает и хранит данные.')}<div class="profile-card profile-detail-card"><div class="privacy-points"><div>${icon('check', 16)}<span>Бот получает события только в чатах, которые ты подключил.</span></div><div>${icon('check', 16)}<span>Telegram не передаёт боту историю сообщений до подключения.</span></div><div>${icon('check', 16)}<span>Секретные чаты недоступны через официальный Bot API.</span></div><div>${icon('check', 16)}<span>Фото показываются из сохранённого снимка сообщения Telegram.</span></div><div>${icon('check', 16)}<span>Удалить профиль и архив можно в разделе «Удалить мои данные».</span></div></div></div></section>`;
+  const points = [
+    ['chat', 'coral', 'Бот получает события только в чатах, которые ты подключил.'],
+    ['clock', 'gold', 'Telegram не передаёт боту историю сообщений до подключения.'],
+    ['lock', 'purple', 'Секретные чаты недоступны через официальный Bot API.'],
+    ['image', 'green', 'Фото показываются из сохранённого снимка сообщения Telegram.'],
+    ['trash', 'orange', 'Удалить профиль и архив можно в разделе «Удалить мои данные».'],
+  ];
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Безопасность и данные', 'Как SpyChau получает и хранит данные.')}<div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span>${text}</span></div>`).join('')}</div></div></section>`;
 }
 
 function receiptEmailPage() {

@@ -384,3 +384,10 @@ img,svg{max-width:100%}
 .profile-detail-hint{margin:12px 2px 0;color:#b49d94;font-size:12px;line-height:1.5}
 .profile-page .receipt-email-heading strong,.profile-page .receipt-email-heading .receipt-email-value{color:#fff8ee;font-size:14px;font-weight:700;line-height:1.35;letter-spacing:-.15px}
 @media(max-width:430px){.profile-page .receipt-email-heading strong,.profile-page .receipt-email-heading .receipt-email-value{font-size:15px}}
+.profile-detail-card .privacy-point{align-items:center;gap:12px;color:#f8eee7}
+.privacy-point-icon{width:30px;height:30px;flex:none;display:grid;place-items:center;border:1px solid currentColor;border-radius:9px;background:transparent}
+.privacy-point-icon.coral{color:#ff7966}
+.privacy-point-icon.gold{color:#ffc247}
+.privacy-point-icon.purple{color:#d9b5ef}
+.privacy-point-icon.green{color:#53dfa1}
+.privacy-point-icon.orange{color:#f4ae80}
