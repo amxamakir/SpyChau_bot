@@ -392,3 +392,8 @@ img,svg{max-width:100%}
 .privacy-point-icon.yellow{color:#ffc247}
 .privacy-point-icon.burgundy{color:#e95749}
 .privacy-point-icon svg{color:inherit}
+.privacy-point-icon.frame-coral{border-color:#ff7966}
+.privacy-point-icon.frame-gold{border-color:#ffc247}
+.privacy-point-icon.frame-purple{border-color:#d9b5ef}
+.privacy-point-icon.frame-green{border-color:#53dfa1}
+.privacy-point-icon.frame-orange{border-color:#f4ae80}

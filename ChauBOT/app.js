@@ -294,11 +294,11 @@ function supportPage() {
 
 function privacyPage() {
   const points = [
-    ['chat', 'coral', 'Бот получает события только в чатах, которые ты подключил.'],
-    ['clock', 'gold', 'Telegram не передаёт боту историю сообщений до подключения.'],
-    ['lock', 'orange', 'Секретные чаты недоступны через официальный Bot API.'],
-    ['image', 'yellow', 'Фото показываются из сохранённого снимка сообщения Telegram.'],
-    ['trash', 'burgundy', 'Удалить профиль и архив можно в разделе «Удалить мои данные».'],
+    ['chat', 'coral frame-coral', 'Бот получает события только в чатах, которые ты подключил.'],
+    ['clock', 'gold frame-gold', 'Telegram не передаёт боту историю сообщений до подключения.'],
+    ['lock', 'orange frame-purple', 'Секретные чаты недоступны через официальный Bot API.'],
+    ['image', 'yellow frame-green', 'Фото показываются из сохранённого снимка сообщения Telegram.'],
+    ['trash', 'burgundy frame-orange', 'Удалить профиль и архив можно в разделе «Удалить мои данные».'],
   ];
   return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Безопасность и данные', 'Как SpyChau получает и хранит данные.')}<div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span>${text}</span></div>`).join('')}</div></div></section>`;
 }
