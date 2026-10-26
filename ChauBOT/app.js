@@ -292,6 +292,10 @@ function supportPage() {
   return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Поддержка', 'Помощь по работе SpyChau.')}<div class="profile-card profile-detail-card"><div class="profile-row"><span class="service-icon blue">${icon('help', 20)}</span><span class="row-copy"><strong>Связь с поддержкой</strong><small>Контакт поддержки пока не настроен. Добавим его перед запуском сервиса.</small></span></div></div></section>`;
 }
 
+function aboutPage() {
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'О SpyChau', 'Архив событий подключённых чатов.')}<div class="profile-card profile-detail-card"><div class="privacy-points"><div class="privacy-point"><span class="privacy-point-icon frame-green">${icon('chat', 18)}</span><span>Бот получает события и сообщения только из чатов, которые ты подключил.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-gold">${icon('clock', 18)}</span><span>Telegram не передаёт боту историю сообщений до подключения.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-purple">${icon('lock', 18)}</span><span>Секретные чаты недоступны через официальный Bot API.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-green">${icon('image', 18)}</span><span>Для фото используется сохранённый снимок сообщения Telegram.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-orange">${icon('trash', 18)}</span><span>Удалить профиль и архив можно в разделе «Удалить мои данные».</span></div></div></div></section>`;
+}
+
 function privacyPage() {
   const points = [
     ['chat', 'coral frame-coral', 'Бот получает события только в чатах, которые ты подключил.'],
@@ -341,8 +345,8 @@ function modal() {
 }
 
 function render() {
-  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : profile();
-  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${nav()}${modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'about' ? aboutPage() : profile();
+  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
 }
 
 function toast(message) {
@@ -483,6 +487,7 @@ app.addEventListener('click', async event => {
     return;
   }
   const action = target.dataset.action;
+  if (action === 'about') { state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
