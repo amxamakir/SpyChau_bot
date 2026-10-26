@@ -372,3 +372,13 @@ img,svg{max-width:100%}
 .notification-switch-row:disabled{opacity:.62;cursor:not-allowed}
 .notification-switch-row .test-switch.on{background:#e82c3d;border-color:#ff7856}
 .notification-note{margin:12px 3px;color:#b49d94;font-size:11px;line-height:1.5}
+.profile-detail-back{display:inline-flex;align-items:center;gap:5px;margin:2px 0 10px;padding:7px 0;border:0;background:transparent;color:#ff7966;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.profile-detail-back svg{transform:rotate(180deg)}
+.profile-detail-page .page-title{margin-top:0;margin-bottom:20px}
+.profile-detail-card{padding:12px 15px}
+.profile-detail-card .privacy-points{font-size:13px;line-height:1.5}
+.receipt-email-label{display:block;margin-bottom:8px;color:#cdb6ad;font-size:13px;font-weight:600}
+.receipt-email-input{width:100%;border:1px solid rgba(255,192,91,.2);border-radius:13px;background:#1b1011;color:#fff8ee;padding:13px;font:inherit;font-size:15px;outline:none}
+.receipt-email-input:focus{border-color:#ff7966;box-shadow:0 0 0 3px rgba(255,121,102,.12)}
+.button-danger{background:linear-gradient(135deg,#ff6657,#dc243c);color:#fff;box-shadow:0 7px 18px rgba(220,36,60,.2)}
+.profile-detail-hint{margin:12px 2px 0;color:#b49d94;font-size:12px;line-height:1.5}
