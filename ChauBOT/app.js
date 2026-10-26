@@ -289,11 +289,11 @@ function profileDetailHeader(eyebrow, title, description) {
 }
 
 function supportPage() {
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('СЕРВИС И ПОДДЕРЖКА', 'Поддержка', 'Помощь по работе SpyChau.')}<div class="profile-card profile-detail-card"><div class="profile-row"><span class="service-icon blue">${icon('help', 20)}</span><span class="row-copy"><strong>Связь с поддержкой</strong><small>Контакт поддержки пока не настроен. Добавим его перед запуском сервиса.</small></span></div></div></section>`;
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Поддержка', 'Помощь по работе SpyChau.')}<div class="profile-card profile-detail-card"><div class="profile-row"><span class="service-icon blue">${icon('help', 20)}</span><span class="row-copy"><strong>Связь с поддержкой</strong><small>Контакт поддержки пока не настроен. Добавим его перед запуском сервиса.</small></span></div></div></section>`;
 }
 
 function privacyPage() {
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('СЕРВИС И ПОДДЕРЖКА', 'Безопасность и данные', 'Как SpyChau получает и хранит данные.')}<div class="profile-card profile-detail-card"><div class="privacy-points"><div>${icon('check', 16)}<span>Бот получает события только в чатах, которые ты подключил.</span></div><div>${icon('check', 16)}<span>Telegram не передаёт боту историю сообщений до подключения.</span></div><div>${icon('check', 16)}<span>Секретные чаты недоступны через официальный Bot API.</span></div><div>${icon('check', 16)}<span>Фото показываются из сохранённого снимка сообщения Telegram.</span></div><div>${icon('check', 16)}<span>Удалить профиль и архив можно в разделе «Удалить мои данные».</span></div></div></div></section>`;
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Безопасность и данные', 'Как SpyChau получает и хранит данные.')}<div class="profile-card profile-detail-card"><div class="privacy-points"><div>${icon('check', 16)}<span>Бот получает события только в чатах, которые ты подключил.</span></div><div>${icon('check', 16)}<span>Telegram не передаёт боту историю сообщений до подключения.</span></div><div>${icon('check', 16)}<span>Секретные чаты недоступны через официальный Bot API.</span></div><div>${icon('check', 16)}<span>Фото показываются из сохранённого снимка сообщения Telegram.</span></div><div>${icon('check', 16)}<span>Удалить профиль и архив можно в разделе «Удалить мои данные».</span></div></div></div></section>`;
 }
 
 function receiptEmailPage() {
