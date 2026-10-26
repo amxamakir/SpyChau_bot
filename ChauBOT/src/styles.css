@@ -403,3 +403,30 @@ img,svg{max-width:100%}
 .subscription-status i.inactive{background:#ff5148;box-shadow:0 0 0 2px rgba(255,81,72,.18)}
 .subscription-row-value{max-width:52%;margin-left:auto;color:#fff8ee;font-size:14px;font-weight:700;text-align:right;overflow-wrap:anywhere}
 @media(max-width:430px){.subscription-status,.subscription-row-value{font-size:13px}}
+
+/* Optional light theme, selected by the user from the home header. */
+:root[data-theme="light"]{color:#281719;background:#f6efea;--muted:#806b65;--panel:#fffdfa;--panel-2:#f7e9e1;--line:rgba(115,64,48,.16)}
+:root[data-theme="light"] body{background:#f6efea;color:#281719}
+:root[data-theme="light"] .app-shell{background:radial-gradient(ellipse at 50% 10%,rgba(239,177,143,.2),transparent 50%),linear-gradient(155deg,#fffaf6 0%,#f5eae3 55%,#efe0d7 100%)}
+:root[data-theme="light"] .ambient-one,:root[data-theme="light"] .ambient-two{background:#ed8064;opacity:.1}
+:root[data-theme="light"] .brand-copy span,:root[data-theme="light"] .section-heading p,:root[data-theme="light"] .profile-row .row-copy small,:root[data-theme="light"] .contact-copy small,:root[data-theme="light"] .profile-footer,:root[data-theme="light"] .notification-note,:root[data-theme="light"] .trust-note{color:#806b65}
+:root[data-theme="light"] .brand-mark span{background:#fffaf6;border-color:#fff0d1;color:#9c3f34}
+:root[data-theme="light"] .icon-button{background:#fffaf6;color:#8d4b3b;border-color:rgba(115,64,48,.18)}
+:root[data-theme="light"] .icon-button b{border-color:#fffaf6}
+:root[data-theme="light"] .connect-card,:root[data-theme="light"] .profile-card,:root[data-theme="light"] .service-card,:root[data-theme="light"] .coming-card,:root[data-theme="light"] .contact-list,:root[data-theme="light"] .events-list{background:rgba(255,253,250,.92);border-color:rgba(115,64,48,.16);box-shadow:0 10px 28px rgba(82,47,35,.07)}
+:root[data-theme="light"] .count-badge,:root[data-theme="light"] .subtle-button,:root[data-theme="light"] .search-field,:root[data-theme="light"] .archive-empty{background:#f6eee9;border-color:rgba(115,64,48,.16);color:#6f5750}
+:root[data-theme="light"] .connect-row .row-copy strong,:root[data-theme="light"] .profile-row .row-copy strong,:root[data-theme="light"] .service-card h2,:root[data-theme="light"] .coming-card h2,:root[data-theme="light"] .section-heading h2,:root[data-theme="light"] .page-title h1,:root[data-theme="light"] .profile-intro h1,:root[data-theme="light"] .contact-copy strong,:root[data-theme="light"] .event-copy strong{color:#281719}
+:root[data-theme="light"] .profile-row>svg,:root[data-theme="light"] .contact-row>svg{color:#9c6a50}
+:root[data-theme="light"] .bottom-nav{background:rgba(255,253,250,.96);border-color:rgba(115,64,48,.2);box-shadow:0 8px 24px rgba(82,47,35,.1)}
+:root[data-theme="light"] .bottom-nav button{color:#806b65}
+:root[data-theme="light"] .bottom-nav button.active{background:#fae5dc;color:#c83a32}
+:root[data-theme="light"] .event-row+.event-row,:root[data-theme="light"] .contact-row+.contact-row{border-color:rgba(115,64,48,.13)}
+:root[data-theme="light"] .event-copy,:root[data-theme="light"] .event-copy span,:root[data-theme="light"] .event-copy small,:root[data-theme="light"] .event-copy time,:root[data-theme="light"] .contact-count,:root[data-theme="light"] .contact-detail-copy>p:last-child,:root[data-theme="light"] .archive-summary,:root[data-theme="light"] .subscription-status,:root[data-theme="light"] .subscription-row-value,:root[data-theme="light"] .profile-page .receipt-email-heading strong,:root[data-theme="light"] .profile-page .receipt-email-heading .receipt-email-value{color:#3a2926}
+:root[data-theme="light"] .page-title p,:root[data-theme="light"] .profile-detail-card .privacy-points{color:#6f5750}
+:root[data-theme="light"] .privacy-point-icon{background:#fffaf6}
+:root[data-theme="light"] .receipt-email-input{background:#fffdfa;color:#281719;border-color:rgba(115,64,48,.2)}
+:root[data-theme="light"] .archive-state,:root[data-theme="light"] .empty-events{background:linear-gradient(155deg,#fffdfa,#f4e9e2);border-color:rgba(115,64,48,.16);color:#281719}
+:root[data-theme="light"] .modal{background:#fffaf6;color:#281719;border-color:rgba(115,64,48,.18)}
+:root[data-theme="light"] .modal>p{color:#6f5750}
+:root[data-theme="light"] .modal-close{background:#f4e9e2;color:#6f5750;border-color:rgba(115,64,48,.16)}
+:root[data-theme="light"] .search-field input{color:#281719}

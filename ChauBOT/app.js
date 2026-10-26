@@ -23,16 +23,24 @@ const icon = (name, size = 20) => {
     arrow: '<path d="M5 12h14m-7-7 7 7-7 7"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>'
+    ,sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
+    ,moon: '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>'
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
 };
 
 const state = {
   tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
   loading: false, archiveLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
+
+function loadTheme() {
+  try { return localStorage.getItem('spychau-theme') === 'light' ? 'light' : 'dark'; }
+  catch { return 'dark'; }
+}
 
 function loadNotificationPreferences() {
   const defaults = { deleted_messages: false, edited_messages: false, group_messages: false, deleted_by_owner: false, edited_by_owner: false };
@@ -72,7 +80,7 @@ function displayName() {
 }
 
 function topbar() {
-  return `<header class="topbar"><div class="brand-mark">${state.authenticated && typeof state.user?.photo_url === 'string' && state.user.photo_url.toLowerCase().startsWith('https://') ? `<img src="${escapeHtml(state.user.photo_url)}" alt="" referrerpolicy="no-referrer">` : '<span>SC</span>'}<i></i></div><div class="brand-copy"><strong>SpyChau</strong><span>Привет, ${escapeHtml(displayName())}</span></div><button class="icon-button" aria-label="О приложении" data-action="about">${icon('help', 19)}</button><button class="icon-button sun-button" aria-label="Уведомления" data-tab="archive">${icon('bell', 19)}</button></header>`;
+  return `<header class="topbar"><div class="brand-mark">${state.authenticated && typeof state.user?.photo_url === 'string' && state.user.photo_url.toLowerCase().startsWith('https://') ? `<img src="${escapeHtml(state.user.photo_url)}" alt="" referrerpolicy="no-referrer">` : '<span>SC</span>'}<i></i></div><div class="brand-copy"><strong>SpyChau</strong><span>Привет, ${escapeHtml(displayName())}</span></div><button class="icon-button theme-toggle" aria-label="${state.theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}" data-action="toggle-theme">${icon(state.theme === 'dark' ? 'sun' : 'moon', 19)}</button><button class="icon-button" aria-label="О приложении" data-action="about">${icon('help', 19)}</button><button class="icon-button sun-button" aria-label="Уведомления" data-tab="archive">${icon('bell', 19)}</button></header>`;
 }
 
 function statusLabel() {
@@ -345,6 +353,7 @@ function modal() {
 }
 
 function render() {
+  document.documentElement.dataset.theme = state.theme;
   const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'about' ? aboutPage() : profile();
   app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
 }
@@ -487,6 +496,12 @@ app.addEventListener('click', async event => {
     return;
   }
   const action = target.dataset.action;
+  if (action === 'toggle-theme') {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('spychau-theme', state.theme); } catch {}
+    render();
+    return;
+  }
   if (action === 'about') { state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
