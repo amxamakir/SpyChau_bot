@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.22" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.23" });
     }
 
     const mediaMatch = route.match(/^\/api\/media\/(\d+)$/);
