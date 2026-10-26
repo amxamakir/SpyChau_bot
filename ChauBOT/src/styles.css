@@ -388,6 +388,6 @@ img,svg{max-width:100%}
 .privacy-point-icon{width:30px;height:30px;flex:none;display:grid;place-items:center;border:1px solid currentColor;border-radius:9px;background:transparent}
 .privacy-point-icon.coral{color:#ff7966}
 .privacy-point-icon.gold{color:#ffc247}
-.privacy-point-icon.purple{color:#d9b5ef}
-.privacy-point-icon.green{color:#53dfa1}
-.privacy-point-icon.orange{color:#f4ae80}
+.privacy-point-icon.orange{color:#f4ae48}
+.privacy-point-icon.yellow{color:#ffc247}
+.privacy-point-icon.burgundy{color:#e95749}
