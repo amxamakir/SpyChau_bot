@@ -432,7 +432,8 @@ function modal() {
 function render() {
   document.documentElement.dataset.theme = state.theme;
   const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
-  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${state.tab !== 'home' ? `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 22)}</button>` : ''}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  const mainTabs = ['home', 'services', 'profile'];
+  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
 }
 
 function toast(message) {
