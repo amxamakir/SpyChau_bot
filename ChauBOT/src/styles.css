@@ -587,3 +587,44 @@ img,svg{max-width:100%}
   .tutorial-breadcrumb span,.tutorial-breadcrumb b{padding:5px 6px;font-size:10px}
   .tutorial-open-settings{font-size:15px}
 }
+
+/* A lightweight looping tutorial preview built from native markup. */
+.tutorial-loop{position:relative;min-height:282px;margin-top:15px;padding:15px;border:1px solid rgba(255,192,91,.15);border-radius:22px;background:linear-gradient(145deg,rgba(43,23,25,.98),rgba(26,14,17,.99));overflow:hidden}
+.tutorial-loop-head{height:28px;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.tutorial-loop-head>span{width:8px;height:8px;flex:none;border-radius:50%;background:#29d28b;box-shadow:0 0 0 3px rgba(41,210,139,.12)}
+.tutorial-loop-head b{color:#f8e9e0;font-size:13px}
+.tutorial-loop-head small{margin-left:auto;color:#bf9d94;font-size:10px}
+.tutorial-loop-scenes{position:relative;height:207px;border:1px solid rgba(255,192,91,.12);border-radius:16px;background:#1a1012;overflow:hidden}
+.tutorial-loop-scene{position:absolute;inset:0;padding:11px 13px;opacity:0;animation:tutorial-scene-loop 16s ease-in-out infinite}
+.tutorial-loop-scene.scene-settings{animation-delay:0s}
+.tutorial-loop-scene.scene-business{animation-delay:4s}
+.tutorial-loop-scene.scene-bot{animation-delay:8s}
+.tutorial-loop-scene.scene-chats{animation-delay:12s}
+@keyframes tutorial-scene-loop{0%,3%,19%{opacity:1;transform:translateX(0)}23%,100%{opacity:0;transform:translateX(-7px)}}
+.telegram-mock-top{height:28px;display:flex;align-items:center;gap:8px;margin-bottom:7px;color:#fff4ec;font-size:12px}
+.telegram-mock-top span{color:#ff7966;font-size:22px;line-height:1}
+.telegram-mock-row{height:31px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border-bottom:1px solid rgba(255,255,255,.055);color:#dbc9c2;font-size:11px}
+.telegram-mock-row.focus{border:1px solid rgba(255,121,102,.55);border-radius:9px;background:rgba(226,44,60,.16);color:#fff8ee;animation:tutorial-focus-pulse 1.5s ease-in-out infinite}
+@keyframes tutorial-focus-pulse{50%{box-shadow:0 0 0 3px rgba(255,121,102,.09)}}
+.telegram-mock-row i{color:#c8a79b;font-size:15px;font-style:normal}
+.telegram-mock-caption{position:absolute;right:11px;bottom:9px;color:#ffc247;font-size:10px;font-weight:800}
+.telegram-mock-bot{height:55px;margin:20px 0 12px;display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid rgba(255,121,102,.42);border-radius:12px;background:rgba(226,44,60,.12);color:#fff8ee;font-size:13px}
+.telegram-mock-bot>span{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(145deg,#ffb936,#d92336);font-size:12px;font-weight:800}
+.telegram-mock-bot b{display:grid;gap:3px}.telegram-mock-bot small{color:#bea29a;font-size:10px;font-weight:500}
+.telegram-mock-action{width:max-content;min-width:145px;height:31px;margin:0 auto;display:grid;place-items:center;padding:0 15px;border-radius:10px;background:linear-gradient(135deg,#ff6545,#e51d32);color:white;font-size:11px;font-weight:800}
+.scene-chats .telegram-mock-row{height:27px}.scene-chats .telegram-mock-action{position:absolute;right:13px;bottom:9px;min-width:95px;height:26px}.mock-check{color:#ffc247!important;font-weight:800}
+.tutorial-loop-progress{position:absolute;left:15px;right:15px;bottom:10px;display:flex;gap:5px}
+.tutorial-loop-progress i{height:3px;flex:1;border-radius:4px;background:#493033;overflow:hidden}
+.tutorial-loop-progress i:after{content:"";display:block;width:100%;height:100%;background:#ff7054;transform:scaleX(0);transform-origin:left;animation:tutorial-progress 16s linear infinite}
+.tutorial-loop-progress i:nth-child(2):after{animation-delay:4s}.tutorial-loop-progress i:nth-child(3):after{animation-delay:8s}.tutorial-loop-progress i:nth-child(4):after{animation-delay:12s}
+@keyframes tutorial-progress{0%{transform:scaleX(0)}20%{transform:scaleX(1)}24%,100%{transform:scaleX(0)}}
+:root[data-theme="light"] .tutorial-loop{background:linear-gradient(145deg,#fffdfa,#f5e9e1);border-color:rgba(170,93,65,.2)}
+:root[data-theme="light"] .tutorial-loop-head b{color:#281719}
+:root[data-theme="light"] .tutorial-loop-scenes{background:#f8eee8;border-color:rgba(170,93,65,.18)}
+:root[data-theme="light"] .telegram-mock-top{color:#281719}
+:root[data-theme="light"] .telegram-mock-row{color:#604d48;border-color:rgba(90,55,45,.08)}
+:root[data-theme="light"] .telegram-mock-row.focus{color:#281719}
+@media(prefers-reduced-motion:reduce){.tutorial-loop-scene,.tutorial-loop-progress i:after,.telegram-mock-row.focus{animation:none}.tutorial-loop-scene.scene-settings{opacity:1}.tutorial-loop-scene:not(.scene-settings){opacity:0}}
+
+/* Give desktop and laptop layouts a little more room; handset widths stay unchanged. */
+@media(min-width:740px){.topbar,.page{width:100%;max-width:470px}.bottom-nav{max-width:470px}}
