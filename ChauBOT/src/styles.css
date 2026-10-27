@@ -632,6 +632,10 @@ html,body{touch-action:pan-x pan-y}
 
 /* Desktop back control, matching Telegram's round upper-left affordance. */
 .desktop-back-button{display:none}
+@media(max-width:739px){
+  .profile-detail-back,.archive-back{display:none!important}
+  .tutorial-heading{padding-top:0}
+}
 @media(min-width:740px){
   .desktop-back-button{position:fixed;z-index:12;top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));width:40px;height:40px;display:grid;place-items:center;padding:0;border:1px solid rgba(255,192,91,.17);border-radius:50%;background:rgba(55,28,32,.92);color:#fff4e8;box-shadow:0 5px 18px rgba(0,0,0,.2);cursor:pointer;transition:transform .16s ease,background .16s ease}
   .desktop-back-button:hover{transform:translateX(-2px);background:#542328}
