@@ -514,7 +514,7 @@ img,svg{max-width:100%}
   .subscription-status,.subscription-row-value{font-size:14px}
   .identity-copy strong{font-size:14px}
   .identity-copy span{font-size:15px}
-  .hero-card .subscription-heading{width:max-content;max-width:calc(100vw - 54px);padding-left:9px;white-space:nowrap;font-size:clamp(18px,6vw,26px);letter-spacing:-1px}
+  .hero-card .subscription-heading{position:relative;top:-10px;width:max-content;max-width:calc(100vw - 54px);padding-left:9px;white-space:nowrap;font-size:clamp(18px,6vw,26px);letter-spacing:-1px}
   .home-page .hero-copy{align-self:stretch;position:relative;display:block;padding-top:16px;transform:none}
   .home-page .hero-copy>p{margin-bottom:0}
   .home-page .hero-copy>.button{position:absolute;left:0;top:auto;bottom:calc(22px - clamp(17px,4.4vw,20px))}
