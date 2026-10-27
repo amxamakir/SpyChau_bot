@@ -151,6 +151,7 @@ html{width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
 body{width:100%;overflow-x:hidden;min-width:320px}
 button,input{min-width:0}
 img,svg{max-width:100%}
+html,body{touch-action:pan-x pan-y}
 .app-shell{width:100%;min-height:100vh;min-height:100svh;min-height:var(--app-viewport-height,100dvh);overflow-x:clip;overflow-y:visible;padding-top:max(16px,var(--app-mobile-top-inset,0px),var(--tg-content-safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px),env(safe-area-inset-top,0px));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .topbar,.page{width:100%;max-width:450px;min-width:0}
 .topbar{gap:9px}
