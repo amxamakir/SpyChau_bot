@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.34" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.35" });
     }
 
     const mediaMatch = route.match(/^\/api\/media\/(\d+)$/);
@@ -19,6 +19,7 @@ export default {
         const body = await readJson(request);
         const user = await validateInitData(body.init_data, env);
         await saveUser(env.DB, user);
+        await trackAppVisitor(env.DB, user);
         return json({ user, authenticated: true });
       } catch (error) {
         return json({ error: publicError(error) }, 401);
@@ -53,6 +54,15 @@ export default {
             subscription,
             can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
           });
+        }
+
+        if (route === "/api/owner/statistics" && request.method === "GET") {
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) return json({ error: "not found" }, 404);
+          await env.DB.prepare(`CREATE TABLE IF NOT EXISTS app_visitors (telegram_id TEXT PRIMARY KEY, first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
+          await env.DB.prepare("INSERT OR IGNORE INTO app_visitors(telegram_id) SELECT telegram_id FROM users").run();
+          const result = await env.DB.prepare("SELECT COUNT(*) AS total FROM app_visitors").first();
+          return json({ unique_visitors: Number(result?.total || 0) });
         }
 
         if (route === "/api/subscription/test-override" && request.method === "POST") {
@@ -308,6 +318,11 @@ async function saveUser(db, user) {
       first_name = excluded.first_name,
       language_code = excluded.language_code
   `).bind(String(user.id), user.username || null, user.first_name || null, user.language_code || null).run();
+}
+
+async function trackAppVisitor(db, user) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS app_visitors (telegram_id TEXT PRIMARY KEY, first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
+  await db.prepare("INSERT OR IGNORE INTO app_visitors(telegram_id) VALUES(?)").bind(String(user.id)).run();
 }
 
 async function eventRow(row, env) {

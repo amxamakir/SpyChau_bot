@@ -34,7 +34,7 @@ const state = {
   tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
   theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
-  loading: false, archiveLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -288,7 +288,24 @@ function profile() {
 }
 
 function ownerStatisticsPage() {
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('ХОЗЯЙСКИЙ РЕЖИМ', 'Статистика', 'Раздел статистики приложения.')}<div class="profile-card profile-detail-card"><div class="profile-row"><span class="service-icon yellow">${icon('chart', 20)}</span><span class="row-copy"><strong>Статистика</strong><small>Раздел готов к настройке.</small></span></div></div></section>`;
+  const count = state.ownerStatistics?.unique_visitors;
+  const value = state.ownerStatisticsLoading ? 'Загружаем…' : count == null ? '—' : `${count} ${plural(count, 'пользователь', 'пользователя', 'пользователей')}`;
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('ХОЗЯЙСКИЙ РЕЖИМ', 'Статистика', 'Посещения приложения.')}<div class="profile-card profile-detail-card"><div class="profile-row"><span class="service-icon yellow">${icon('user', 20)}</span><span class="row-copy"><strong>Пользователи посетили приложение</strong><small>Уникальные аккаунты Telegram</small></span><span class="subscription-row-value">${escapeHtml(value)}</span></div>${state.apiError ? `<p class="profile-detail-hint">${escapeHtml(state.apiError)}</p>` : ''}<button type="button" class="subtle-button" data-action="refresh-owner-statistics" ${state.ownerStatisticsLoading ? 'disabled' : ''}>Обновить ${icon('arrow', 15)}</button></div></section>`;
+}
+
+async function loadOwnerStatistics() {
+  if (state.ownerStatisticsLoading) return;
+  state.ownerStatisticsLoading = true;
+  state.apiError = '';
+  render();
+  try {
+    state.ownerStatistics = await api('/api/owner/statistics');
+  } catch (error) {
+    state.apiError = error.message || 'Не удалось загрузить статистику.';
+  } finally {
+    state.ownerStatisticsLoading = false;
+    render();
+  }
 }
 
 function notificationsPage() {
@@ -483,6 +500,7 @@ app.addEventListener('click', async event => {
     }
     state.tab = target.dataset.tab;
     render();
+    if (state.tab === 'owner-statistics') await loadOwnerStatistics();
     return;
   }
   if (target.dataset.archiveFilter) {
@@ -512,6 +530,7 @@ app.addEventListener('click', async event => {
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
+  if (action === 'refresh-owner-statistics') { await loadOwnerStatistics(); return; }
   if (action === 'toggle-test-subscription') {
     if (!state.subscription?.can_test_override || state.subscriptionToggleLoading) return;
     state.subscriptionToggleLoading = true;
