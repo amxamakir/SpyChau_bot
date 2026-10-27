@@ -326,12 +326,13 @@ function deleteDataPage() {
 function subscriptionPage() {
   const subscription = state.subscription || {};
   const active = Boolean(subscription.active);
+  const tariffLabel = subscription.plan_name || subscription.tariff_name || subscription.plan || subscription.tariff || (subscription.test_override ? 'Тестовый' : 'Не указан');
   const rawExpiry = subscription.expires_at || subscription.active_until || subscription.valid_until || subscription.ends_at || subscription.current_period_end || null;
   const parsedExpiry = rawExpiry ? new Date(typeof rawExpiry === 'number' && rawExpiry < 1e12 ? rawExpiry * 1000 : rawExpiry) : null;
   const expiryLabel = parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
     ? parsedExpiry.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : 'Срок окончания не указан';
-  return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус подписки для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row subscription-row"><span class="service-icon ${active ? 'green' : 'muted'}">${icon('lock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Моя подписка</strong></span><span class="subscription-status"><i class="${active ? 'active' : 'inactive'}"></i>${active ? 'Активна' : 'Не активна'}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Действует до</strong></span><span class="subscription-row-value">${escapeHtml(expiryLabel)}</span></div></div></section>`;
+  return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус подписки для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row subscription-row"><span class="service-icon ${active ? 'green' : 'muted'}">${icon('lock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Моя подписка</strong></span><span class="subscription-status"><i class="${active ? 'active' : 'inactive'}"></i>${active ? 'Активна' : 'Не активна'}</span></div><div class="profile-row subscription-row"><span class="service-icon purple">${icon('spark', 19)}</span><span class="row-copy subscription-row-copy"><strong>Тариф</strong></span><span class="subscription-row-value">${escapeHtml(tariffLabel)}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Действует до</strong></span><span class="subscription-row-value">${escapeHtml(expiryLabel)}</span></div></div></section>`;
 }
 
 function nav() {
