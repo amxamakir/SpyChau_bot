@@ -469,7 +469,7 @@ img,svg{max-width:100%}
 /* Give handset cards a more deliberate, mobile-native vertical rhythm. */
 @media(max-width:600px){
   .hero-card{min-height:clamp(232px,58vw,250px);padding:clamp(17px,4.4vw,20px);border-radius:27px}
-  .connect-card{padding:16px 14px 13px;border-radius:26px}
+  .connect-card{padding:11px 14px 8px;border-radius:26px}
   .connect-card-heading{margin-bottom:13px}
   .connect-row{gap:11px;padding-block:13px}
   .connect-card .service-icon{width:46px;height:46px;border-radius:15px}
