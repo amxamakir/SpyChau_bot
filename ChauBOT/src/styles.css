@@ -462,3 +462,23 @@ img,svg{max-width:100%}
 :root[data-theme="light"] .archive-contact-copy strong{color:#281719}
 :root[data-theme="light"] .archive-contact-copy .contact-identity-line{color:#806b65}
 @media(max-width:430px){.contact-row.archive-contact-card{min-height:78px;gap:9px;padding:10px;border-radius:17px}.archive-contact-card .contact-avatar{width:46px;height:46px}.archive-contact-copy strong{font-size:14px}.archive-contact-copy .contact-identity-line{font-size:10px}.archive-contact-event{font-size:11px}.archive-contact-card .contact-count{min-width:34px;height:32px;font-size:13px;padding-inline:8px}}
+
+/* Give handset cards a more deliberate, mobile-native vertical rhythm. */
+@media(max-width:600px){
+  .hero-card{min-height:clamp(232px,58vw,250px);padding:clamp(17px,4.4vw,20px);border-radius:27px}
+  .connect-card{padding:16px 14px 13px;border-radius:26px}
+  .connect-card-heading{margin-bottom:13px}
+  .connect-row{gap:11px;padding-block:13px}
+  .connect-card .service-icon{width:46px;height:46px;border-radius:15px}
+  .profile-card{padding-block:12px;border-radius:24px}
+  .profile-row{padding-block:12px}
+  .service-card,.coming-card{padding:18px;border-radius:24px}
+  .coming-card{min-height:210px}
+  .contact-list,.events-list{border-radius:22px}
+  .contact-row{min-height:74px;padding-block:13px}
+  .home-contact-row{min-height:72px;padding-block:12px}
+  .event-row{padding-block:14px}
+  .contact-row.archive-contact-card{min-height:84px;padding-block:12px;border-radius:20px}
+  .identity-card{padding:16px;border-radius:20px}
+  .empty-events{min-height:225px;padding-bottom:22px;border-radius:24px}
+}
