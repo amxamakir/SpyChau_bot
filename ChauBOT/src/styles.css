@@ -481,4 +481,34 @@ img,svg{max-width:100%}
   .contact-row.archive-contact-card{min-height:84px;padding-block:12px;border-radius:20px}
   .identity-card{padding:16px;border-radius:20px}
   .empty-events{min-height:225px;padding-bottom:22px;border-radius:24px}
+  /* Scale the contents with the room added to the mobile cards. */
+  .hero-card .status-pill{padding:8px 12px;font-size:12px}
+  .hero-card .subscription-heading{font-size:26px;line-height:1.18}
+  .hero-card p{font-size:14px;line-height:1.5}
+  .hero-card .button{min-height:46px;padding:13px 16px;font-size:14px}
+  .connect-card-heading strong{font-size:16px}
+  .connect-card-heading .count-badge{font-size:13px;padding:8px 11px}
+  .connect-row .row-copy strong,.profile-row .row-copy strong{font-size:16px;line-height:1.32}
+  .connect-row .row-copy span,.connect-row .row-copy small,.profile-row .row-copy small{font-size:13px;line-height:1.45}
+  .connect-row .button-compact{width:43px;height:42px}
+  .profile-row .service-icon{width:38px;height:38px}
+  .service-card h2,.coming-card h2{font-size:18px}
+  .service-card p,.service-card-bottom .button{font-size:14px}
+  .service-card .service-icon.large{width:50px;height:50px}
+  .contact-row .contact-avatar{width:46px;height:46px;font-size:16px}
+  .contact-copy strong{font-size:15px}
+  .contact-copy small,.contact-count{font-size:12px}
+  .event-row .event-type-icon{width:40px;height:40px}
+  .event-title-line strong{font-size:14px}
+  .event-copy>span,.contact-event-row .event-copy>span{font-size:13px;line-height:1.5}
+  .event-copy small,.event-title-line time{font-size:11px}
+  .archive-contact-card .contact-avatar{width:50px;height:50px}
+  .archive-contact-copy strong{font-size:15px}
+  .archive-contact-copy .contact-identity-line{font-size:11px}
+  .archive-contact-event{font-size:12px}
+  .privacy-point-icon{width:33px;height:33px}
+  .profile-detail-card .privacy-points{font-size:14px;line-height:1.55}
+  .subscription-status,.subscription-row-value{font-size:14px}
+  .identity-copy strong{font-size:14px}
+  .identity-copy span{font-size:15px}
 }
