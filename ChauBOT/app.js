@@ -21,6 +21,7 @@ const icon = (name, size = 20) => {
     spark: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
     arrow: '<path d="M5 12h14m-7-7 7 7-7 7"/>',
+    back: '<path d="M19 12H5m7 7-7-7 7-7"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>'
     ,sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
@@ -32,12 +33,37 @@ const icon = (name, size = 20) => {
 
 const state = {
   tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
-  tutorialType: null, tutorialReturnTab: 'home',
+  tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
   loading: false, archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
+
+function pushNavigation() {
+  const snapshot = {
+    tab: state.tab,
+    archiveContactId: state.archiveContactId,
+    archiveFilter: state.archiveFilter,
+    query: state.query,
+    tutorialType: state.tutorialType,
+    tutorialReturnTab: state.tutorialReturnTab
+  };
+  const last = state.navigationStack[state.navigationStack.length - 1];
+  if (last && Object.keys(snapshot).every(key => last[key] === snapshot[key])) return;
+  state.navigationStack.push(snapshot);
+  if (state.navigationStack.length > 40) state.navigationStack.shift();
+}
+
+function goBack() {
+  const previous = state.navigationStack.pop();
+  if (previous) Object.assign(state, previous);
+  else if (state.tab === 'archive' && state.archiveContactId) state.archiveContactId = null;
+  else if (state.tab === 'connection-tutorial') state.tab = state.tutorialReturnTab || 'home';
+  else state.tab = 'home';
+  state.modal = null;
+  render();
+}
 
 function loadTheme() {
   try { return localStorage.getItem('spychau-theme') === 'light' ? 'light' : 'dark'; }
@@ -406,7 +432,7 @@ function modal() {
 function render() {
   document.documentElement.dataset.theme = state.theme;
   const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
-  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${state.tab !== 'home' ? `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 22)}</button>` : ''}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
 }
 
 function toast(message) {
@@ -505,6 +531,7 @@ app.addEventListener('click', async event => {
   if (!target) return;
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.contactId) {
+    pushNavigation();
     state.archiveContactId = target.dataset.contactId;
     state.archiveFilter = 'all';
     state.tab = 'archive';
@@ -512,15 +539,11 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.action === 'archive-back') {
-    state.archiveContactId = null;
-    state.archiveFilter = 'all';
-    render();
+    goBack();
     return;
   }
   if (target.dataset.action === 'tutorial-back') {
-    state.tab = state.tutorialReturnTab || 'home';
-    state.tutorialType = null;
-    render();
+    goBack();
     return;
   }
   if (target.dataset.action === 'copy-bot-name') {
@@ -549,6 +572,7 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.tutorial) {
+    pushNavigation();
     state.modal = null;
     state.tutorialType = target.dataset.tutorial;
     state.tutorialReturnTab = state.tab;
@@ -559,13 +583,21 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.tab) {
     state.modal = null;
+    const profileDetailTabs = ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'];
+    if (target.dataset.tab === 'profile' && profileDetailTabs.includes(state.tab)) {
+      if (state.navigationStack.length) goBack();
+      else { state.tab = 'profile'; render(); }
+      return;
+    }
     if (target.dataset.tab === 'archive') {
+      if (state.tab !== 'archive' || state.archiveContactId) pushNavigation();
       state.archiveContactId = null;
       state.archiveFilter = 'all';
       state.query = '';
       await loadArchive();
       return;
     }
+    if (target.dataset.tab !== state.tab) pushNavigation();
     state.tab = target.dataset.tab;
     render();
     if (state.tab === 'owner-statistics') await loadOwnerStatistics();
@@ -594,7 +626,8 @@ app.addEventListener('click', async event => {
     render();
     return;
   }
-  if (action === 'about') { state.modal = null; state.tab = 'about'; render(); return; }
+  if (action === 'app-back') { goBack(); return; }
+  if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
