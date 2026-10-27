@@ -514,4 +514,5 @@ img,svg{max-width:100%}
   .subscription-status,.subscription-row-value{font-size:14px}
   .identity-copy strong{font-size:14px}
   .identity-copy span{font-size:15px}
+  .hero-card .subscription-heading{width:max-content;max-width:calc(100vw - 54px);white-space:nowrap;font-size:clamp(18px,6vw,26px);letter-spacing:-1px}
 }
