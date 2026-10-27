@@ -542,7 +542,7 @@ img,svg{max-width:100%}
 }
 
 /* Personal chat connection guide */
-.connection-tutorial-page{animation:none;padding-bottom:190px}
+.connection-tutorial-page{animation:none;padding-bottom:0}
 .tutorial-intro{position:relative;min-height:160px;display:flex;align-items:flex-start}
 .tutorial-intro .profile-detail-back{position:absolute;top:0;left:0;margin:0}
 .tutorial-heading{padding-top:42px;max-width:calc(100% - 150px)}
@@ -565,7 +565,7 @@ img,svg{max-width:100%}
 .tutorial-breadcrumb svg{color:#d7a17b}
 .connection-tutorial-page>.tutorial-note{margin-top:12px}
 .tutorial-illustration-space{height:34px}
-.tutorial-footer{position:fixed;z-index:8;left:50%;bottom:calc(82px + env(safe-area-inset-bottom));width:min(calc(100% - 24px),450px);transform:translateX(-50%);display:grid;justify-items:center;gap:10px;padding:0 2px}
+.tutorial-footer{position:static;width:100%;max-width:470px;margin:16px auto 0;transform:none;display:grid;justify-items:center;gap:10px;padding:0 2px}
 .tutorial-open-settings{width:100%;min-height:54px;border-radius:18px;background:linear-gradient(135deg,#ff6545,#e51d32);color:#fff;font-size:16px;box-shadow:0 10px 25px rgba(230,34,48,.24)}
 .tutorial-help-link{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border:0;background:transparent;color:#d3aaa0;font-size:13px;font-weight:600;cursor:pointer}
 :root[data-theme="light"] .tutorial-heading h1,:root[data-theme="light"] .tutorial-step-content h2,:root[data-theme="light"] .tutorial-copy-row strong{color:#281719}
