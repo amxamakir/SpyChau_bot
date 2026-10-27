@@ -466,6 +466,22 @@ img,svg{max-width:100%}
 :root[data-theme="light"] .archive-contact-copy .contact-identity-line{color:#806b65}
 @media(max-width:430px){.contact-row.archive-contact-card{min-height:78px;gap:9px;padding:10px;border-radius:17px}.archive-contact-card .contact-avatar{width:46px;height:46px}.archive-contact-copy strong{font-size:14px}.archive-contact-copy .contact-identity-line{font-size:10px}.archive-contact-event{font-size:11px}.archive-contact-card .contact-count{min-width:34px;height:32px;font-size:13px;padding-inline:8px}}
 
+.connect-cta{min-height:39px;padding:0 12px;border-radius:12px;font-size:11px;white-space:nowrap;flex:none}
+.connection-done{width:42px;height:42px;display:grid;place-items:center;flex:none;border:1px solid rgba(49,211,148,.22);border-radius:14px;background:rgba(49,211,148,.13);color:#35ce90}
+.connection-tutorial-page .page-title{margin:12px 0 20px}
+.connection-tutorial-card{padding:20px;border-color:rgba(255,121,102,.16);background:linear-gradient(145deg,rgba(48,25,27,.97),rgba(31,17,19,.98))}
+.connection-steps{display:grid;gap:14px;margin:20px 0 16px;padding:0;list-style:none}
+.connection-steps li{display:flex;align-items:flex-start;gap:11px}
+.connection-steps li>span{width:27px;height:27px;display:grid;place-items:center;flex:none;border:1px solid rgba(255,192,91,.28);border-radius:9px;background:rgba(255,115,77,.12);color:#ffc247;font-size:12px;font-weight:800}
+.connection-steps p{margin:2px 0 0;color:#f3e7df;font-size:13px;line-height:1.55}
+.connection-steps b{color:#fff8ee}
+.tutorial-note{padding:13px 14px;border:1px solid rgba(255,192,91,.17);border-radius:14px;background:rgba(255,192,58,.07);color:#d9c2a0;font-size:12px;line-height:1.55}
+.tutorial-note-pending{margin-top:16px;border-color:rgba(255,121,102,.2);background:rgba(211,58,66,.08);color:#edc6bc}
+:root[data-theme="light"] .connection-tutorial-card{background:linear-gradient(145deg,#fffdfa,#f9eee8);border-color:rgba(170,93,65,.2)}
+:root[data-theme="light"] .connection-steps p,:root[data-theme="light"] .connection-steps b{color:#3a2926}
+:root[data-theme="light"] .tutorial-note{color:#765d42}
+:root[data-theme="light"] .tutorial-note-pending{color:#74433d}
+
 /* Give handset cards a more deliberate, mobile-native vertical rhythm. */
 @media(max-width:600px){
   .hero-card{min-height:clamp(232px,58vw,250px);padding:clamp(17px,4.4vw,20px);border-radius:27px}
@@ -518,4 +534,9 @@ img,svg{max-width:100%}
   .home-page .hero-copy{align-self:stretch;position:relative;display:block;padding-top:16px;transform:none}
   .home-page .hero-copy>p{margin-bottom:0}
   .home-page .hero-copy>.button{position:absolute;left:0;top:auto;bottom:calc(22px - clamp(17px,4.4vw,20px))}
+  .connect-row .connect-cta{min-width:94px;min-height:40px;padding-inline:10px;font-size:11px}
+  .connection-tutorial-card{padding:17px}
+  .connection-steps{gap:13px}
+  .connection-steps p{font-size:14px}
+  .tutorial-note{font-size:13px}
 }

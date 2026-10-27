@@ -32,6 +32,7 @@ const icon = (name, size = 20) => {
 
 const state = {
   tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  tutorialType: null, tutorialReturnTab: 'home',
   theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
   loading: false, archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
@@ -94,8 +95,18 @@ function statusLabel() {
 
 function connectCard() {
   const activeCount = state.connections.filter(connection => Number(connection.enabled) === 1).length;
+  const personalConnected = activeCount > 0;
   const count = activeCount ? '1 из 2' : '0 из 2';
-  return `<div class="connect-card"><div class="connect-card-heading"><strong>Подключения</strong><span class="count-badge" style="border:0;background:none;padding:0;color:var(--muted)">${count}</span></div><div class="connect-row"><div class="service-icon blue">${icon('chat', 20)}</div><div class="row-copy"><strong>Личные чаты</strong><span>${activeCount ? 'Подключение активно' : state.preview ? 'Открой приложение через Telegram' : 'Подключение настраивается позже'}</span></div><button class="button button-blue button-compact" data-action="connect">${state.preview ? 'Открыть в Telegram' : 'Подробнее'} ${icon('chevron', 15)}</button></div><div class="divider"></div><div class="connect-row"><div class="service-icon purple">${icon('people', 20)}</div><div class="row-copy"><strong>Группы</strong><span>Пока не подключены</span></div><button class="button button-blue button-compact" data-action="groups">Подробнее ${icon('chevron', 15)}</button></div></div>`;
+  const connectButton = type => `<button type="button" class="button button-blue connect-cta" data-tutorial="${type}">Подключить</button>`;
+  const connectedMark = `<span class="connection-done" role="status" aria-label="Подключено">${icon('check', 20)}</span>`;
+  return `<div class="connect-card"><div class="connect-card-heading"><strong>Подключения</strong><span class="count-badge" style="border:0;background:none;padding:0;color:var(--muted)">${count}</span></div><div class="connect-row"><div class="service-icon blue">${icon('chat', 20)}</div><div class="row-copy"><strong>Личные чаты</strong><span>${personalConnected ? 'Подключение активно' : state.preview ? 'Открой приложение через Telegram' : 'Пока не подключены'}</span></div>${personalConnected ? connectedMark : connectButton('personal')}</div><div class="divider"></div><div class="connect-row"><div class="service-icon purple">${icon('people', 20)}</div><div class="row-copy"><strong>Группы</strong><span>Пока не подключены</span></div>${connectButton('groups')}</div></div>`;
+}
+
+function connectionTutorialPage() {
+  const personal = state.tutorialType !== 'groups';
+  const header = `<button type="button" class="profile-detail-back" data-action="tutorial-back">${icon('chevron', 16)} Назад</button><div class="page-title"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>${personal ? 'Личные чаты' : 'Группы'}</h1><p>${personal ? 'Выбери, к каким личным чатам SpyChau получит доступ.' : 'Статус и порядок подключения групп.'}</p></div>`;
+  if (personal) return `<section class="page connection-tutorial-page">${header}<div class="service-card connection-tutorial-card"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Как подключить</h2><p>Бизнес-бот уже настроен. Осталось разрешить ему доступ к нужным чатам.</p></div></div><ol class="connection-steps"><li><span>1</span><p>В Telegram открой <b>Настройки → Telegram Business → Чат-боты</b>.</p></li><li><span>2</span><p>Нажми «Подключить бота» и выбери <b>@SpyUndo_bot</b>.</p></li><li><span>3</span><p>Отметь нужные личные чаты и проверь разрешения, которые даёшь боту.</p></li><li><span>4</span><p>Подтверди подключение и вернись в SpyChau. Здесь появится галочка.</p></li></ol><div class="tutorial-note">События начнут сохраняться после подключения. Историю сообщений до этого Telegram боту не передаёт.</div></div></section>`;
+  return `<section class="page connection-tutorial-page">${header}<div class="service-card connection-tutorial-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Групповой режим готовится</h2><p>Сейчас SpyChau не сохраняет события из групп.</p></div></div><div class="tutorial-note tutorial-note-pending">Добавление бота в группу пока не включит архивирование сообщений. Не выдавай боту права администратора ради этой функции. Когда групповой режим будет реализован, здесь появятся точные шаги и необходимые разрешения.</div></div></section>`;
 }
 
 function archiveEventKind(event) {
@@ -250,7 +261,7 @@ function home() {
 
 function services() {
   const activeCount = state.connections.filter(connection => Number(connection.enabled) === 1).length;
-  return `<section class="page services-page"><div class="page-title"><span class="eyebrow">ТВОЙ НАБОР ИНСТРУМЕНТОВ</span><h1>Сервисы</h1><p>Всё, что умеет Кчау - подключай нужное</p></div><div class="service-card featured-service"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Личные чаты</h2><p>Архив событий из чатов, которые ты разрешил подключённому Telegram Business боту.</p></div></div><div class="service-card-bottom"><span class="green-label">${icon('check', 15)} ${state.preview ? 'Доступно после запуска в Telegram' : `${activeCount} активных подключений`}</span><button class="button button-blue" data-action="connect">${state.preview ? 'О подключении' : 'Настройка'} ${icon('chevron', 16)}</button></div><div class="card-glow"></div></div><div class="service-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Группы</h2><p>Отдельный режим для групповых чатов. Пока не подключён.</p></div></div><div class="service-card-bottom"><span class="muted-price">Будет добавлен отдельно</span><button class="button button-purple" data-action="groups">Подробнее ${icon('chevron', 16)}</button></div></div><div class="service-card archive-service"><div class="service-card-top"><div class="service-icon cyan large">${icon('archive', 24)}</div><div><h2>Архив событий</h2><p>Список новых, изменённых и удалённых сообщений, полученных после подключения.</p></div></div><div class="service-card-bottom"><span class="lock-label">${icon('clock', 14)} ${state.preview ? 'Открой через Telegram' : `${state.events.length} событий загружено`}</span><button class="button button-blue" data-tab="archive">Открыть архив ${icon('chevron', 16)}</button></div></div><div class="coming-card"><span class="coming-label">ПОЗЖЕ</span><div class="coming-content"><div><h2>Дополнительные возможности</h2><p>${icon('spark', 14)} Поиск и фильтры архива</p><p>${icon('spark', 14)} Настройки хранения и экспорт</p><p>${icon('spark', 14)} Управление профилем</p></div>${racer(true)}</div></div></section>`;
+  return `<section class="page services-page"><div class="page-title"><span class="eyebrow">ТВОЙ НАБОР ИНСТРУМЕНТОВ</span><h1>Сервисы</h1><p>Всё, что умеет Кчау - подключай нужное</p></div><div class="service-card featured-service"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Личные чаты</h2><p>Архив событий из чатов, которые ты разрешил подключённому Telegram Business боту.</p></div></div><div class="service-card-bottom"><span class="green-label">${icon('check', 15)} ${state.preview ? 'Доступно после запуска в Telegram' : `${activeCount} активных подключений`}</span><button class="button button-blue" data-tutorial="personal">${state.preview ? 'О подключении' : 'Настройка'} ${icon('chevron', 16)}</button></div><div class="card-glow"></div></div><div class="service-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Группы</h2><p>Отдельный режим для групповых чатов. Пока не подключён.</p></div></div><div class="service-card-bottom"><span class="muted-price">Будет добавлен отдельно</span><button class="button button-purple" data-tutorial="groups">Подробнее ${icon('chevron', 16)}</button></div></div><div class="service-card archive-service"><div class="service-card-top"><div class="service-icon cyan large">${icon('archive', 24)}</div><div><h2>Архив событий</h2><p>Список новых, изменённых и удалённых сообщений, полученных после подключения.</p></div></div><div class="service-card-bottom"><span class="lock-label">${icon('clock', 14)} ${state.preview ? 'Открой через Telegram' : `${state.events.length} событий загружено`}</span><button class="button button-blue" data-tab="archive">Открыть архив ${icon('chevron', 16)}</button></div></div><div class="coming-card"><span class="coming-label">ПОЗЖЕ</span><div class="coming-content"><div><h2>Дополнительные возможности</h2><p>${icon('spark', 14)} Поиск и фильтры архива</p><p>${icon('spark', 14)} Настройки хранения и экспорт</p><p>${icon('spark', 14)} Управление профилем</p></div>${racer(true)}</div></div></section>`;
 }
 
 function archive() {
@@ -376,7 +387,7 @@ function subscriptionPage() {
 
 function nav() {
   const items = [['home', 'home', 'Главная'], ['services', 'grid', 'Сервисы'], ['profile', 'user', 'Профиль']];
-  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
+  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
 }
 
 function modal() {
@@ -394,7 +405,7 @@ function modal() {
 
 function render() {
   document.documentElement.dataset.theme = state.theme;
-  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
+  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
   app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
 }
 
@@ -490,7 +501,7 @@ app.addEventListener('submit', async event => {
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab], [data-archive-filter], [data-contact-id], [data-notification-toggle]');
+  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-contact-id], [data-notification-toggle]');
   if (!target) return;
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.contactId) {
@@ -504,6 +515,21 @@ app.addEventListener('click', async event => {
     state.archiveContactId = null;
     state.archiveFilter = 'all';
     render();
+    return;
+  }
+  if (target.dataset.action === 'tutorial-back') {
+    state.tab = state.tutorialReturnTab || 'home';
+    state.tutorialType = null;
+    render();
+    return;
+  }
+  if (target.dataset.tutorial) {
+    state.modal = null;
+    state.tutorialType = target.dataset.tutorial;
+    state.tutorialReturnTab = state.tab;
+    state.tab = 'connection-tutorial';
+    render();
+    window.scrollTo(0, 0);
     return;
   }
   if (target.dataset.tab) {
