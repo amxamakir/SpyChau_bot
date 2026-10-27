@@ -516,4 +516,5 @@ img,svg{max-width:100%}
   .identity-copy span{font-size:15px}
   .hero-card .subscription-heading{width:max-content;max-width:calc(100vw - 54px);padding-left:9px;white-space:nowrap;font-size:clamp(18px,6vw,26px);letter-spacing:-1px}
   .home-page .hero-copy{transform:translateY(-14px)}
+  .home-page .hero-copy>.button{position:relative;top:12px}
 }
