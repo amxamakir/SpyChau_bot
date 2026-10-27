@@ -104,8 +104,8 @@ function connectCard() {
 
 function connectionTutorialPage() {
   const personal = state.tutorialType !== 'groups';
-  const header = `<button type="button" class="profile-detail-back" data-action="tutorial-back">${icon('chevron', 16)} Назад</button><div class="page-title"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>${personal ? 'Личные чаты' : 'Группы'}</h1><p>${personal ? 'Выбери, к каким личным чатам SpyChau получит доступ.' : 'Статус и порядок подключения групп.'}</p></div>`;
-  if (personal) return `<section class="page connection-tutorial-page">${header}<div class="service-card connection-tutorial-card"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Как подключить</h2><p>Бизнес-бот уже настроен. Осталось разрешить ему доступ к нужным чатам.</p></div></div><ol class="connection-steps"><li><span>1</span><p>В Telegram открой <b>Настройки → Telegram Business → Чат-боты</b>.</p></li><li><span>2</span><p>Нажми «Подключить бота» и выбери <b>@SpyUndo_bot</b>.</p></li><li><span>3</span><p>Отметь нужные личные чаты и проверь разрешения, которые даёшь боту.</p></li><li><span>4</span><p>Подтверди подключение и вернись в SpyChau. Здесь появится галочка.</p></li></ol><div class="tutorial-note">События начнут сохраняться после подключения. Историю сообщений до этого Telegram боту не передаёт.</div></div></section>`;
+  const header = `<button type="button" class="profile-detail-back" data-action="tutorial-back">${icon('chevron', 16)} Назад</button>`;
+  if (personal) return `<section class="page connection-tutorial-page"><div class="tutorial-intro">${header}<div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи меня<br>к личным чатам</h1><p>Три шага — и я начну сохранять новые изменения и удаления.</p></div><div class="tutorial-mascot-space" aria-hidden="true"></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Скопируй моё имя</h2><div class="tutorial-copy-row"><strong>@SpyUndo_bot</strong><button type="button" class="tutorial-copy-button" data-action="copy-bot-name">${icon('archive', 16)} Копировать</button></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Открой «Автоматизацию чатов»</h2><p>Этот раздел настроек Telegram подключает бота к выбранным чатам.</p><div class="tutorial-breadcrumb"><span>Настройки</span>${icon('chevron', 13)}<span>Telegram Business</span>${icon('chevron', 13)}<b>Чат-боты</b></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Выбери чаты и сохрани</h2><p>Отметь нужные личные чаты, проверь разрешения и нажми «Сохранить».</p></div></article></div><div class="tutorial-note">Новые события начнут сохраняться после подключения. Telegram не передаёт боту историю сообщений до этого момента.</div><div class="tutorial-illustration-space" aria-hidden="true"></div><div class="tutorial-footer"><button type="button" class="button tutorial-open-settings" data-action="open-telegram-business-settings">Открыть настройки Telegram ${icon('arrow', 19)}</button><button type="button" class="tutorial-help-link" data-action="tutorial-help">${icon('help', 15)} Не получается? Помогу</button></div></section>`;
   return `<section class="page connection-tutorial-page">${header}<div class="service-card connection-tutorial-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Групповой режим готовится</h2><p>Сейчас SpyChau не сохраняет события из групп.</p></div></div><div class="tutorial-note tutorial-note-pending">Добавление бота в группу пока не включит архивирование сообщений. Не выдавай боту права администратора ради этой функции. Когда групповой режим будет реализован, здесь появятся точные шаги и необходимые разрешения.</div></div></section>`;
 }
 
@@ -521,6 +521,31 @@ app.addEventListener('click', async event => {
     state.tab = state.tutorialReturnTab || 'home';
     state.tutorialType = null;
     render();
+    return;
+  }
+  if (target.dataset.action === 'copy-bot-name') {
+    try {
+      await navigator.clipboard.writeText('@SpyUndo_bot');
+      toast('Имя бота скопировано.');
+    } catch {
+      const input = document.createElement('textarea');
+      input.value = '@SpyUndo_bot';
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.append(input);
+      input.select();
+      const copied = document.execCommand('copy');
+      input.remove();
+      toast(copied ? 'Имя бота скопировано.' : 'Скопируй имя бота: @SpyUndo_bot');
+    }
+    return;
+  }
+  if (target.dataset.action === 'open-telegram-business-settings') {
+    window.location.href = 'tg://settings/business';
+    return;
+  }
+  if (target.dataset.action === 'tutorial-help') {
+    toast('Настройки → Telegram Business → Чат-боты. Там выбери @SpyUndo_bot и нужные чаты.');
     return;
   }
   if (target.dataset.tutorial) {

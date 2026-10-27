@@ -540,3 +540,50 @@ img,svg{max-width:100%}
   .connection-steps p{font-size:14px}
   .tutorial-note{font-size:13px}
 }
+
+/* Personal chat connection guide */
+.connection-tutorial-page{animation:none;padding-bottom:190px}
+.tutorial-intro{position:relative;min-height:160px;display:flex;align-items:flex-start}
+.tutorial-intro .profile-detail-back{position:absolute;top:0;left:0;margin:0}
+.tutorial-heading{padding-top:42px;max-width:calc(100% - 150px)}
+.tutorial-heading .eyebrow{display:block;margin-bottom:9px;color:#ff7966;font-size:10px;font-weight:800;letter-spacing:1.6px}
+.tutorial-heading h1{margin:0 0 9px;color:#fff8ee;font-size:clamp(27px,6vw,34px);line-height:1.12;letter-spacing:-.9px}
+.tutorial-heading p{margin:0;color:#c4aaa2;font-size:14px;line-height:1.5}
+.tutorial-mascot-space{position:absolute;right:0;top:26px;width:132px;height:130px;pointer-events:none}
+.tutorial-step-list{display:grid;gap:12px}
+.tutorial-step-card{display:flex;align-items:flex-start;gap:13px;padding:16px 17px;border:1px solid rgba(255,192,91,.14);border-radius:22px;background:linear-gradient(145deg,rgba(48,25,27,.97),rgba(31,17,19,.98));box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.tutorial-step-number{width:32px;height:32px;display:grid;place-items:center;flex:none;border-radius:50%;background:linear-gradient(140deg,#ff7a4d,#e62839);color:#fff;font-size:15px;font-weight:800;box-shadow:0 5px 14px rgba(230,40,57,.2)}
+.tutorial-step-content{min-width:0;flex:1}
+.tutorial-step-content h2{margin:2px 0 7px;color:#fff8ee;font-size:16px;line-height:1.3}
+.tutorial-step-content p{margin:0;color:#c4aaa2;font-size:13px;line-height:1.45}
+.tutorial-copy-row{min-height:50px;margin-top:12px;padding:6px 7px 6px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:15px;background:#321a1c}
+.tutorial-copy-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#fff8ee;font-size:15px;white-space:nowrap}
+.tutorial-copy-button{min-height:38px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:none;border:0;border-radius:12px;background:linear-gradient(135deg,#ff6545,#e51d32);color:white;font-size:12px;font-weight:800;cursor:pointer}
+.tutorial-breadcrumb{margin-top:11px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:#c4aaa2}
+.tutorial-breadcrumb span,.tutorial-breadcrumb b{padding:6px 8px;border-radius:9px;background:#321a1c;color:#e4c5b6;font-size:11px;font-weight:700}
+.tutorial-breadcrumb b{background:rgba(230,40,57,.18);color:#ff806c}
+.tutorial-breadcrumb svg{color:#d7a17b}
+.connection-tutorial-page>.tutorial-note{margin-top:12px}
+.tutorial-illustration-space{height:34px}
+.tutorial-footer{position:fixed;z-index:8;left:50%;bottom:calc(82px + env(safe-area-inset-bottom));width:min(calc(100% - 24px),450px);transform:translateX(-50%);display:grid;justify-items:center;gap:10px;padding:0 2px}
+.tutorial-open-settings{width:100%;min-height:54px;border-radius:18px;background:linear-gradient(135deg,#ff6545,#e51d32);color:#fff;font-size:16px;box-shadow:0 10px 25px rgba(230,34,48,.24)}
+.tutorial-help-link{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border:0;background:transparent;color:#d3aaa0;font-size:13px;font-weight:600;cursor:pointer}
+:root[data-theme="light"] .tutorial-heading h1,:root[data-theme="light"] .tutorial-step-content h2,:root[data-theme="light"] .tutorial-copy-row strong{color:#281719}
+:root[data-theme="light"] .tutorial-heading p,:root[data-theme="light"] .tutorial-step-content p{color:#806b65}
+:root[data-theme="light"] .tutorial-step-card{background:linear-gradient(145deg,#fffdfa,#f9eee8);border-color:rgba(170,93,65,.2)}
+:root[data-theme="light"] .tutorial-copy-row,:root[data-theme="light"] .tutorial-breadcrumb span{background:#f2e4dc}
+:root[data-theme="light"] .tutorial-breadcrumb span{color:#694d45}
+:root[data-theme="light"] .tutorial-help-link{color:#765d56}
+@media(max-width:430px){
+  .tutorial-intro{min-height:154px}
+  .tutorial-heading{max-width:calc(100% - 112px);padding-top:43px}
+  .tutorial-heading h1{font-size:27px}
+  .tutorial-heading p{font-size:13px}
+  .tutorial-mascot-space{top:35px;width:100px;height:112px}
+  .tutorial-step-card{gap:11px;padding:15px 13px;border-radius:19px}
+  .tutorial-step-content h2{font-size:15px}
+  .tutorial-step-content p{font-size:12px}
+  .tutorial-breadcrumb{gap:3px}
+  .tutorial-breadcrumb span,.tutorial-breadcrumb b{padding:5px 6px;font-size:10px}
+  .tutorial-open-settings{font-size:15px}
+}
