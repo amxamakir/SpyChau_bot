@@ -73,7 +73,7 @@ body{background:#100b0c}
 .connection-indicator{height:9px;width:9px;border-radius:50%;background:#72809c;margin:0 8px}
 .connection-indicator.online{background:#31d394;box-shadow:0 0 10px rgba(49,211,148,.6)}
 .service-icon.muted{color:#94a0b9;background:rgba(148,160,185,.13)}
-.event-heading{margin-top:23px}
+.event-heading{margin-top:16px}
 .events-list{overflow:hidden;border:1px solid rgba(255,192,91,.13);border-radius:19px;background:rgba(36,19,20,.94)}
 .event-row{display:flex;gap:11px;padding:13px 14px;align-items:flex-start}
 .event-row+.event-row{border-top:1px solid rgba(255,192,91,.12)}
