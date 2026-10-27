@@ -65,6 +65,14 @@ function goBack() {
   render();
 }
 
+function syncTelegramBackButton() {
+  const backButton = state.telegram?.BackButton;
+  if (!backButton) return;
+  const mainTabs = ['home', 'services', 'profile'];
+  if (mainTabs.includes(state.tab)) backButton.hide?.();
+  else backButton.show?.();
+}
+
 function loadTheme() {
   try { return localStorage.getItem('spychau-theme') === 'light' ? 'light' : 'dark'; }
   catch { return 'dark'; }
@@ -434,6 +442,7 @@ function render() {
   const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
   const mainTabs = ['home', 'services', 'profile'];
   app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  syncTelegramBackButton();
 }
 
 function toast(message) {
@@ -688,6 +697,7 @@ app.addEventListener('keydown', event => {
 });
 
 if (state.telegram) {
+  state.telegram.BackButton?.onClick?.(goBack);
   syncTelegramSafeArea();
   state.telegram.onEvent?.('safeAreaChanged', syncTelegramSafeArea);
   state.telegram.onEvent?.('contentSafeAreaChanged', syncTelegramSafeArea);
