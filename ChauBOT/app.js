@@ -86,7 +86,7 @@ function syncTelegramSafeArea() {
   const insetTop = Math.max(safeTop, contentTop);
   // Telegram overlays its controls on the WebView in fullscreen. Keep the
   // app header below them even on clients that report a zero content inset.
-  const fullscreenFallback = Math.min(184, Math.max(144, viewportHeight * 0.18));
+  const fullscreenFallback = Math.min(184, Math.max(144, viewportHeight * 0.18)) * 0.75;
   const topInset = state.telegram?.isFullscreen
     ? Math.max(insetTop + 12, fullscreenFallback)
     : insetTop;
