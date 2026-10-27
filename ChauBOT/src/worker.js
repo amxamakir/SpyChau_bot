@@ -6,7 +6,12 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.35" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.36" });
+    }
+
+    const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
+    if (avatarMatch && request.method === "GET") {
+      return serveContactAvatar(request, env, avatarMatch[1]);
     }
 
     const mediaMatch = route.match(/^\/api\/media\/(\d+)$/);
@@ -331,7 +336,9 @@ async function eventRow(row, env) {
   const { message_json: _messageJson, ...event } = row;
   const hasPhoto = Boolean(Array.isArray(message.photo) && message.photo.some((photo) => photo.file_id));
   const mediaUrl = hasPhoto ? await signedMediaUrl(event, env) : null;
-  return { ...event, message, media_url: mediaUrl };
+  const chatPhoto = message.chat?.photo;
+  const avatarUrl = chatPhoto?.small_file_id || chatPhoto?.big_file_id ? await signedAvatarUrl(event, env) : null;
+  return { ...event, message, media_url: mediaUrl, avatar_url: avatarUrl };
 }
 
 async function signedMediaUrl(event, env) {
@@ -339,6 +346,39 @@ async function signedMediaUrl(event, env) {
   const payload = `${event.owner_id}:${event.id}:${expires}`;
   const signature = bytesToBase64Url(await hmacSha256(env.TELEGRAM_BOT_TOKEN, payload));
   return `/api/media/${event.id}?expires=${expires}&signature=${signature}`;
+}
+
+async function signedAvatarUrl(event, env) {
+  const expires = Math.floor(Date.now() / 1000) + 15 * 60;
+  const payload = `avatar:${event.owner_id}:${event.id}:${expires}`;
+  const signature = bytesToBase64Url(await hmacSha256(env.TELEGRAM_BOT_TOKEN, payload));
+  return `/api/avatar/${event.id}?expires=${expires}&signature=${signature}`;
+}
+
+async function serveContactAvatar(request, env, eventId) {
+  const url = new URL(request.url);
+  const expires = Number(url.searchParams.get("expires"));
+  const signature = url.searchParams.get("signature") || "";
+  const now = Math.floor(Date.now() / 1000);
+  if (!env.TELEGRAM_BOT_TOKEN || !Number.isInteger(expires) || expires < now || expires > now + 15 * 60 + 30) {
+    return new Response("Not found", { status: 404 });
+  }
+  const row = await env.DB.prepare("SELECT id, owner_id, message_json FROM events WHERE id = ?").bind(eventId).first();
+  if (!row) return new Response("Not found", { status: 404 });
+  const expected = bytesToBase64Url(await hmacSha256(env.TELEGRAM_BOT_TOKEN, `avatar:${row.owner_id}:${row.id}:${expires}`));
+  if (!constantTimeEqual(signature, expected)) return new Response("Not found", { status: 404 });
+  let message = {};
+  try { message = JSON.parse(row.message_json); } catch { /* Missing chat photo; fall back to contact initials. */ }
+  const fileId = message.chat?.photo?.small_file_id || message.chat?.photo?.big_file_id;
+  if (!fileId) return new Response("Not found", { status: 404 });
+  const token = env.TELEGRAM_BOT_TOKEN;
+  const fileResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`);
+  const fileResult = await fileResponse.json();
+  if (!fileResponse.ok || !fileResult.ok || !fileResult.result?.file_path) return new Response("Not found", { status: 404 });
+  const downloadResponse = await fetch(`https://api.telegram.org/file/bot${token}/${fileResult.result.file_path}`);
+  if (!downloadResponse.ok) return new Response("Not found", { status: 404 });
+  const headers = new Headers({ "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff" });
+  return new Response(downloadResponse.body, { headers });
 }
 
 async function serveArchivedMedia(request, env, eventId) {
