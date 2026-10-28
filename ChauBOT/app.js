@@ -107,7 +107,7 @@ function escapeHtml(value) {
 }
 
 function racer(small = false) {
-  const image = small ? './assets/mcqueen-cutout.png' : './assets/spy-chau-happy-clean.png';
+  const image = small ? './assets/mascot/kchau-trophies.png' : './assets/spy-chau-happy-clean.png';
   return `<div class="racer ${small ? 'racer-small' : ''}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
 }
 
