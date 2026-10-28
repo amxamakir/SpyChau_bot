@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.75" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.76" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -177,6 +177,25 @@ async function handleTelegramWebhook(request, env) {
   }
 
   try {
+    const incomingMessage = update.message;
+    const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
+    if (incomingMessage?.chat?.id && /^\/start(?:@SpyChau_bot)?(?:\s|$)/i.test(commandText)) {
+      if (!env.TELEGRAM_BOT_TOKEN) return json({ error: "bot token is not configured" }, 500);
+      const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: incomingMessage.chat.id,
+          text: "Привет! Я SpyChau. Подключи меня к нужным чатам через Telegram Business — и новые события будут появляться в приложении. События сохраняются только после подключения.",
+          reply_markup: {
+            inline_keyboard: [[{ text: "Открыть SpyChau", url: "https://spychau-bot.senba11.workers.dev/" }]],
+          },
+        }),
+      });
+      if (!response.ok) return json({ error: "Telegram could not send the start message" }, 502);
+      return json({ ok: true, handled: "start" });
+    }
+
     const connection = update.business_connection;
     if (connection?.id && connection.user?.id) {
       const ownerId = String(connection.user.id);
