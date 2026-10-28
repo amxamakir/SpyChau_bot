@@ -6,7 +6,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.76" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.77" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -188,7 +188,7 @@ async function handleTelegramWebhook(request, env) {
           chat_id: incomingMessage.chat.id,
           text: "Привет! Я SpyChau. Подключи меня к нужным чатам через Telegram Business — и новые события будут появляться в приложении. События сохраняются только после подключения.",
           reply_markup: {
-            inline_keyboard: [[{ text: "Открыть SpyChau", url: "https://spychau-bot.senba11.workers.dev/" }]],
+            inline_keyboard: [[{ text: "Открыть SpyChau", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]],
           },
         }),
       });
