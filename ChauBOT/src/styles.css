@@ -180,7 +180,9 @@ html,body{touch-action:pan-x pan-y}
 .service-card-bottom>.button{max-width:100%;white-space:normal}
 .coming-content{min-width:0;gap:8px}
 .coming-content>div:first-child{min-width:0}
-.coming-content>.racer-small{width:300px;height:240px;flex:none;margin-right:-12px}
+.coming-card{position:relative;min-height:210px;overflow:hidden}
+.coming-content>div:first-child{padding-right:155px}
+.coming-content>.racer-small{position:absolute;right:14px;bottom:0;width:300px;height:210px;flex:none;margin:0;pointer-events:none}
 .archive-page{width:100%;min-width:0}
 .archive-page .search-field,.archive-page .archive-list{width:100%;min-width:0;max-width:100%}
 .archive-page .search-field{padding-inline:10px}
@@ -248,7 +250,8 @@ html,body{touch-action:pan-x pan-y}
   .profile-row .service-icon{width:34px;height:34px}
   .service-card,.coming-card{padding:13px}
   .service-card-bottom .button{font-size:10px;padding:9px}
-  .coming-content .racer-small{width:100px;height:80px}
+  .coming-content>div:first-child{padding-right:120px}
+  .coming-content>.racer-small{width:230px;height:170px;right:4px;bottom:0}
   .page-title h1{font-size:26px}
   .profile-intro{padding-bottom:18px}
 }
