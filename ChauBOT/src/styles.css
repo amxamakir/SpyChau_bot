@@ -653,16 +653,14 @@ html,body{touch-action:pan-x pan-y}
 .tariff-entry .service-card-top{align-items:center}
 .tariff-entry .service-card-top>svg{flex:none;color:#d3a17c}
 .tariffs-page{padding-bottom:24px}
-.tariffs-page>.page-title{margin:0 0 15px}
-.tariff-category-switch,.tariff-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid rgba(255,192,91,.13);border-radius:17px;background:#2b1719}
-.tariff-category-switch{margin-bottom:15px}
-.tariff-category-switch button,.tariff-mode-switch button{min-width:0;min-height:46px;padding:7px 10px;border:0;border-radius:13px;background:transparent;color:#d1b7ae;font-size:14px;font-weight:700;cursor:pointer}
-.tariff-category-switch button.active,.tariff-mode-switch button.active{background:linear-gradient(135deg,#ff6545,#e51d32);color:white;box-shadow:0 5px 14px rgba(230,34,48,.2)}
+.tariff-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid rgba(255,192,91,.13);border-radius:17px;background:#2b1719}
+.tariff-mode-switch button{min-width:0;min-height:46px;padding:7px 10px;border:0;border-radius:13px;background:transparent;color:#d1b7ae;font-size:14px;font-weight:700;cursor:pointer}
+.tariff-mode-switch button.active{background:linear-gradient(135deg,#ff6545,#e51d32);color:white;box-shadow:0 5px 14px rgba(230,34,48,.2)}
 .tariff-intro{text-align:center;margin:0 auto 14px;max-width:430px}
 .tariff-mascot{width:104px;height:88px;margin:0 auto 7px;display:grid;place-items:center}
 .tariff-mascot img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 12px rgba(0,0,0,.2))}
-.tariff-intro h2,.tariff-groups-card h2{margin:0 0 7px;color:#fff8ee;font-size:25px;line-height:1.2;letter-spacing:-.5px}
-.tariff-intro p,.tariff-groups-card p{max-width:390px;margin:0 auto;color:#c4a9a2;font-size:14px;line-height:1.45}
+.tariff-intro h2{margin:0 0 7px;color:#fff8ee;font-size:25px;line-height:1.2;letter-spacing:-.5px}
+.tariff-intro p{max-width:390px;margin:0 auto;color:#c4a9a2;font-size:14px;line-height:1.45}
 .tariff-mode-switch{margin-bottom:13px;background:#351b1d}
 .tariff-mode-switch button{min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .tariff-mode-switch strong{font-size:15px}
@@ -691,15 +689,12 @@ html,body{touch-action:pan-x pan-y}
 .tariff-benefits>div strong{font-weight:600}
 .tariff-pay-button{width:100%;min-height:55px;margin-top:16px;border:0;border-radius:17px;background:linear-gradient(135deg,#ff6545,#e51d32);color:#fff;font-size:17px;font-weight:800;box-shadow:0 10px 24px rgba(230,34,48,.2);cursor:pointer}
 .tariff-disclaimer{margin:9px 4px 0;color:#a98e86;text-align:center;font-size:11px;line-height:1.4}
-.tariff-groups-card{padding:18px 16px 22px;border:1px solid rgba(255,192,91,.15);border-radius:22px;background:linear-gradient(145deg,rgba(48,25,27,.97),rgba(31,17,19,.98));text-align:center}
-.tariff-groups-card .coming-label{display:inline-block;margin:0 auto 10px;padding:5px 9px;border-radius:9px;color:#ffcf55;background:rgba(255,192,58,.13);font-size:10px;font-weight:800;letter-spacing:.5px}
-.tariff-groups-card .tariff-mascot{margin-top:0}
-:root[data-theme="light"] .tariff-category-switch,:root[data-theme="light"] .tariff-mode-switch{background:#f2e4dc;border-color:rgba(115,64,48,.14)}
-:root[data-theme="light"] .tariff-category-switch button,:root[data-theme="light"] .tariff-mode-switch button{color:#765d56}
-:root[data-theme="light"] .tariff-category-switch button.active,:root[data-theme="light"] .tariff-mode-switch button.active{color:#fff}
-:root[data-theme="light"] .tariff-intro h2,:root[data-theme="light"] .tariff-groups-card h2,:root[data-theme="light"] .tariff-plan-copy strong,:root[data-theme="light"] .tariff-plan-price>strong{color:#281719}
-:root[data-theme="light"] .tariff-intro p,:root[data-theme="light"] .tariff-groups-card p,:root[data-theme="light"] .tariff-plan-copy small{color:#806b65}
-:root[data-theme="light"] .tariff-plan,:root[data-theme="light"] .tariff-benefits,:root[data-theme="light"] .tariff-groups-card{background:#fffdfa;border-color:rgba(115,64,48,.15)}
+:root[data-theme="light"] .tariff-mode-switch{background:#f2e4dc;border-color:rgba(115,64,48,.14)}
+:root[data-theme="light"] .tariff-mode-switch button{color:#765d56}
+:root[data-theme="light"] .tariff-mode-switch button.active{color:#fff}
+:root[data-theme="light"] .tariff-intro h2,:root[data-theme="light"] .tariff-plan-copy strong,:root[data-theme="light"] .tariff-plan-price>strong{color:#281719}
+:root[data-theme="light"] .tariff-intro p,:root[data-theme="light"] .tariff-plan-copy small{color:#806b65}
+:root[data-theme="light"] .tariff-plan,:root[data-theme="light"] .tariff-benefits{background:#fffdfa;border-color:rgba(115,64,48,.15)}
 :root[data-theme="light"] .tariff-plan.selected{background:#fff3e9;border-color:#e34b36}
 :root[data-theme="light"] .tariff-benefits>div{color:#342622}
 @media(max-width:430px){
