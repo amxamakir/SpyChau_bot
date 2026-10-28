@@ -34,6 +34,7 @@ const icon = (name, size = 20) => {
 const state = {
   tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
+  tariffCategory: 'personal', tariffMode: 'unlimited', selectedTariff: 'month',
   theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
   loading: false, archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
@@ -295,7 +296,27 @@ function home() {
 
 function services() {
   const activeCount = state.connections.filter(connection => Number(connection.enabled) === 1).length;
-  return `<section class="page services-page"><div class="page-title"><h1>Сервисы</h1><p>Всё, что умеет Кчау - подключай нужное</p></div><div class="service-card featured-service"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Личные чаты</h2><p>Архив событий из чатов, которые ты разрешил подключённому Telegram Business боту.</p></div></div><div class="service-card-bottom"><span class="green-label">${icon('check', 15)} ${state.preview ? 'Доступно после запуска в Telegram' : `${activeCount} активных подключений`}</span><button class="button button-blue" data-tutorial="personal">${state.preview ? 'О подключении' : 'Настройка'} ${icon('chevron', 16)}</button></div><div class="card-glow"></div></div><div class="service-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Группы</h2><p>Отдельный режим для групповых чатов. Пока не подключён.</p></div></div><div class="service-card-bottom"><span class="muted-price">Будет добавлен отдельно</span><button class="button button-purple" data-tutorial="groups">Подробнее ${icon('chevron', 16)}</button></div></div><div class="service-card archive-service"><div class="service-card-top"><div class="service-icon cyan large">${icon('archive', 24)}</div><div><h2>Архив событий</h2><p>Список новых, изменённых и удалённых сообщений, полученных после подключения.</p></div></div><div class="service-card-bottom"><span class="lock-label">${icon('clock', 14)} ${state.preview ? 'Открой через Telegram' : `${state.events.length} событий загружено`}</span><button class="button button-blue" data-tab="archive">Открыть архив ${icon('chevron', 16)}</button></div></div><div class="coming-card"><span class="coming-label">ПОЗЖЕ</span><div class="coming-content"><div><h2>Дополнительные возможности</h2><p>${icon('spark', 14)} Поиск и фильтры архива</p><p>${icon('spark', 14)} Настройки хранения и экспорт</p><p>${icon('spark', 14)} Управление профилем</p></div>${racer(true)}</div></div></section>`;
+  return `<section class="page services-page"><div class="page-title"><h1>Сервисы</h1><p>Всё, что умеет Кчау - подключай нужное</p></div><div class="service-card featured-service"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Личные чаты</h2><p>Архив событий из чатов, которые ты разрешил подключённому боту.</p></div></div><div class="service-card-bottom"><span class="green-label">${icon('check', 15)} ${state.preview ? 'Доступно после запуска в Telegram' : `${activeCount} активных подключений`}</span><button class="button button-blue" data-tutorial="personal">${state.preview ? 'О подключении' : 'Настройка'} ${icon('chevron', 16)}</button></div><div class="card-glow"></div></div><button type="button" class="service-card tariff-entry" data-tab="tariffs"><div class="service-card-top"><div class="service-icon yellow large">${icon('gift', 24)}</div><div><h2>Тарифы и оплата</h2><p>Безлимитная подписка или пакет уведомлений для личных чатов.</p></div>${icon('chevron', 18)}</div></button><div class="service-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Группы</h2><p>Отдельный режим для групповых чатов. Пока не подключён.</p></div></div><div class="service-card-bottom"><span class="muted-price">Будет добавлен отдельно</span><button class="button button-purple" data-tutorial="groups">Подробнее ${icon('chevron', 16)}</button></div></div><div class="service-card archive-service"><div class="service-card-top"><div class="service-icon cyan large">${icon('archive', 24)}</div><div><h2>Архив событий</h2><p>Список новых, изменённых и удалённых сообщений, полученных после подключения.</p></div></div><div class="service-card-bottom"><span class="lock-label">${icon('clock', 14)} ${state.preview ? 'Открой через Telegram' : `${state.events.length} событий загружено`}</span><button class="button button-blue" data-tab="archive">Открыть архив ${icon('chevron', 16)}</button></div></div><div class="coming-card"><span class="coming-label">ПОЗЖЕ</span><div class="coming-content"><div><h2>Дополнительные возможности</h2><p>${icon('spark', 14)} Поиск и фильтры архива</p><p>${icon('spark', 14)} Настройки хранения и экспорт</p><p>${icon('spark', 14)} Управление профилем</p></div>${racer(true)}</div></div></section>`;
+}
+
+function tariffsPage() {
+  const plans = state.tariffMode === 'unlimited'
+    ? [
+        { id: 'month', title: '1 месяц', hint: 'Хороший старт', stars: '244', price: '390 ₽' },
+        { id: 'half-year', title: '6 месяцев', hint: '215 ₽ в месяц', discount: '−45%', stars: '807', price: '1 290 ₽', old: '2 340 ₽' },
+        { id: 'year', title: '12 месяцев', hint: '166 ₽ в месяц', discount: '−57%', stars: '1 244', price: '1 990 ₽', old: '4 680 ₽' },
+      ]
+    : [
+        { id: 'pack100', title: '100 уведомлений', hint: '2 ₽ за уведомление', stars: '125', price: '200 ₽' },
+        { id: 'pack300', title: '300 уведомлений', hint: '1,8 ₽ за уведомление', discount: '−10%', badge: 'Хит', stars: '338', price: '540 ₽' },
+        { id: 'pack500', title: '500 уведомлений', hint: '1,5 ₽ за уведомление', discount: '−25%', stars: '469', price: '750 ₽' },
+      ];
+  const selected = plans.find(plan => plan.id === state.selectedTariff) || plans[0];
+  const planRows = plans.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-tariff-option="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.title}</strong>${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}<small>${plan.hint}</small></span><span class="tariff-plan-price"><span>⭐ <small>${plan.stars}</small></span><strong>${plan.price}</strong>${plan.old ? `<del>${plan.old}</del>` : ''}</span></button>`).join('');
+  const benefits = state.tariffMode === 'unlimited'
+    ? ['Уведомления без лимита — сколько бы ни удалили', 'Архив переписки — файл или HTML-страница', 'Удалённое, изменённое и исчезающее — всё сохраню']
+    : ['Уведомление списывается, только когда я что-то поймал', 'Нет срока — пакет не сгорает', 'Закончится — предложу пополнить', 'Архив переписки — только на безлимите'];
+  return `<section class="page tariffs-page"><button type="button" class="profile-detail-back" data-action="app-back">${icon('chevron', 16)} Сервисы</button><div class="page-title"><h1>Тарифы и оплата</h1><p>Выбери подходящий вариант для своих чатов.</p></div><div class="tariff-category-switch" role="tablist" aria-label="Категория тарифов"><button type="button" class="${state.tariffCategory === 'personal' ? 'active' : ''}" data-tariff-category="personal" aria-pressed="${state.tariffCategory === 'personal'}">Личные чаты</button><button type="button" class="${state.tariffCategory === 'groups' ? 'active' : ''}" data-tariff-category="groups" aria-pressed="${state.tariffCategory === 'groups'}">Группы</button></div>${state.tariffCategory === 'groups' ? `<div class="tariff-groups-card"><div class="tariff-mascot"><img src="./assets/spy-chau-happy-clean.png" alt="Кчау" /></div><span class="coming-label">СКОРО</span><h2>Тарифы для групп</h2><p>Подготовим подключение групп и отдельно покажем доступные тарифы.</p></div>` : `<div class="tariff-intro"><div class="tariff-mascot"><img src="./assets/spy-chau-happy-clean.png" alt="Кчау" /></div><h2>Личные чаты</h2><p>${state.tariffMode === 'package' ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.' : 'Слежу за личными чатами и сохраняю изменения и удаления.'}</p></div><div class="tariff-mode-switch" role="tablist" aria-label="Вариант тарифа"><button type="button" class="${state.tariffMode === 'unlimited' ? 'active' : ''}" data-tariff-mode="unlimited" aria-pressed="${state.tariffMode === 'unlimited'}"><strong>Безлимит</strong><small>на 1–12 месяцев</small></button><button type="button" class="${state.tariffMode === 'package' ? 'active' : ''}" data-tariff-mode="package" aria-pressed="${state.tariffMode === 'package'}"><strong>Пакет</strong><small>от 100 уведомлений</small></button></div><div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits"><span>${state.tariffMode === 'unlimited' ? 'ВХОДИТ В БЕЗЛИМИТ' : 'КАК РАБОТАЕТ ПАКЕТ'}</span>${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="tariff-pay">Оплатить ${selected.price}</button><p class="tariff-disclaimer">Пока это макет: приём оплаты ещё не подключён.</p></>`}</section>`;
 }
 
 function archive() {
@@ -421,7 +442,7 @@ function subscriptionPage() {
 
 function nav() {
   const items = [['home', 'home', 'Главная'], ['services', 'grid', 'Сервисы'], ['profile', 'user', 'Профиль']];
-  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
+  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'services' && state.tab === 'tariffs') || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
 }
 
 function modal() {
@@ -439,7 +460,7 @@ function modal() {
 
 function render() {
   document.documentElement.dataset.theme = state.theme;
-  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
+  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
   const mainTabs = ['home', 'services', 'profile'];
   app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   syncTelegramBackButton();
@@ -537,8 +558,24 @@ app.addEventListener('submit', async event => {
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-contact-id], [data-notification-toggle]');
+  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-contact-id], [data-notification-toggle], [data-tariff-category], [data-tariff-mode], [data-tariff-option]');
   if (!target) return;
+  if (target.dataset.tariffCategory) {
+    state.tariffCategory = target.dataset.tariffCategory;
+    render();
+    return;
+  }
+  if (target.dataset.tariffMode) {
+    state.tariffMode = target.dataset.tariffMode;
+    state.selectedTariff = state.tariffMode === 'unlimited' ? 'month' : 'pack100';
+    render();
+    return;
+  }
+  if (target.dataset.tariffOption) {
+    state.selectedTariff = target.dataset.tariffOption;
+    render();
+    return;
+  }
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.contactId) {
     pushNavigation();
@@ -637,6 +674,7 @@ app.addEventListener('click', async event => {
     return;
   }
   if (action === 'app-back') { goBack(); return; }
+  if (action === 'tariff-pay') { toast('Приём оплаты подключим отдельно.'); return; }
   if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
