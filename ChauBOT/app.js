@@ -299,7 +299,7 @@ function services() {
   return `<section class="page services-page"><div class="page-title"><h1>Сервисы</h1><p>Всё, что умеет Кчау - подключай нужное</p></div><div class="service-card featured-service"><div class="service-card-top"><div class="service-icon blue large">${icon('chat', 24)}</div><div><h2>Личные чаты</h2><p>Архив событий из чатов, которые ты разрешил подключённому боту.</p></div></div><div class="service-card-bottom"><span class="green-label">${icon('check', 15)} ${state.preview ? 'Доступно после запуска в Telegram' : `${activeCount} активных подключений`}</span><button class="button button-blue" data-tutorial="personal">${state.preview ? 'О подключении' : 'Настройка'} ${icon('chevron', 16)}</button></div><div class="card-glow"></div></div><div class="service-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Группы</h2><p>Отдельный режим для групповых чатов. Пока не подключён.</p></div></div><div class="service-card-bottom"><span class="muted-price">Будет добавлен отдельно</span><button class="button button-purple" data-tutorial="groups">Подробнее ${icon('chevron', 16)}</button></div></div><div class="service-card archive-service"><div class="service-card-top"><div class="service-icon cyan large">${icon('archive', 24)}</div><div><h2>Архив событий</h2><p>Список новых, изменённых и удалённых сообщений, полученных после подключения.</p></div></div><div class="service-card-bottom"><span class="lock-label">${icon('clock', 14)} ${state.preview ? 'Открой через Telegram' : `${state.events.length} событий загружено`}</span><button class="button button-blue" data-tab="archive">Открыть архив ${icon('chevron', 16)}</button></div></div><div class="coming-card"><span class="coming-label">ПОЗЖЕ</span><div class="coming-content"><div><h2>Дополнительные возможности</h2><p>${icon('spark', 14)} Поиск и фильтры архива</p><p>${icon('spark', 14)} Настройки хранения и экспорт</p><p>${icon('spark', 14)} Управление профилем</p></div>${racer(true)}</div></div><button type="button" class="service-card tariff-entry" data-tab="tariffs"><div class="service-card-top"><div class="service-icon yellow large">${icon('gift', 24)}</div><div><h2>Тарифы и оплата</h2><p>Безлимитная подписка или пакет уведомлений для личных чатов.</p></div>${icon('chevron', 18)}</div></button></section>`;
 }
 
-function tariffsPage() {
+function tariffPricing() {
   const plans = state.tariffMode === 'unlimited'
     ? [
         { id: 'month', title: '1 месяц', hint: 'Хороший старт', stars: '244', price: '390 ₽' },
@@ -316,7 +316,24 @@ function tariffsPage() {
   const benefits = state.tariffMode === 'unlimited'
     ? ['Уведомления без лимита — сколько бы ни удалили', 'Архив переписки — файл или HTML-страница', 'Удалённое, изменённое и исчезающее — всё сохраню']
     : ['Уведомление списывается, только когда я что-то поймал', 'Нет срока — пакет не сгорает', 'Закончится — предложу пополнить', 'Архив переписки — только на безлимите'];
-  return `<section class="page tariffs-page"><div class="tariff-mascot tariff-main-mascot"><img src="./assets/spy-chau-happy-clean.png" alt="Кчау" /></div><div class="tariff-intro"><h2>Личные чаты</h2><p>${state.tariffMode === 'package' ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.' : 'Слежу за личными чатами и сохраняю изменения и удаления.'}</p></div><div class="tariff-mode-switch" role="tablist" aria-label="Вариант тарифа"><button type="button" class="${state.tariffMode === 'unlimited' ? 'active' : ''}" data-tariff-mode="unlimited" aria-pressed="${state.tariffMode === 'unlimited'}"><strong>Безлимит</strong><small>на 1–12 месяцев</small></button><button type="button" class="${state.tariffMode === 'package' ? 'active' : ''}" data-tariff-mode="package" aria-pressed="${state.tariffMode === 'package'}"><strong>Пакет</strong><small>от 100 уведомлений</small></button></div><div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits"><span>${state.tariffMode === 'unlimited' ? 'ВХОДИТ В БЕЗЛИМИТ' : 'КАК РАБОТАЕТ ПАКЕТ'}</span>${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="tariff-pay">Оплатить ${selected.price}</button><p class="tariff-disclaimer">Пока это макет: приём оплаты ещё не подключён.</p></section>`;
+  return `<div class="tariff-mode-switch" role="tablist" aria-label="Вариант тарифа"><button type="button" class="${state.tariffMode === 'unlimited' ? 'active' : ''}" data-tariff-mode="unlimited" aria-pressed="${state.tariffMode === 'unlimited'}"><strong>Безлимит</strong><small>на 1–12 месяцев</small></button><button type="button" class="${state.tariffMode === 'package' ? 'active' : ''}" data-tariff-mode="package" aria-pressed="${state.tariffMode === 'package'}"><strong>Пакет</strong><small>от 100 уведомлений</small></button></div><div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits"><span>${state.tariffMode === 'unlimited' ? 'ВХОДИТ В БЕЗЛИМИТ' : 'КАК РАБОТАЕТ ПАКЕТ'}</span>${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="tariff-pay">Оплатить ${selected.price}</button><p class="tariff-disclaimer">Пока это макет: приём оплаты ещё не подключён.</p>`;
+}
+
+function tariffsPage() {
+  const intro = state.tariffMode === 'package'
+    ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.'
+    : 'Слежу за личными чатами и сохраняю изменения и удаления.';
+  return `<section class="page tariffs-page"><div class="tariff-mascot tariff-main-mascot"><img src="./assets/spy-chau-happy-clean.png" alt="Кчау" /></div><div class="tariff-intro"><h2>Личные чаты</h2><p>${intro}</p></div><div class="tariff-pricing" data-tariff-pricing>${tariffPricing()}</div></section>`;
+}
+
+function refreshTariffPricing() {
+  const pricing = app.querySelector('[data-tariff-pricing]');
+  if (!pricing) return render();
+  const intro = app.querySelector('.tariff-intro p');
+  if (intro) intro.textContent = state.tariffMode === 'package'
+    ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.'
+    : 'Слежу за личными чатами и сохраняю изменения и удаления.';
+  pricing.innerHTML = tariffPricing();
 }
 function archive() {
   if (!state.preview && !state.subscription?.active) {
@@ -562,12 +579,12 @@ app.addEventListener('click', async event => {
   if (target.dataset.tariffMode) {
     state.tariffMode = target.dataset.tariffMode;
     state.selectedTariff = state.tariffMode === 'unlimited' ? 'month' : 'pack100';
-    render();
+    refreshTariffPricing();
     return;
   }
   if (target.dataset.tariffOption) {
     state.selectedTariff = target.dataset.tariffOption;
-    render();
+    refreshTariffPricing();
     return;
   }
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
