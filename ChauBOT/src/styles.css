@@ -950,8 +950,8 @@ body{background:#06110c;color:#f1f6f2}
 .icon-button{background:rgba(17,35,24,.86);color:#dce9de;border-color:rgba(158,190,165,.18)}
 .brand-mark{background:linear-gradient(145deg,#3e8860,#1b4c34);box-shadow:0 0 0 4px rgba(68,133,87,.12)}
 .brand-mark span{background:#102219;border-color:#8eae95}
-.hero-card{background:radial-gradient(ellipse at 78% 20%,rgba(98,161,112,.2),transparent 43%),linear-gradient(118deg,#286b4a 0%,#1b5539 49%,#103825 100%);border:1px solid rgba(186,220,190,.14);box-shadow:0 18px 48px rgba(9,42,25,.28)}
-.hero-orbit{border-color:rgba(222,241,224,.13)}
+.hero-card{background:radial-gradient(ellipse at 78% 20%,rgba(255,231,215,.2),transparent 43%),linear-gradient(118deg,#ff987f 0%,#e97882 51%,#c95e78 100%);border:1px solid rgba(255,238,224,.2);box-shadow:0 18px 48px rgba(82,35,40,.22)}
+.hero-orbit{border-color:rgba(255,239,225,.2)}
 .hero-card .subscription-heading{color:#f2f7f2}
 .hero-card p{color:rgba(239,247,240,.86)}
 .button-light{background:#f1f6f2;color:#24583b}
@@ -971,7 +971,7 @@ body{background:#06110c;color:#f1f6f2}
 :root[data-theme="light"]{background:#f2f7f2;--muted:#687b6c;--panel:#fff;--panel-2:#eaf2eb;--line:rgba(55,94,65,.15);--blue:#2d7751;--purple:#50795c;--archive-all:#2d7751}
 :root[data-theme="light"] body{background:#f2f7f2;color:#1b3324}
 :root[data-theme="light"] .app-shell{background:radial-gradient(ellipse at 10% 0%,rgba(89,145,99,.1),transparent 43%),linear-gradient(155deg,#f8fbf8 0%,#edf4ee 60%,#f3f8f3 100%)}
-:root[data-theme="light"] .hero-card{background:linear-gradient(118deg,#397d58,#286447 52%,#1c5035);box-shadow:0 18px 48px rgba(40,92,55,.16)}
+:root[data-theme="light"] .hero-card{background:linear-gradient(118deg,#ff9b83,#e87983 52%,#ca647b);box-shadow:0 18px 48px rgba(119,55,62,.16)}
 :root[data-theme="light"] .connect-card,:root[data-theme="light"] .profile-card,:root[data-theme="light"] .service-card,:root[data-theme="light"] .coming-card,:root[data-theme="light"] .identity-card,:root[data-theme="light"] .contact-row.archive-contact-card,:root[data-theme="light"] .events-list,:root[data-theme="light"] .contact-list,:root[data-theme="light"] .tariff-plan,:root[data-theme="light"] .tariff-benefits{background:#fff;border-color:rgba(55,94,65,.15);box-shadow:0 8px 24px rgba(37,68,44,.06)}
 :root[data-theme="light"] .bottom-nav{background:rgba(255,255,255,.96);border-color:rgba(55,94,65,.16);box-shadow:0 8px 24px rgba(37,68,44,.1)}
 :root[data-theme="light"] .bottom-nav button.active{background:#e0eee1;color:#286947}
