@@ -201,7 +201,7 @@ async function handleTelegramWebhook(request, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: incomingMessage.chat.id,
-          text: "Привет! Я SpyChau. Подключи меня к нужным чатам через Telegram Business — и новые события будут появляться в приложении. События сохраняются только после подключения.",
+          text: "Привет! Я SpyChau.\n\nЧтобы подключить меня, открой в Telegram:\nПрофиль → Изм. → Автоматизация чатов.\n\nВыбери SpyChau и нужные чаты. После подключения новые события начнут появляться в приложении.",
           reply_markup: {
             inline_keyboard: [[{ text: "Открыть SpyChau", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]],
           },

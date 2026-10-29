@@ -1,0 +1,18 @@
+# Keep Wrangler's local bundle/cache out of public static assets.
+.wrangler/
+
+# Local visual previews are not application pages.
+preview-burgundy.css
+preview-burgundy.html
+preview-server.mjs
+
+# Server-side source, deployment config, migrations, and project notes.
+backend/
+migrations/
+src/worker.js
+src/journal.js
+wrangler.jsonc
+CLOUDFLARE_SETUP.md
+README.md
+RELEASES.md
+TELEGRAM_POLICY.md
