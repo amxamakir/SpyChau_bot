@@ -1148,8 +1148,8 @@ body{background:#101827;color:#f4f6f9}
 .archive-filter.active,.archive-filter[data-archive-filter="all"].active{background:linear-gradient(135deg,#e0e5eb,#c5ced8);border-color:#e0e5eb;color:#101827;box-shadow:0 5px 16px rgba(4,11,22,.24)}
 :root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#53677f;border-color:#53677f;color:#fff}
 
-/* Soft peach-pink subscription card on the Midnight Navy + Platinum base. */
-.hero-card,:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 17%,rgba(255,255,255,.32),transparent 42%),linear-gradient(118deg,#b95a59 0%,#b84f64 52%,#a64370 100%);border:1px solid rgba(255,255,255,.24);box-shadow:0 18px 48px rgba(42,16,31,.3),inset 0 1px 0 rgba(255,255,255,.14)}
+/* Saturated peach-coral to berry subscription card, tuned for white text contrast. */
+.hero-card,:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 17%,rgba(255,190,160,.12),transparent 42%),linear-gradient(118deg,#c8464c 0%,#bd315b 52%,#8f265c 100%);border:1px solid rgba(255,255,255,.24);box-shadow:0 18px 48px rgba(42,16,31,.3),inset 0 1px 0 rgba(255,255,255,.14)}
 .hero-card .subscription-heading,:root[data-theme="light"] .hero-card .subscription-heading{color:#fff}
 .hero-card p,:root[data-theme="light"] .hero-card p{color:#fff}
 .hero-card .status-pill,:root[data-theme="light"] .hero-card .status-pill{background:rgba(75,25,43,.24);border-color:rgba(255,255,255,.3);color:#fff}
