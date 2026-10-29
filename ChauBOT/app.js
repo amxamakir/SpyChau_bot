@@ -231,7 +231,17 @@ function archiveEventText(event) {
   const kind = archiveEventKind(event);
   const previous = previousMessageSnapshot(event);
   if (kind === 'deleted') {
-    return previous ? eventDescription(previous) : `Текст не сохранился · ID сообщения ${event.message_id || '—'}`;
+    if (previous) return eventDescription(previous);
+
+    // The API hydrates deleted events with their encrypted source snapshot.
+    // On the home screen that source row may be outside the 25-event preview.
+    const message = event.message || {};
+    const hasSnapshotContent = typeof message.text === 'string'
+      || typeof message.caption === 'string'
+      || ['photo', 'video', 'voice', 'video_note', 'document', 'audio', 'animation', 'sticker'].some(field => message[field] != null);
+    if (hasSnapshotContent) return eventDescription(event);
+
+    return `Текст не сохранился · ID сообщения ${event.message_id || '—'}`;
   }
   const currentText = eventDescription(event);
   if (kind === 'edited' && previous) {
