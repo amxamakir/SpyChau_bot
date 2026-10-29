@@ -1128,7 +1128,7 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .hero-card .subscription-heading{color:#f5f7fa}
 :root[data-theme="light"] .hero-card p{color:rgba(230,236,243,.88)}
 :root[data-theme="light"] .connect-card,:root[data-theme="light"] .profile-card,:root[data-theme="light"] .service-card,:root[data-theme="light"] .coming-card,:root[data-theme="light"] .identity-card,:root[data-theme="light"] .contact-row.archive-contact-card,:root[data-theme="light"] .events-list,:root[data-theme="light"] .contact-list,:root[data-theme="light"] .tariff-plan,:root[data-theme="light"] .tariff-benefits{background:linear-gradient(145deg,#fff,#f4f6f9);border-color:rgba(59,75,96,.16);box-shadow:0 8px 24px rgba(20,37,59,.07)}
-:root[data-theme="light"] .connect-row .row-copy strong,:root[data-theme="light"] .profile-row .row-copy strong,:root[data-theme="light"] .service-card h2,:root[data-theme="light"] .coming-card h2,:root[data-theme="light"] .section-heading h2,:root[data-theme="light"] .page-title h1,:root[data-theme="light"] .profile-intro h1,:root[data-theme="light"] .contact-copy strong,:root[data-theme="light"] .event-copy strong,:root[data-theme="light"] .archive-contact-copy strong,:root[data-theme="light"] .contact-detail-copy h1,:root[data-theme="light"] .tariff-intro h2,:root[data-theme="light"] .tariff-plan-copy strong,:root[data-theme="light"] .tariff-plan-price>strong{color:#172235}
+:root[data-theme="light"] .connect-row .row-copy strong,:root[data-theme="light"] .profile-row .row-copy strong,:root[data-theme="light"] .service-card h2,:root[data-theme="light"] .coming-card h2,:root[data-theme="light"] .section-heading h2,:root[data-theme="light"] .page-title h1,:root[data-theme="light"] .profile-intro h1,:root[data-theme="light"] .contact-copy strong,:root[data-theme="light"] .event-copy strong,:root[data-theme="light"] .archive-contact-copy strong,:root[data-theme="light"] .contact-detail-copy h1,:root[data-theme="light"] .tariff-intro h2,:root[data-theme="light"] .tariff-plan-copy strong,:root[data-theme="light"] .tariff-plan-price>strong{color:#fff}
 :root[data-theme="light"] .bottom-nav{background:rgba(246,248,251,.97);border-color:rgba(59,75,96,.19);box-shadow:0 8px 24px rgba(20,37,59,.13)}
 :root[data-theme="light"] .bottom-nav button{color:#728096}
 :root[data-theme="light"] .bottom-nav button.active{background:linear-gradient(145deg,#dce2e9,#bdc7d3);color:#172235}
@@ -1142,17 +1142,17 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .event-row+.event-row,:root[data-theme="light"] .contact-row+.contact-row{border-color:rgba(59,75,96,.12)}
 :root[data-theme="light"] .tariff-plan.selected{background:linear-gradient(110deg,#eef1f5,#fff);border-color:#8292a8}
 :root[data-theme="light"] .tariff-plan.selected .tariff-radio{box-shadow:inset 0 0 0 5px #fff}
-:root[data-theme="light"] .search-field input,:root[data-theme="light"] .receipt-email-input{color:#172235}
+:root[data-theme="light"] .search-field input,:root[data-theme="light"] .receipt-email-input{color:#fff}
 :root[data-theme="light"] .receipt-email-input{background:#fff;border-color:rgba(59,75,96,.18)}
 :root[data-theme="light"] .desktop-back-button{background:rgba(255,255,255,.96);border-color:rgba(59,75,96,.18);color:#45566d}
 .archive-filter.active,.archive-filter[data-archive-filter="all"].active{background:linear-gradient(135deg,#e0e5eb,#c5ced8);border-color:#e0e5eb;color:#101827;box-shadow:0 5px 16px rgba(4,11,22,.24)}
 :root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#53677f;border-color:#53677f;color:#fff}
 
 /* Soft peach-pink subscription card on the Midnight Navy + Platinum base. */
-.hero-card,:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 17%,rgba(255,255,255,.32),transparent 42%),linear-gradient(118deg,#f4d7c8 0%,#efcdd1 52%,#e8c4d0 100%);border:1px solid rgba(106,69,82,.2);box-shadow:0 18px 48px rgba(55,31,49,.2),inset 0 1px 0 rgba(255,255,255,.38)}
-.hero-card .subscription-heading,:root[data-theme="light"] .hero-card .subscription-heading{color:#172235}
-.hero-card p,:root[data-theme="light"] .hero-card p{color:#344154}
-.hero-card .status-pill,:root[data-theme="light"] .hero-card .status-pill{background:rgba(255,255,255,.48);border-color:rgba(23,34,53,.12);color:#26364c}
+.hero-card,:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 17%,rgba(255,255,255,.32),transparent 42%),linear-gradient(118deg,#b95a59 0%,#b84f64 52%,#a64370 100%);border:1px solid rgba(255,255,255,.24);box-shadow:0 18px 48px rgba(42,16,31,.3),inset 0 1px 0 rgba(255,255,255,.14)}
+.hero-card .subscription-heading,:root[data-theme="light"] .hero-card .subscription-heading{color:#fff}
+.hero-card p,:root[data-theme="light"] .hero-card p{color:#fff}
+.hero-card .status-pill,:root[data-theme="light"] .hero-card .status-pill{background:rgba(75,25,43,.24);border-color:rgba(255,255,255,.3);color:#fff}
 .hero-card .subscription-dot.active,:root[data-theme="light"] .hero-card .subscription-dot.active{background:#28a875;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(40,168,117,.18)}
 .hero-card .subscription-dot.inactive,:root[data-theme="light"] .hero-card .subscription-dot.inactive{background:#df6574;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(223,101,116,.18)}
 .hero-card .hero-orbit,:root[data-theme="light"] .hero-card .hero-orbit{border-color:rgba(255,255,255,.34)}
