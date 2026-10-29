@@ -1148,12 +1148,11 @@ body{background:#101827;color:#f4f6f9}
 .archive-filter.active,.archive-filter[data-archive-filter="all"].active{background:linear-gradient(135deg,#e0e5eb,#c5ced8);border-color:#e0e5eb;color:#101827;box-shadow:0 5px 16px rgba(4,11,22,.24)}
 :root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#53677f;border-color:#53677f;color:#fff}
 
-/* Saturated peach-coral to berry subscription card, tuned for white text contrast. */
-.hero-card,:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 17%,rgba(255,190,160,.12),transparent 42%),linear-gradient(118deg,#c8464c 0%,#bd315b 52%,#8f265c 100%);border:1px solid rgba(255,255,255,.24);box-shadow:0 18px 48px rgba(42,16,31,.3),inset 0 1px 0 rgba(255,255,255,.14)}
+/* Saturated coral-to-berry card; clean surface with white text contrast. */
+.hero-card,:root[data-theme="light"] .hero-card{background:linear-gradient(118deg,#c8464c 0%,#bd315b 52%,#8f265c 100%);border:0;box-shadow:0 18px 48px rgba(42,16,31,.3)}
 .hero-card .subscription-heading,:root[data-theme="light"] .hero-card .subscription-heading{color:#fff}
 .hero-card p,:root[data-theme="light"] .hero-card p{color:#fff}
 .hero-card .status-pill,:root[data-theme="light"] .hero-card .status-pill{background:rgba(75,25,43,.24);border-color:rgba(255,255,255,.3);color:#fff}
 .hero-card .subscription-dot.active,:root[data-theme="light"] .hero-card .subscription-dot.active{background:#28a875;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(40,168,117,.18)}
 .hero-card .subscription-dot.inactive,:root[data-theme="light"] .hero-card .subscription-dot.inactive{background:#df6574;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(223,101,116,.18)}
-.hero-card .hero-orbit,:root[data-theme="light"] .hero-card .hero-orbit{border-color:rgba(255,255,255,.34)}
 .hero-card .button-light,:root[data-theme="light"] .hero-card .button-light{background:#101827;color:#f4f6f9;box-shadow:0 8px 20px rgba(16,24,39,.2)}
