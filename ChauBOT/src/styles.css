@@ -1166,3 +1166,9 @@ body{background:#101827;color:#f4f6f9}
 
 .home-page .empty-events-with-mascot{padding-top:17px;padding-bottom:6px}
 @media(max-width:430px){.home-page .empty-events-with-mascot{padding-bottom:10px}}
+
+/* Semantic icon colors for profile support and data controls. */
+.profile-page .profile-row[data-tab="support"] .service-icon,.profile-page .profile-row[data-tab="privacy"] .service-icon{background:rgba(106,203,157,.14);color:#72d4a3}
+.profile-page .profile-row[data-tab="delete-data"] .service-icon{background:rgba(242,118,124,.15);color:#f2767c}
+:root[data-theme="light"] .profile-page .profile-row[data-tab="support"] .service-icon,:root[data-theme="light"] .profile-page .profile-row[data-tab="privacy"] .service-icon{background:rgba(40,122,88,.12);color:#287a58}
+:root[data-theme="light"] .profile-page .profile-row[data-tab="delete-data"] .service-icon{background:rgba(201,75,86,.12);color:#c94b56}
