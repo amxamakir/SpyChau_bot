@@ -1156,3 +1156,6 @@ body{background:#101827;color:#f4f6f9}
 .hero-card .subscription-dot.active,:root[data-theme="light"] .hero-card .subscription-dot.active{background:#28a875;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(40,168,117,.18)}
 .hero-card .subscription-dot.inactive,:root[data-theme="light"] .hero-card .subscription-dot.inactive{background:#df6574;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(223,101,116,.18)}
 .hero-card .button-light,:root[data-theme="light"] .hero-card .button-light{background:#101827;color:#f4f6f9;box-shadow:0 8px 20px rgba(16,24,39,.2)}
+
+/* Gold accent for the subscription item in the profile account list. */
+.profile-row[data-tab="subscription"] .service-icon{background:rgba(214,174,86,.16);color:#e6bd67}
