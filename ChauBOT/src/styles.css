@@ -128,7 +128,7 @@ body{background:#14080c}
 
 /* Home spacing and Telegram profile photo */
 .topbar{margin-bottom:11px}
-.connect-card{margin-top:6px}
+.connect-card{margin-top:9px}
 .brand-mark img{position:absolute;inset:5px;width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #ffd766}
 @media(min-width:740px){.topbar{margin-bottom:15px}}
 
