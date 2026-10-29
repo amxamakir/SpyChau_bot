@@ -37,7 +37,7 @@ const state = {
   tariffMode: 'unlimited', selectedTariff: 'month',
   theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
-  loading: false, archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -313,7 +313,14 @@ function homeContactRow(contact) {
 function home() {
   const subscriptionActive = Boolean(state.subscription?.active);
   const recentEvents = state.events.filter(archiveEventKind).sort((a, b) => (Date.parse(b.created_at || '') || 0) - (Date.parse(a.created_at || '') || 0) || (Number(b.id) || 0) - (Number(a.id) || 0)).slice(0, 5);
-  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionActive ? 'Подписка активна' : 'Подписка не активна'}</h1><p>${subscriptionActive ? 'Я в гонке, сохраняю все изменения и удаления' : 'Я не на дороге и не сохраняю удаленное. Подключай - и вернусь в гонку.'}</p><button class="button button-light" data-action="${state.preview ? 'telegram' : 'connect'}">Подключить ${icon('chevron', 16)}</button></div>${racer()}<div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div></div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${state.loading ? `<div class="empty-events"><div class="loading-indicator"></div><strong>Загружаем архив</strong><p>Получаем состояние аккаунта.</p></div>` : recentEvents.length ? `<div class="events-list home-event-feed">${recentEvents.map(archiveEventRow).join('')}</div>` : `<div class="empty-events"><div class="empty-art search-mascot"><img src="./assets/mascot/kchau-driving-road.png" alt="Кчау едет по дороге" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока тихо на трассе'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
+  const feed = state.loading || state.eventFeedLoading
+    ? `<div class="empty-events"><div class="loading-indicator"></div><strong>Загружаем события</strong><p>Основные разделы уже готовы.</p></div>`
+    : state.eventFeedError
+      ? `<div class="empty-events"><strong>Не удалось загрузить события</strong><p>Остальные разделы приложения работают.</p><button class="subtle-button" data-action="refresh-home-events">${icon('arrow', 15)} Повторить</button></div>`
+      : recentEvents.length
+        ? `<div class="events-list home-event-feed">${recentEvents.map(archiveEventRow).join('')}</div>`
+        : `<div class="empty-events"><div class="empty-art search-mascot"><img src="./assets/mascot/kchau-driving-road.png" alt="Кчау едет по дороге" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока тихо на трассе'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`;
+  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionActive ? 'Подписка активна' : 'Подписка не активна'}</h1><p>${subscriptionActive ? 'Я в гонке, сохраняю все изменения и удаления' : 'Я не на дороге и не сохраняю удаленное. Подключай - и вернусь в гонку.'}</p><button class="button button-light" data-action="${state.preview ? 'telegram' : 'connect'}">Подключить ${icon('chevron', 16)}</button></div>${racer()}<div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div></div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
 
 function services() {
@@ -528,41 +535,45 @@ async function loadMe() {
   state.loading = true;
   state.apiError = '';
   render();
+  let loadInitialArchive = false;
+  let loadInitialHomeFeed = false;
   try {
-    const auth = await api('/api/auth/telegram', { method: 'POST', body: JSON.stringify({ init_data: state.telegram.initData }) });
-    state.user = auth.user;
-    state.authenticated = Boolean(auth.authenticated);
-    const result = await api('/api/me');
+    const result = await api('/api/auth/telegram', {
+      method: 'POST',
+      body: JSON.stringify({ init_data: state.telegram.initData, notification_preferences: state.notificationPreferences }),
+    });
     state.user = result.user;
     state.connections = result.connections || [];
     state.subscription = { ...(result.subscription || {}), can_test_override: Boolean(result.can_test_override) };
-    state.events = result.events || [];
+    state.notificationPreferences = result.notification_preferences || state.notificationPreferences;
+    state.events = [];
     state.authenticated = true;
-    const notificationSettings = await api('/api/me/notification-preferences');
-    if (notificationSettings.configured) {
-      state.notificationPreferences = notificationSettings.preferences;
-    } else {
-      const saved = await api('/api/me/notification-preferences', {
-        method: 'PUT',
-        body: JSON.stringify({ preferences: state.notificationPreferences }),
-      });
-      state.notificationPreferences = saved.preferences;
-    }
     try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(state.notificationPreferences)); } catch {}
-    if (state.tab === 'archive' && new URLSearchParams(window.location.search).get('open') === 'archive') {
-      try {
-        const archiveResult = await api('/api/archive');
-        state.events = archiveResult.events || [];
-      } catch (error) {
-        if (error.message === 'subscription_required') state.apiError = 'subscription_required';
-        else throw error;
-      }
-    }
+    loadInitialArchive = state.tab === 'archive' && new URLSearchParams(window.location.search).get('open') === 'archive';
+    loadInitialHomeFeed = !loadInitialArchive && ['home', 'services'].includes(state.tab);
   } catch (error) {
     state.apiError = error.message || 'Не удалось загрузить данные';
   } finally {
     state.loading = false;
     state.subscriptionToggleLoading = false;
+    render();
+  }
+  if (loadInitialArchive) void loadArchive();
+  else if (loadInitialHomeFeed) void loadHomeEvents();
+}
+
+async function loadHomeEvents() {
+  if (state.preview) return;
+  state.eventFeedLoading = true;
+  state.eventFeedError = '';
+  render();
+  try {
+    const result = await api('/api/home/events');
+    state.events = result.events || [];
+  } catch (error) {
+    state.eventFeedError = error.message || 'Не удалось загрузить события';
+  } finally {
+    state.eventFeedLoading = false;
     render();
   }
 }
@@ -741,6 +752,7 @@ app.addEventListener('click', async event => {
   if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
+  if (action === 'refresh-home-events') { await loadHomeEvents(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
   if (action === 'refresh-owner-statistics') { await loadOwnerStatistics(); return; }
   if (action === 'toggle-test-subscription') {

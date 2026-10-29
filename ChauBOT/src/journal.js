@@ -321,11 +321,12 @@ async function fetchTelegramFile(fileId, env, mimeType) {
 
 async function readJournalRecord(row, env, chunkCache) {
   if (row.journal_key && env.JOURNAL) {
-    let records = chunkCache.get(row.journal_key);
-    if (!records) {
-      records = await readChunk(env, row.owner_id, row.journal_key);
-      chunkCache.set(row.journal_key, records);
+    let recordsPromise = chunkCache.get(row.journal_key);
+    if (!recordsPromise) {
+      recordsPromise = readChunk(env, row.owner_id, row.journal_key);
+      chunkCache.set(row.journal_key, recordsPromise);
     }
+    const records = await recordsPromise;
     const indexed = Number.isInteger(Number(row.journal_index)) ? records[Number(row.journal_index)] : null;
     return indexed && Number(indexed.id) === Number(row.id)
       ? indexed

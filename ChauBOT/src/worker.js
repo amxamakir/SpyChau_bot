@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.87" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.88" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -34,7 +34,8 @@ export default {
         const user = await validateInitData(body.init_data, env);
         await saveUser(env.DB, user);
         await trackAppVisitor(env.DB, user);
-        return json({ user, authenticated: true });
+        await initializeNotificationPreferences(env.DB, String(user.id), body.notification_preferences);
+        return json({ ...(await getUserBootstrap(env, user)), authenticated: true });
       } catch (error) {
         return json({ error: publicError(error) }, 401);
       }
@@ -51,23 +52,19 @@ export default {
       try {
         await saveUser(env.DB, user);
         if (route === "/api/me" && request.method === "GET") {
-          const ownerId = String(user.id);
-          const subscription = await getSubscription(env.DB, ownerId);
-          const [profile, connections, events] = await Promise.all([
-            env.DB.prepare("SELECT receipt_email FROM users WHERE telegram_id = ?").bind(ownerId).first(),
-            env.DB.prepare("SELECT connection_id, enabled, updated_at FROM connections WHERE owner_id = ? ORDER BY updated_at DESC")
-              .bind(ownerId).all(),
-            subscription.active
-              ? env.DB.prepare("SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 25").bind(ownerId).all()
-              : Promise.resolve({ results: [] }),
-          ]);
-          return json({
-            user: { ...user, receipt_email: profile?.receipt_email || null },
-            connections: connections.results,
-            events: await hydrateEventRows(events.results, env),
-            subscription,
-            can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
-          });
+          return json(await getUserBootstrap(env, user));
+        }
+
+        if (route === "/api/home/events" && request.method === "GET") {
+          const subscription = await getSubscription(env.DB, String(user.id));
+          if (!subscription.active) return json({ events: [] });
+          const rows = await env.DB.prepare(
+            "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 25",
+          ).bind(String(user.id)).all();
+          const events = (await hydrateEventRows(rows.results, env)).filter((event) =>
+            event.event_type === "edited" || event.event_type === "deleted" || isOneTimeMessage(event.message)
+          );
+          return json({ events });
         }
 
         if (route === "/api/owner/statistics" && request.method === "GET") {
@@ -161,7 +158,9 @@ export default {
     const assetResponse = await env.ASSETS.fetch(request);
     if (route === "/" || route === "/index.html" || route === "/app.js" || route === "/src/styles.css") {
       const headers = new Headers(assetResponse.headers);
-      headers.set("Cache-Control", "no-cache");
+      headers.set("Cache-Control", route === "/" || route === "/index.html"
+        ? "no-cache"
+        : "public, max-age=31536000, immutable");
       return new Response(assetResponse.body, {
         status: assetResponse.status,
         statusText: assetResponse.statusText,
@@ -382,6 +381,36 @@ async function getNotificationPreferences(db, ownerId) {
   return {
     configured: true,
     preferences: Object.fromEntries(Object.keys(defaultNotificationPreferences).map((key) => [key, Boolean(row[key])])),
+  };
+}
+
+async function initializeNotificationPreferences(db, ownerId, requestedPreferences) {
+  const keys = Object.keys(defaultNotificationPreferences);
+  const hasValidPreferences = requestedPreferences
+    && typeof requestedPreferences === "object"
+    && keys.every((key) => typeof requestedPreferences[key] === "boolean");
+  const preferences = hasValidPreferences ? requestedPreferences : defaultNotificationPreferences;
+  await db.prepare(`
+    INSERT OR IGNORE INTO notification_preferences(owner_id, deleted_messages, edited_messages, one_time_messages, group_messages, deleted_by_owner, edited_by_owner)
+    VALUES(?, ?, ?, ?, ?, ?, ?)
+  `).bind(String(ownerId), ...keys.map((key) => Number(preferences[key]))).run();
+}
+
+async function getUserBootstrap(env, user) {
+  const ownerId = String(user.id);
+  const [profile, connections, subscription, notificationSettings] = await Promise.all([
+    env.DB.prepare("SELECT receipt_email FROM users WHERE telegram_id = ?").bind(ownerId).first(),
+    env.DB.prepare("SELECT connection_id, enabled, updated_at FROM connections WHERE owner_id = ? ORDER BY updated_at DESC")
+      .bind(ownerId).all(),
+    getSubscription(env.DB, ownerId),
+    getNotificationPreferences(env.DB, ownerId),
+  ]);
+  return {
+    user: { ...user, receipt_email: profile?.receipt_email || null },
+    connections: connections.results,
+    subscription,
+    notification_preferences: notificationSettings.preferences,
+    can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
   };
 }
 
