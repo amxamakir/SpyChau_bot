@@ -32,7 +32,7 @@ const icon = (name, size = 20) => {
 };
 
 const state = {
-  tab: 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month',
   theme: loadTheme(),
@@ -80,7 +80,7 @@ function loadTheme() {
 }
 
 function loadNotificationPreferences() {
-  const defaults = { deleted_messages: false, edited_messages: false, group_messages: false, deleted_by_owner: false, edited_by_owner: false };
+  const defaults = { deleted_messages: true, edited_messages: true, one_time_messages: true, group_messages: false, deleted_by_owner: false, edited_by_owner: false };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem('spychau-notification-preferences') || '{}') }; }
   catch { return defaults; }
 }
@@ -432,7 +432,7 @@ async function loadOwnerStatistics() {
 function notificationsPage() {
   const preferences = state.notificationPreferences;
   const switchRow = (key, title, description, iconName, color, disabled = false) => `<button type="button" class="profile-row notification-switch-row" role="switch" aria-checked="${Boolean(preferences[key])}" aria-label="${escapeHtml(title)}" data-notification-toggle="${key}" ${disabled || !state.authenticated ? 'disabled' : ''}><span class="service-icon ${color}">${icon(iconName, 19)}</span><span class="row-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span><span class="test-switch ${preferences[key] ? 'on' : ''}" aria-hidden="true"><i></i></span></button>`;
-  return `<section class="page profile-page notifications-page">${profileDetailHeader('МОЙ АККАУНТ', 'Уведомления', 'Выбери, какие типы событий учитывать.')}<span class="list-label">СООБЩЕНИЯ СОБЕСЕДНИКОВ</span><div class="profile-card">${switchRow('deleted_messages', 'Удалённые сообщения', 'События удаления в подключённых чатах', 'trash', 'red')}${switchRow('edited_messages', 'Изменённые сообщения', 'События изменения в подключённых чатах', 'edit', 'yellow')}${switchRow('group_messages', 'Сообщения в группах', 'Групповые чаты пока не подключены', 'people', 'purple', true)}</div><span class="list-label">МОИ ДЕЙСТВИЯ</span><div class="profile-card">${switchRow('deleted_by_owner', 'Удалённые мной', 'Telegram не сообщает, кто удалил сообщение', 'trash', 'blue', true)}${switchRow('edited_by_owner', 'Изменённые мной', 'Telegram не сообщает, кто изменил сообщение', 'edit', 'blue', true)}</div><div class="notification-note">${state.preview ? 'Открой приложение через Telegram, чтобы сохранять настройки.' : 'Настройки сохраняются на этом устройстве. Отправка уведомлений ботом пока не подключена.'} Одноразовые сообщения пока доступны в архиве.</div></section>`;
+  return `<section class="page profile-page notifications-page">${profileDetailHeader('МОЙ АККАУНТ', 'Уведомления', 'Выбери, какие типы событий учитывать.')}<span class="list-label">СООБЩЕНИЯ СОБЕСЕДНИКОВ</span><div class="profile-card">${switchRow('deleted_messages', 'Удалённые сообщения', 'Бот пришлёт сообщение об удалении', 'trash', 'red')}${switchRow('edited_messages', 'Изменённые сообщения', 'Бот пришлёт старый и новый текст', 'edit', 'yellow')}${switchRow('one_time_messages', 'Одноразовые сообщения', 'Бот сообщит, если Telegram передаст такое событие', 'clock', 'purple')}${switchRow('group_messages', 'Сообщения в группах', 'Групповые чаты пока не подключены', 'people', 'purple', true)}</div><span class="list-label">МОИ ДЕЙСТВИЯ</span><div class="profile-card">${switchRow('deleted_by_owner', 'Удалённые мной', 'Telegram не сообщает, кто удалил сообщение', 'trash', 'blue', true)}${switchRow('edited_by_owner', 'Изменённые мной', 'Telegram не сообщает, кто изменил сообщение', 'edit', 'blue', true)}</div><div class="notification-note">${state.preview ? 'Открой приложение через Telegram, чтобы синхронизировать настройки.' : 'Уведомления от бота приходят в этот личный чат. Настройки синхронизируются с Telegram-аккаунтом.'} Одноразовые сообщения зависят от данных, которые передаёт Telegram.</div></section>`;
 }
 
 function profileDetailHeader(eyebrow, title, description) {
@@ -538,6 +538,26 @@ async function loadMe() {
     state.subscription = { ...(result.subscription || {}), can_test_override: Boolean(result.can_test_override) };
     state.events = result.events || [];
     state.authenticated = true;
+    const notificationSettings = await api('/api/me/notification-preferences');
+    if (notificationSettings.configured) {
+      state.notificationPreferences = notificationSettings.preferences;
+    } else {
+      const saved = await api('/api/me/notification-preferences', {
+        method: 'PUT',
+        body: JSON.stringify({ preferences: state.notificationPreferences }),
+      });
+      state.notificationPreferences = saved.preferences;
+    }
+    try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(state.notificationPreferences)); } catch {}
+    if (state.tab === 'archive' && new URLSearchParams(window.location.search).get('open') === 'archive') {
+      try {
+        const archiveResult = await api('/api/archive');
+        state.events = archiveResult.events || [];
+      } catch (error) {
+        if (error.message === 'subscription_required') state.apiError = 'subscription_required';
+        else throw error;
+      }
+    }
   } catch (error) {
     state.apiError = error.message || 'Не удалось загрузить данные';
   } finally {
@@ -690,13 +710,23 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.notificationToggle) {
     const key = target.dataset.notificationToggle;
-    if (!['deleted_messages', 'edited_messages'].includes(key)) return;
+    if (!['deleted_messages', 'edited_messages', 'one_time_messages'].includes(key)) return;
+    if (!state.authenticated) { toast('Открой приложение через Telegram, чтобы изменить настройки.'); return; }
+    const previous = state.notificationPreferences;
     const next = { ...state.notificationPreferences, [key]: !state.notificationPreferences[key] };
     state.notificationPreferences = next;
-    try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(next)); }
-    catch { toast('Не удалось сохранить выбор на этом устройстве.'); }
     render();
-    toast('Выбор сохранён на этом устройстве.');
+    try {
+      const result = await api('/api/me/notification-preferences', { method: 'PUT', body: JSON.stringify({ preferences: next }) });
+      state.notificationPreferences = result.preferences;
+      try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(result.preferences)); } catch {}
+      render();
+      toast('Настройки уведомлений сохранены.');
+    } catch (error) {
+      state.notificationPreferences = previous;
+      render();
+      toast(error.message || 'Не удалось сохранить настройки уведомлений.');
+    }
     return;
   }
   const action = target.dataset.action;

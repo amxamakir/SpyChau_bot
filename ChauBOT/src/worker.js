@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.86" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.87" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -99,6 +99,32 @@ export default {
           return json({ receipt_email: email });
         }
 
+        if (route === "/api/me/notification-preferences" && request.method === "GET") {
+          return json(await getNotificationPreferences(env.DB, String(user.id)));
+        }
+
+        if (route === "/api/me/notification-preferences" && request.method === "PUT") {
+          const body = await readJson(request);
+          const preferences = body.preferences;
+          const keys = ["deleted_messages", "edited_messages", "one_time_messages", "group_messages", "deleted_by_owner", "edited_by_owner"];
+          if (!preferences || typeof preferences !== "object" || keys.some((key) => typeof preferences[key] !== "boolean")) {
+            return json({ error: "invalid_notification_preferences" }, 400);
+          }
+          await env.DB.prepare(`
+            INSERT INTO notification_preferences(owner_id, deleted_messages, edited_messages, one_time_messages, group_messages, deleted_by_owner, edited_by_owner)
+            VALUES(?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(owner_id) DO UPDATE SET
+              deleted_messages = excluded.deleted_messages,
+              edited_messages = excluded.edited_messages,
+              one_time_messages = excluded.one_time_messages,
+              group_messages = excluded.group_messages,
+              deleted_by_owner = excluded.deleted_by_owner,
+              edited_by_owner = excluded.edited_by_owner,
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(String(user.id), ...keys.map((key) => Number(preferences[key]))).run();
+          return json({ configured: true, preferences });
+        }
+
         if (route === "/api/archive" && request.method === "GET") {
           const subscription = await getSubscription(env.DB, String(user.id));
           if (!subscription.active) return json({ error: "subscription_required" }, 403);
@@ -146,7 +172,10 @@ export default {
   },
 
   async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(maintainJournal(env));
+    ctx.waitUntil((async () => {
+      await maintainJournal(env);
+      await env.DB.prepare("DELETE FROM notification_deliveries WHERE sent_at < datetime('now', '-7 days')").run();
+    })());
   },
 };
 
@@ -211,10 +240,11 @@ async function handleTelegramWebhook(request, env) {
     if (!connectionRow) return json({ ok: true, ignored: true });
 
     const updateId = Number.isInteger(update.update_id) ? update.update_id : null;
+    const savedEvents = [];
     if (deleted) {
       const chatId = deleted.chat?.id == null ? "" : String(deleted.chat.id);
       for (const messageId of deleted.message_ids || []) {
-        await storeBusinessEvent(env, {
+        const eventId = await storeBusinessEvent(env, {
           updateId,
           ownerId: connectionRow.owner_id,
           connectionId,
@@ -223,12 +253,13 @@ async function handleTelegramWebhook(request, env) {
           eventType: "deleted",
           message: deleted,
         });
+        savedEvents.push({ eventId, messageId: String(messageId), eventType: "deleted" });
       }
     } else if (message) {
       const eventType = update.edited_business_message ? "edited" : "new";
       const chatId = message.chat?.id == null ? "" : String(message.chat.id);
       const messageId = message.message_id == null ? "" : String(message.message_id);
-      await storeBusinessEvent(env, {
+      const eventId = await storeBusinessEvent(env, {
         updateId,
         ownerId: connectionRow.owner_id,
         connectionId,
@@ -237,6 +268,34 @@ async function handleTelegramWebhook(request, env) {
         eventType,
         message: { ...message },
       });
+      savedEvents.push({ eventId, messageId, eventType });
+    }
+
+    if (savedEvents.length && updateId !== null && env.TELEGRAM_BOT_TOKEN) {
+      const subscription = await getSubscription(env.DB, connectionRow.owner_id);
+      if (subscription.active) {
+        const preferences = await getNotificationPreferences(env.DB, connectionRow.owner_id);
+        for (const savedEvent of savedEvents) {
+          const eventRow = await env.DB.prepare("SELECT * FROM events WHERE id = ? AND owner_id = ?")
+            .bind(savedEvent.eventId, connectionRow.owner_id).first();
+          if (!eventRow) continue;
+          const [event] = await hydrateEventRows([eventRow], env);
+          const chatType = event?.message?.chat?.type || event?.previous_message?.chat?.type || "private";
+          const isGroup = chatType === "group" || chatType === "supergroup";
+          const preferenceKey = savedEvent.eventType === "deleted"
+            ? "deleted_messages"
+            : savedEvent.eventType === "edited"
+              ? "edited_messages"
+              : isOneTimeMessage(event?.message) ? "one_time_messages" : null;
+          if (!preferenceKey || !preferences.preferences[preferenceKey] || (isGroup && !preferences.preferences.group_messages)) continue;
+          await sendEventNotification(env, {
+            ownerId: connectionRow.owner_id,
+            updateId,
+            messageId: savedEvent.messageId,
+            event,
+          });
+        }
+      }
     }
 
     return json({ ok: true });
@@ -306,6 +365,81 @@ async function userFromRequest(request, env) {
     if (!/no such table: subscription_test_overrides/i.test(String(error?.message || error))) throw error;
   }
   return { active: override === null ? paidActive : override, expires_at: expiresAt, test_override: override };
+}
+
+const defaultNotificationPreferences = Object.freeze({
+  deleted_messages: true,
+  edited_messages: true,
+  one_time_messages: true,
+  group_messages: false,
+  deleted_by_owner: false,
+  edited_by_owner: false,
+});
+
+async function getNotificationPreferences(db, ownerId) {
+  const row = await db.prepare("SELECT * FROM notification_preferences WHERE owner_id = ?").bind(String(ownerId)).first();
+  if (!row) return { configured: false, preferences: { ...defaultNotificationPreferences } };
+  return {
+    configured: true,
+    preferences: Object.fromEntries(Object.keys(defaultNotificationPreferences).map((key) => [key, Boolean(row[key])])),
+  };
+}
+
+async function sendEventNotification(env, { ownerId, updateId, messageId, event }) {
+  const claim = await env.DB.prepare(`
+    INSERT OR IGNORE INTO notification_deliveries(owner_id, update_id, message_id)
+    VALUES(?, ?, ?)
+  `).bind(String(ownerId), updateId, String(messageId)).run();
+  if (Number(claim.meta?.changes || 0) !== 1) return;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: ownerId,
+        text: formatEventNotification(event),
+        reply_markup: {
+          inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
+        },
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) throw new Error("Telegram notification could not be delivered");
+  } catch (error) {
+    await env.DB.prepare("DELETE FROM notification_deliveries WHERE owner_id = ? AND update_id = ? AND message_id = ?")
+      .bind(String(ownerId), updateId, String(messageId)).run();
+    throw error;
+  }
+}
+
+function formatEventNotification(event) {
+  const current = event?.message || {};
+  const previous = event?.previous_message || {};
+  const chat = current.chat || previous.chat || {};
+  const chatName = chat.title
+    || [chat.first_name, chat.last_name].filter(Boolean).join(" ")
+    || (chat.username ? `@${chat.username}` : `чат ${chat.id || ""}`.trim());
+  const lines = event?.event_type === "deleted"
+    ? ["🗑 Сообщение удалено", `Чат: ${chatName}`, `Сообщение: ${messagePreview(current)}`]
+    : event?.event_type === "edited"
+      ? ["✏️ Сообщение изменено", `Чат: ${chatName}`, `Было: ${messagePreview(previous)}`, `Стало: ${messagePreview(current)}`]
+      : ["👁 Сохранено одноразовое сообщение", `Чат: ${chatName}`, `Сообщение: ${messagePreview(current)}`];
+  return lines.join("\n").slice(0, 3500);
+}
+
+function messagePreview(message) {
+  const text = typeof message?.text === "string" ? message.text : typeof message?.caption === "string" ? message.caption : "";
+  if (text.trim()) return text.trim().slice(0, 700);
+  if (message?.photo) return "Фотография";
+  if (message?.video_note) return "Видеосообщение";
+  if (message?.voice) return "Голосовое сообщение";
+  if (message?.video) return "Видео";
+  if (message?.audio) return "Аудио";
+  if (message?.document) return "Документ";
+  if (message?.animation) return "Анимация";
+  if (message?.sticker) return "Стикер";
+  return "Медиа или сообщение без текста";
 }
 
 async function saveUser(db, user) {
