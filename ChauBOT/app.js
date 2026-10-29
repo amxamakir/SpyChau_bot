@@ -504,7 +504,7 @@ function modal() {
 }
 
 function syncTelegramTheme() {
-  const color = state.theme === 'light' ? '#f2f5fa' : '#0a101b';
+  const color = state.theme === 'light' ? '#f1f6f1' : '#08140f';
   const themeColor = document.querySelector('meta[name="theme-color"]');
   if (themeColor) themeColor.content = color;
   if (!state.telegram) return;
