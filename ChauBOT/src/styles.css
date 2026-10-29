@@ -1147,3 +1147,13 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .desktop-back-button{background:rgba(255,255,255,.96);border-color:rgba(59,75,96,.18);color:#45566d}
 .archive-filter.active,.archive-filter[data-archive-filter="all"].active{background:linear-gradient(135deg,#e0e5eb,#c5ced8);border-color:#e0e5eb;color:#101827;box-shadow:0 5px 16px rgba(4,11,22,.24)}
 :root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#53677f;border-color:#53677f;color:#fff}
+
+/* Soft peach-pink subscription card on the Midnight Navy + Platinum base. */
+.hero-card,:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 17%,rgba(255,255,255,.32),transparent 42%),linear-gradient(118deg,#f4d7c8 0%,#efcdd1 52%,#e8c4d0 100%);border:1px solid rgba(106,69,82,.2);box-shadow:0 18px 48px rgba(55,31,49,.2),inset 0 1px 0 rgba(255,255,255,.38)}
+.hero-card .subscription-heading,:root[data-theme="light"] .hero-card .subscription-heading{color:#172235}
+.hero-card p,:root[data-theme="light"] .hero-card p{color:#344154}
+.hero-card .status-pill,:root[data-theme="light"] .hero-card .status-pill{background:rgba(255,255,255,.48);border-color:rgba(23,34,53,.12);color:#26364c}
+.hero-card .subscription-dot.active,:root[data-theme="light"] .hero-card .subscription-dot.active{background:#28a875;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(40,168,117,.18)}
+.hero-card .subscription-dot.inactive,:root[data-theme="light"] .hero-card .subscription-dot.inactive{background:#df6574;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 10px rgba(223,101,116,.18)}
+.hero-card .hero-orbit,:root[data-theme="light"] .hero-card .hero-orbit{border-color:rgba(255,255,255,.34)}
+.hero-card .button-light,:root[data-theme="light"] .hero-card .button-light{background:#101827;color:#f4f6f9;box-shadow:0 8px 20px rgba(16,24,39,.2)}
