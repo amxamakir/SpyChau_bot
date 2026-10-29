@@ -930,6 +930,56 @@ body{background:#08140f;color:#f3f8f3}
 :root[data-theme="light"] .desktop-back-button:hover{background:#e1efe3}
 :root[data-theme="light"] .profile-telegram-id{color:#4c7c53!important}
 
+/* Rich evergreen edition: stronger saturation, clearer surfaces, warm coral hero. */
+:root{
+  color:#f4fff5;
+  background:#04130c;
+  --muted:#a9c5ad;
+  --panel:#102b1b;
+  --panel-2:#19432a;
+  --line:rgba(105,205,132,.23);
+  --blue:#20a55b;
+  --purple:#52b878;
+  --archive-all:#14864a;
+}
+body{background:#04130c;color:#f4fff5}
+.app-shell{background:radial-gradient(ellipse at 8% 3%,rgba(9,132,62,.34),transparent 39%),radial-gradient(ellipse at 94% 42%,rgba(11,95,49,.24),transparent 43%),radial-gradient(ellipse at 54% 100%,rgba(9,70,40,.17),transparent 50%),linear-gradient(155deg,#04130c 0%,#092116 52%,#05160e 100%)}
+.ambient-one{background:#0b9b52;opacity:.2}
+.ambient-two{background:#16834b;opacity:.15}
+.icon-button{background:rgba(14,49,29,.94);color:#eaffed;border-color:rgba(104,212,137,.3);box-shadow:0 5px 18px rgba(0,0,0,.18)}
+.brand-mark{background:linear-gradient(145deg,#42d27c,#087d43);box-shadow:0 0 0 4px rgba(37,193,102,.2),0 0 24px rgba(30,182,94,.22)}
+.brand-mark span{background:#0b2818;border-color:#9be8ae}
+.hero-card{background:radial-gradient(ellipse at 78% 16%,rgba(255,244,218,.28),transparent 39%),linear-gradient(118deg,#ff8b68 0%,#f65a6d 50%,#c83d70 100%);border:1px solid rgba(255,227,207,.35);box-shadow:0 18px 54px rgba(231,67,91,.25),0 0 34px rgba(237,83,100,.12)}
+.hero-orbit{border-color:rgba(255,242,224,.27)}
+.hero-card .status-pill{background:rgba(255,255,255,.23);border-color:rgba(255,255,255,.24)}
+.button-light{background:#fffaf3;color:#b9324c;box-shadow:0 7px 20px rgba(119,28,46,.15)}
+.button-blue,.tutorial-open-settings,.tutorial-copy-button,.tariff-pay-button{background:linear-gradient(135deg,#32cf75 0%,#13a653 52%,#087a41 100%);color:#fff;box-shadow:0 9px 24px rgba(9,156,75,.3)}
+.button-purple{background:linear-gradient(135deg,#68d88d 0%,#28ac62 100%);color:#fff;box-shadow:0 8px 20px rgba(22,161,83,.24)}
+.connect-card,.profile-card,.service-card,.coming-card,.identity-card,.contact-row.archive-contact-card,.events-list,.contact-list,.tariff-plan,.tariff-benefits{background:linear-gradient(145deg,rgba(17,48,30,.98),rgba(10,34,21,.99));border-color:rgba(89,186,117,.28);box-shadow:0 12px 34px rgba(0,0,0,.24),inset 0 1px 0 rgba(177,255,189,.035)}
+.connect-card,.profile-card,.service-card,.coming-card,.identity-card{background:linear-gradient(145deg,rgba(18,52,32,.98),rgba(10,35,21,.99))}
+.bottom-nav{background:rgba(9,35,21,.97);border-color:rgba(104,204,132,.31);box-shadow:0 12px 38px rgba(0,0,0,.4),0 0 22px rgba(9,116,55,.12)}
+.bottom-nav button.active{background:linear-gradient(145deg,#1b6539,#124b2b);color:#b5ffc4;box-shadow:inset 0 0 0 1px rgba(117,238,150,.13),0 4px 16px rgba(4,17,9,.24)}
+.count-badge,.subtle-button,.search-field,.archive-empty,.tutorial-copy-row,.tutorial-breadcrumb span,.tutorial-breadcrumb b,.tutorial-loop-scenes,.tariff-mode-switch{background:#123921;border-color:rgba(94,195,123,.25);color:#ddf5df}
+.archive-state,.empty-events,.connection-tutorial-card,.tutorial-step-card,.tutorial-loop{background:linear-gradient(150deg,#153e27 0%,#0c2918 100%);border-color:rgba(94,195,123,.25)}
+.text-button,.profile-detail-back{color:#65e694}
+.eyebrow,.list-label{color:#85dda0}
+.card-glow{background:#19a85d;opacity:.28}
+.service-icon.green,.modal-icon.green{background:rgba(36,202,105,.2);color:#65ef9a}
+.connection-done{background:rgba(37,205,122,.2);border-color:rgba(93,239,161,.4);color:#70f0a0}
+.test-switch.on,.notification-switch-row .test-switch.on{background:#13894a;border-color:#6be39a}
+.archive-filter.active,.archive-filter[data-archive-filter="all"].active{background:#118747;border-color:#6de49a;color:#fff;box-shadow:0 5px 16px rgba(13,145,70,.25)}
+.tariff-mode-switch button.active{background:linear-gradient(135deg,#32cf75,#087a41);box-shadow:0 6px 18px rgba(9,156,75,.28)}
+.tariff-plan.selected{background:linear-gradient(110deg,rgba(29,123,65,.48),rgba(11,44,24,.98));border-color:#55d682;box-shadow:0 0 0 1px rgba(85,214,130,.2),0 8px 24px rgba(4,86,38,.18)}
+.tariff-plan.selected .tariff-radio{border-color:#36cb72;background:#20a85a}
+.privacy-point-icon svg{color:#67e99a}
+.trust-note svg,.privacy-points svg,.archive-disclaimer svg{color:#5ce38d}
+.desktop-back-button{background:rgba(14,49,29,.96);border-color:rgba(104,212,137,.3);color:#eaffed}
+.desktop-back-button:hover{background:#1c6538}
+:root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 16%,rgba(255,244,218,.34),transparent 39%),linear-gradient(118deg,#ff8b68 0%,#f65a6d 50%,#c83d70 100%);box-shadow:0 18px 48px rgba(196,61,77,.2)}
+:root[data-theme="light"] .bottom-nav button.active{background:linear-gradient(145deg,#28a95c,#147744);color:#fff;box-shadow:0 4px 14px rgba(18,125,63,.2)}
+:root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#16884b;border-color:#16884b;color:#fff}
+:root[data-theme="light"] .tariff-plan.selected{background:linear-gradient(110deg,#e3f7e8,#f8fff8);border-color:#20a85a}
+
 /* Premium evergreen palette: deep, quiet surfaces with restrained emerald accents. */
 :root{
   color-scheme:dark;
