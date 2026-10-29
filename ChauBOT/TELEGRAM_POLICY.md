@@ -28,7 +28,10 @@ This note records official Telegram rules and API constraints relevant to SpyCha
 ## Data storage and privacy
 
 - Store only data essential to the service and clearly explain its purpose to users before collection.
-- Encrypt user data at rest and keep encryption keys separately.
+- Keep the latest 5,000 event records per user for no more than 7 days from receipt. A scheduled cleanup runs every 30 minutes; an event can remain until the next cleanup after its 7-day deadline.
+- Store message contents in separate per-user journal objects in a private Cloudflare R2 bucket. Each event and media object is encrypted with AES-256-GCM using a key derived for that user from the separately configured `JOURNAL_ENCRYPTION_KEY`. D1 stores the event index and references needed to find the encrypted record; it does not store the message body after the journal write succeeds.
+- Supported media (including photos, voice messages, video messages, and documents) is downloaded when Telegram delivers it and is under the Bot API's 20 MB file-download limit. Media that Telegram does not deliver, or files above the limit, cannot be retained.
+- Deleting an account removes its journal objects and indexed events. Expired or excess records and their media are removed by scheduled cleanup.
 - Delete data on user request, when no longer needed for the service, when the service ends (unless continued retention was explicitly agreed), or in response to lawful requests as applicable.
 - Provide a clear privacy policy, terms, support contact, and accessible data deletion/disconnect controls.
 

@@ -220,6 +220,7 @@ function archiveContactCard(contact) {
 }
 
 function previousMessageSnapshot(event) {
+  if (event.previous_message) return { message: event.previous_message };
   return state.events.find(candidate => candidate.event_type !== 'deleted'
     && String(candidate.chat_id) === String(event.chat_id)
     && String(candidate.message_id) === String(event.message_id)
@@ -273,11 +274,22 @@ function archiveContacts() {
 
 function archiveEventRow(event) {
   const kind = archiveEventKind(event);
-  const iconName = kind === 'deleted' ? 'close' : kind === 'one-time' ? 'clock' : 'chat';
+  const iconName = kind === 'deleted' ? 'close' : kind === 'one-time' ? 'clock' : event.message?.voice ? 'mic' : event.message?.photo ? 'image' : 'chat';
   const original = kind === 'deleted' ? previousMessageSnapshot(event) : null;
   const imageUrl = event.media_url || original?.media_url;
-  const photo = imageUrl ? `<a class="event-photo-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener" aria-label="Открыть сохранённую фотографию"><img class="event-photo" src="${escapeHtml(imageUrl)}" alt="Фотография из сообщения" loading="lazy" /></a>` : '';
-  return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(archiveEventText(event))}</span>${photo}</div></article>`;
+  const mediaItems = Array.isArray(event.media) ? event.media : [];
+  const fallbackPhoto = !mediaItems.length && imageUrl
+    ? `<a class="event-photo-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener" aria-label="Открыть сохранённую фотографию"><img class="event-photo" src="${escapeHtml(imageUrl)}" alt="Фотография из сообщения" loading="lazy" /></a>`
+    : '';
+  const media = mediaItems.map((asset) => {
+    const src = escapeHtml(asset.url || '');
+    if (!src) return '';
+    if (asset.kind === 'photo') return `<a class="event-photo-link" href="${src}" target="_blank" rel="noopener" aria-label="Открыть сохранённую фотографию"><img class="event-photo" src="${src}" alt="Фотография из сообщения" loading="lazy" /></a>`;
+    if (asset.kind === 'voice' || asset.kind === 'audio') return `<audio class="event-audio" controls preload="none" src="${src}">Браузер не поддерживает воспроизведение аудио.</audio>`;
+    if (asset.kind === 'video' || asset.kind === 'video_note' || asset.kind === 'animation') return `<video class="event-video" controls playsinline preload="metadata" src="${src}">Браузер не поддерживает воспроизведение видео.</video>`;
+    return `<a class="event-file-link" href="${src}" target="_blank" rel="noopener" download>${escapeHtml(asset.file_name || 'Открыть сохранённый файл')}</a>`;
+  }).join('');
+  return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(archiveEventText(event))}</span>${media || fallbackPhoto}</div></article>`;
 }
 
 function homeContactRow(contact) {

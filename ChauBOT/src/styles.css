@@ -35,6 +35,9 @@ body{background:#100b0c}
 .service-card.featured-service .card-glow{background:#ef2638}
 .event-photo-link{display:block;width:min(100%,280px);margin-top:9px;border:1px solid rgba(255,192,91,.18);border-radius:12px;overflow:hidden;background:#170f10}
 .event-photo{display:block;width:100%;max-height:240px;object-fit:cover}
+.event-audio,.event-video{display:block;width:min(100%,360px);margin-top:10px}
+.event-video{max-height:260px;border-radius:14px;background:#120b0d;object-fit:contain}
+.event-file-link{display:inline-flex;max-width:100%;margin-top:10px;padding:9px 12px;border:1px solid rgba(255,192,91,.18);border-radius:11px;color:#ffd18a;background:rgba(255,192,91,.08);font-size:12px;overflow-wrap:anywhere}
 .coming-label{color:#ffcf55;background:rgba(255,192,58,.13)}
 .coming-content p svg{color:#ffb93f}
 .avatar{background:linear-gradient(145deg,#ffb936,#d92336);border-color:rgba(255,211,106,.42);box-shadow:0 0 0 6px rgba(239,48,55,.1)}
@@ -427,6 +430,7 @@ html,body{touch-action:pan-x pan-y}
 :root[data-theme="light"] .bottom-nav button.active{background:#fae5dc;color:#c83a32}
 :root[data-theme="light"] .event-row+.event-row,:root[data-theme="light"] .contact-row+.contact-row{border-color:rgba(115,64,48,.13)}
 :root[data-theme="light"] .event-copy,:root[data-theme="light"] .event-copy span,:root[data-theme="light"] .event-copy small,:root[data-theme="light"] .event-copy time,:root[data-theme="light"] .contact-count,:root[data-theme="light"] .contact-detail-copy>p:last-child,:root[data-theme="light"] .archive-summary,:root[data-theme="light"] .subscription-status,:root[data-theme="light"] .subscription-row-value,:root[data-theme="light"] .profile-page .receipt-email-heading strong,:root[data-theme="light"] .profile-page .receipt-email-heading .receipt-email-value{color:#3a2926}
+:root[data-theme="light"] .event-file-link{color:#8f4d2e;background:#fff4e6;border-color:rgba(115,64,48,.18)}
 :root[data-theme="light"] .page-title p,:root[data-theme="light"] .profile-detail-card .privacy-points{color:#6f5750}
 :root[data-theme="light"] .privacy-point-icon{background:#fffaf6}
 :root[data-theme="light"] .receipt-email-input{background:#fffdfa;color:#281719;border-color:rgba(115,64,48,.2)}

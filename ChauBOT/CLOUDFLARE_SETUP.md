@@ -34,7 +34,23 @@ npx wrangler d1 migrations apply spychau-bot-dev --remote
 npx wrangler d1 migrations apply spychau-bot-production --remote --env production
 ```
 
-## 2. Configure Worker secrets
+## 2. Create private journal storage
+
+Create two private R2 buckets in Cloudflare, one for each environment:
+
+- `spychau-journal-dev`
+- `spychau-journal-production`
+
+The Worker binds these buckets as `JOURNAL`. Do not enable public access or attach a public custom domain; archived media is served only through short-lived, signed Worker URLs.
+
+Apply the journal schema before deploying a Worker version that uses it:
+
+```powershell
+npx wrangler d1 migrations apply spychau-bot-dev --remote
+npx wrangler d1 migrations apply spychau-bot-production --remote --env production
+```
+
+## 3. Configure Worker secrets
 
 Set the development secrets:
 
@@ -50,9 +66,16 @@ npx wrangler secret put TELEGRAM_BOT_TOKEN --env production
 npx wrangler secret put TELEGRAM_WEBHOOK_SECRET --env production
 ```
 
+Add `JOURNAL_ENCRYPTION_KEY` as a Worker secret in development and production. Use one random value of at least 32 characters per environment; never reuse a value across unrelated projects or store it in Git. Losing this key makes encrypted journal contents unreadable.
+
+```powershell
+npx wrangler secret put JOURNAL_ENCRYPTION_KEY
+npx wrangler secret put JOURNAL_ENCRYPTION_KEY --env production
+```
+
 Wrangler prompts for each value so tokens do not need to be written into command history or source files. Never add these values to GitHub files or screenshots.
 
-## 3. Create and connect GitHub
+## 4. Create and connect GitHub
 
 Create a **private** GitHub repository named `SpyChau_bot`. Push the local `main` branch and its commits to it. In Cloudflare, open **Workers & Pages → Create application → Connect to Git**, authorize the Cloudflare Workers and Pages GitHub app for this repository, and create the Worker from `wrangler.jsonc`.
 
@@ -60,7 +83,7 @@ Configure the production branch as `main`. Connect a separate preview branch aft
 
 The configured D1 IDs must be present before the first Cloudflare build. Add the Worker secrets in the dashboard for each environment too if the Cloudflare Git connection deploys before Wrangler has been used to upload secrets.
 
-## 4. Connect Telegram
+## 5. Connect Telegram
 
 After the Worker has an HTTPS URL, configure the Mini App domain through BotFather. Set the Telegram webhook URL to:
 
