@@ -1167,7 +1167,13 @@ body{background:#101827;color:#f4f6f9}
 .home-page .empty-events-with-mascot{padding-top:17px;padding-bottom:6px}
 @media(max-width:430px){.home-page .empty-events-with-mascot{padding-bottom:10px}}
 
-/* Semantic icon colors for profile support and data controls. */
+/* Semantic icon colors for profile actions, consistent in both themes. */
+.profile-page .profile-row[data-tab="subscription"] .service-icon{background:rgba(234,193,110,.14);color:#EAC16E}
+.profile-page .profile-row[data-tab="services"] .service-icon{background:rgba(130,189,242,.14);color:#82BDF2}
+.profile-page .profile-row[data-tab="notifications"] .service-icon{background:rgba(238,168,141,.14);color:#EEA88D}
+.profile-page .profile-row[data-tab="receipt-email"] .service-icon{background:rgba(131,207,186,.14);color:#83CFBA}
+.profile-page .test-subscription-row .service-icon{background:rgba(190,161,240,.14);color:#BEA1F0}
+.profile-page .profile-row[data-tab="owner-statistics"] .service-icon{background:rgba(154,212,156,.14);color:#9AD49C}
 .profile-page .profile-row[data-tab="support"] .service-icon,.profile-page .profile-row[data-tab="privacy"] .service-icon{background:rgba(106,203,157,.14);color:#72d4a3}
 .profile-page .profile-row[data-tab="delete-data"] .service-icon{background:rgba(242,118,124,.15);color:#f2767c}
 :root[data-theme="light"] .profile-page .profile-row[data-tab="support"] .service-icon,:root[data-theme="light"] .profile-page .profile-row[data-tab="privacy"] .service-icon{background:rgba(40,122,88,.12);color:#287a58}
