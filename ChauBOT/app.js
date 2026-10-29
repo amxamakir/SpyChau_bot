@@ -108,8 +108,8 @@ function escapeHtml(value) {
 }
 
 function racer(small = false) {
-  const image = small ? './assets/mascot/kchau-trophies.png' : './assets/spy-chau-happy-clean.png';
-  return `<div class="racer ${small ? 'racer-small' : ''}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
+  const image = small ? './assets/mascot/kchau-trophies.png' : './assets/mascot/knight-kitten.png';
+  return `<div class="racer ${small ? 'racer-small' : 'racer-kitten'}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
 }
 
 function displayName() {
