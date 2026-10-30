@@ -2,6 +2,7 @@ import {
   deleteOwnerJournal,
   hydrateEventRows,
   maintainJournal,
+  readArchivedMedia,
   serveArchivedMedia,
   serveContactAvatar,
   storeBusinessEvent,
@@ -15,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.117" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.118" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -296,25 +297,37 @@ async function handleTelegramWebhook(request, env) {
       savedEvents.push({ eventId, messageId, eventType });
 
       // In Telegram's reply-before-open flow, the original disappearing media
-      // may be attached to either reply_to_message or external_reply.
+      // may be attached to either reply_to_message or external_reply. Collect
+      // every supported attachment from both shapes instead of stopping at the
+      // first one found.
       const repliedMedia = eventType === "new"
         && message.from?.id != null
         && String(message.from.id) === String(connectionRow.owner_id)
         && message.chat?.type === "private"
-        ? [message.reply_to_message, message.external_reply].find((candidate) => oneTimeMedia(candidate))
-        : null;
-      if (repliedMedia && oneTimeMedia(repliedMedia)) {
-        const originalId = repliedMedia.message_id == null ? "unknown" : String(repliedMedia.message_id);
+        ? collectRepliedMedia(message)
+        : [];
+      for (const [mediaIndex, replied] of repliedMedia.entries()) {
+        const { source, media, kind } = replied;
+        const originalId = source.message_id == null ? "unknown" : String(source.message_id);
+        const syntheticMessageId = `reply-media:${chatId}:${originalId}:${messageId}:${kind}:${mediaIndex}`;
+        const syntheticMessage = {
+          ...source,
+          chat: source.chat || message.chat,
+          from: source.from || message.reply_to_message?.from || {},
+          __spychau_one_time_saved: true,
+        };
+        for (const field of ONE_TIME_MEDIA_FIELDS) delete syntheticMessage[field];
+        syntheticMessage[media.field] = media.value;
         const replyMediaEventId = await storeBusinessEvent(env, {
           updateId,
           ownerId: connectionRow.owner_id,
           connectionId,
           chatId,
-          messageId: `reply-media:${chatId}:${originalId}:${messageId}`,
+          messageId: syntheticMessageId,
           eventType: "new",
-          message: { ...repliedMedia, __spychau_one_time_saved: true },
+          message: syntheticMessage,
         });
-        savedEvents.push({ eventId: replyMediaEventId, messageId: `reply-media:${chatId}:${originalId}:${messageId}`, eventType: "new" });
+        savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
     }
 
@@ -371,6 +384,7 @@ function logBusinessMediaDiagnostic(update) {
     .map(([updateType, message]) => {
       const reply = message.reply_to_message;
       const externalReply = message.external_reply;
+      const repliedMedia = collectRepliedMedia(message);
       return {
         updateType,
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
@@ -378,6 +392,8 @@ function logBusinessMediaDiagnostic(update) {
         replyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(reply?.[field])])),
         hasExternalReply: Boolean(externalReply),
         externalReplyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(externalReply?.[field])])),
+        repliedMediaCount: repliedMedia.length,
+        repliedMediaKinds: repliedMedia.map((item) => item.kind),
         hasTtlPeriod: Number(message.ttl_period) > 0,
         hasEphemeralMessageId: message.ephemeral_message_id != null,
         hasReceiverUser: message.receiver_user != null,
@@ -545,33 +561,70 @@ async function sendEventNotification(env, { ownerId, updateId, messageId, event 
     const media = isOneTimeMessage(current) ? oneTimeMedia(current) : null;
     const method = media?.method || "sendMessage";
     const notificationText = formatEventNotification(event);
+    const archiveButton = {
+      inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
+    };
     const payload = media
       ? {
           chat_id: ownerId,
           [media.field]: media.fileId,
-          reply_markup: {
-            inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
-          },
+          reply_markup: archiveButton,
           ...(media.caption ? { caption: notificationText.slice(0, 1000) } : {}),
         }
       : {
           chat_id: ownerId,
           text: notificationText,
-          reply_markup: {
-            inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
-          },
+          reply_markup: archiveButton,
         };
+    let delivered = await callTelegramJson(env, method, payload);
+    if (!delivered && media) {
+      const archived = await readArchivedMedia(env, ownerId, event?.id, 0);
+      if (archived?.bytes?.length) {
+        delivered = await callTelegramUpload(env, media, archived, notificationText, archiveButton, ownerId);
+      }
+      if (!delivered) {
+        delivered = await callTelegramJson(env, "sendMessage", {
+          chat_id: ownerId,
+          text: `${notificationText}\n\nНе получилось отправить вложение в этот чат. Проверь событие в архиве — если файл успел сохраниться, он будет доступен там.`,
+          reply_markup: archiveButton,
+        });
+      }
+    }
+    if (!delivered) throw new Error("Telegram notification could not be delivered");
+  } catch (error) {
+    await env.DB.prepare("DELETE FROM notification_deliveries WHERE owner_id = ? AND update_id = ? AND message_id = ?")
+      .bind(String(ownerId), updateId, String(messageId)).run();
+    throw error;
+  }
+}
+
+async function callTelegramJson(env, method, payload) {
+  try {
     const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) throw new Error("Telegram notification could not be delivered");
-  } catch (error) {
-    await env.DB.prepare("DELETE FROM notification_deliveries WHERE owner_id = ? AND update_id = ? AND message_id = ?")
-      .bind(String(ownerId), updateId, String(messageId)).run();
-    throw error;
+    return response.ok && result.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+async function callTelegramUpload(env, media, archived, notificationText, replyMarkup, ownerId) {
+  try {
+    const form = new FormData();
+    form.set("chat_id", String(ownerId));
+    const safeFileName = String(archived.file_name || `${media.kind}.${media.extension}`).split(/[\\/]/).pop().replace(/[\r\n]/g, "");
+    form.set(media.field, new Blob([archived.bytes], { type: archived.mime_type }), safeFileName);
+    form.set("reply_markup", JSON.stringify(replyMarkup));
+    if (media.caption) form.set("caption", notificationText.slice(0, 1000));
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${media.method}`, { method: "POST", body: form });
+    const result = await response.json().catch(() => ({}));
+    return response.ok && result.ok === true;
+  } catch {
+    return false;
   }
 }
 
@@ -653,20 +706,54 @@ function isOneTimeMessage(message) {
 function oneTimeMedia(message) {
   if (Array.isArray(message?.photo) && message.photo.length) {
     const photo = [...message.photo].sort((left, right) => Number(right.file_size || 0) - Number(left.file_size || 0))[0];
-    return photo?.file_id ? { method: "sendPhoto", field: "photo", fileId: photo.file_id, caption: true } : null;
+    return photo?.file_id ? { method: "sendPhoto", field: "photo", fileId: photo.file_id, caption: true, extension: "jpg" } : null;
   }
-  for (const [source, method, field, caption] of [
-    ["video", "sendVideo", "video", true],
-    ["video_note", "sendVideoNote", "video_note", false],
-    ["voice", "sendVoice", "voice", true],
-    ["audio", "sendAudio", "audio", true],
-    ["document", "sendDocument", "document", true],
-    ["animation", "sendAnimation", "animation", true],
+  for (const [source, method, field, caption, extension] of [
+    ["video", "sendVideo", "video", true, "mp4"],
+    ["video_note", "sendVideoNote", "video_note", false, "mp4"],
+    ["voice", "sendVoice", "voice", true, "ogg"],
+    ["audio", "sendAudio", "audio", true, "mp3"],
+    ["document", "sendDocument", "document", true, "bin"],
+    ["animation", "sendAnimation", "animation", true, "mp4"],
   ]) {
-    const fileId = message?.[source]?.file_id;
-    if (fileId) return { method, field, fileId, caption };
+    const item = message?.[source];
+    if (item?.file_id) return { method, field, fileId: item.file_id, caption, extension: source === "document" && item.file_name?.includes(".") ? item.file_name.split(".").at(-1) : extension };
   }
   return null;
+}
+
+const ONE_TIME_MEDIA_FIELDS = ["photo", "video", "video_note", "voice", "audio", "document", "animation"];
+
+function collectRepliedMedia(message) {
+  const queue = [message.reply_to_message, message.external_reply].filter((candidate) => candidate && typeof candidate === "object");
+  const sources = [];
+  const visitedSources = new Set();
+  while (queue.length && sources.length < 8) {
+    const source = queue.shift();
+    if (!source || typeof source !== "object" || visitedSources.has(source)) continue;
+    visitedSources.add(source);
+    sources.push(source);
+    for (const nested of [source.reply_to_message, source.external_reply]) {
+      if (nested && typeof nested === "object") queue.push(nested);
+    }
+  }
+  const collected = [];
+  const seen = new Set();
+  for (const source of sources) {
+    for (const field of ONE_TIME_MEDIA_FIELDS) {
+      const value = source[field];
+      const item = field === "photo" && Array.isArray(value)
+        ? [...value].sort((left, right) => Number(right.file_size || 0) - Number(left.file_size || 0))[0]
+        : value;
+      if (!item?.file_id) continue;
+      const kind = field;
+      const identity = item.file_unique_id || item.file_id;
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      collected.push({ source, kind, media: { field, value: field === "photo" ? value : item } });
+    }
+  }
+  return collected;
 }
 
 function publicError(error) {

@@ -108,6 +108,34 @@ export async function serveArchivedMedia(request, env, eventId) {
   return fetchTelegramFile(photo.file_id, env, "image/jpeg");
 }
 
+export async function readArchivedMedia(env, ownerId, eventId, assetIndex = 0) {
+  if (!env.JOURNAL || !Number.isInteger(assetIndex) || assetIndex < 0) return null;
+  const row = await env.DB.prepare("SELECT * FROM events WHERE id = ? AND owner_id = ? AND stored_at IS NOT NULL")
+    .bind(Number(eventId), String(ownerId)).first();
+  if (!row) return null;
+  const record = await readJournalRecord(row, env, new Map());
+  const asset = record?.media?.[assetIndex];
+  if (!asset?.object_key) return null;
+  const object = await env.JOURNAL.get(asset.object_key);
+  if (!object || !object.customMetadata?.nonce) return null;
+  try {
+    const cipher = new Uint8Array(await object.arrayBuffer());
+    const bytes = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: fromBase64Url(object.customMetadata.nonce), additionalData: aad(String(ownerId), `media:${row.id}:${asset.object_key}`) },
+      await userKey(env, String(ownerId)),
+      cipher,
+    );
+    return {
+      bytes: new Uint8Array(bytes),
+      kind: asset.kind,
+      mime_type: safeMime(asset.mime_type),
+      file_name: asset.file_name || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function serveContactAvatar(request, env, eventId) {
   const url = new URL(request.url);
   const expires = Number(url.searchParams.get("expires"));
@@ -261,11 +289,24 @@ async function cacheMessageMedia(env, ownerId, eventId, message) {
   if (!candidate) return [];
   try {
     const file = await resolveTelegramFile(candidate.file_id, env);
-    if (!file || file.size > MAX_TELEGRAM_FILE_BYTES) return [];
+    if (!file) {
+      logMediaCacheDiagnostic(candidate.kind, "get_file", "unavailable");
+      return [];
+    }
+    if (file.size > MAX_TELEGRAM_FILE_BYTES) {
+      logMediaCacheDiagnostic(candidate.kind, "get_file", "over_limit");
+      return [];
+    }
     const response = await fetch(`https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${file.path}`);
-    if (!response.ok) return [];
+    if (!response.ok) {
+      logMediaCacheDiagnostic(candidate.kind, "download", `http_${response.status}`);
+      return [];
+    }
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.length > MAX_TELEGRAM_FILE_BYTES) return [];
+    if (bytes.length > MAX_TELEGRAM_FILE_BYTES) {
+      logMediaCacheDiagnostic(candidate.kind, "download", "over_limit");
+      return [];
+    }
     const nonce = crypto.getRandomValues(new Uint8Array(12));
     const objectKey = `journal/${ownerId}/media/${crypto.randomUUID()}.bin`;
     const cipher = await crypto.subtle.encrypt(
@@ -283,9 +324,17 @@ async function cacheMessageMedia(env, ownerId, eventId, message) {
       width: candidate.width || null,
       height: candidate.height || null,
     }];
-  } catch {
+  } catch (error) {
+    const category = error instanceof Error ? error.name : "unknown";
+    logMediaCacheDiagnostic(candidate.kind, "cache", category);
     return [];
   }
+}
+
+function logMediaCacheDiagnostic(kind, stage, result) {
+  // Keep diagnostics limited to media type and failure stage; never log IDs,
+  // message text, file paths, or file contents.
+  console.warn("[telegram-media-cache]", JSON.stringify({ kind, stage, result }));
 }
 
 function mediaCandidate(message) {
