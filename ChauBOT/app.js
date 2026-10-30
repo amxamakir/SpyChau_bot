@@ -125,14 +125,6 @@ function topbar() {
   return `<header class="topbar"><div class="brand-mark">${state.authenticated && typeof state.user?.photo_url === 'string' && state.user.photo_url.toLowerCase().startsWith('https://') ? `<img src="${escapeHtml(state.user.photo_url)}" alt="" referrerpolicy="no-referrer">` : '<span>SC</span>'}<i></i></div><div class="brand-copy"><strong>SpyChau</strong><span>Привет, ${escapeHtml(displayName())}</span></div><button class="icon-button theme-toggle" aria-label="${state.theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}" data-action="toggle-theme">${icon(state.theme === 'dark' ? 'sun' : 'moon', 19)}</button><button class="icon-button" aria-label="О приложении" data-action="about">${icon('help', 19)}</button><button class="icon-button sun-button" aria-label="Уведомления" data-tab="archive">${icon('bell', 19)}</button></header>`;
 }
 
-function statusLabel() {
-  if (state.preview) return ['Предпросмотр приложения', 'preview'];
-  if (state.loading) return ['Загружаем аккаунт…', 'loading'];
-  if (state.apiError) return ['Не удалось загрузить данные', 'error'];
-  if (state.connections.some(connection => Number(connection.enabled) === 1)) return ['Подключение активно', 'active'];
-  return ['Аккаунт пока не подключён', 'inactive'];
-}
-
 function connectCard() {
   const activeCount = state.connections.filter(connection => Number(connection.enabled) === 1).length;
   const personalConnected = activeCount > 0;
@@ -182,13 +174,6 @@ function formatDate(value) {
   if (!value) return 'Дата неизвестна';
   const date = new Date(value.includes('T') ? value : `${value.replace(' ', 'T')}Z`);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(date);
-}
-
-function eventCard(event) {
-  const kind = archiveEventKind(event);
-  const type = kind || 'new';
-  const iconName = kind === 'deleted' ? 'close' : kind === 'one-time' ? 'clock' : event.message?.voice ? 'mic' : event.message?.photo ? 'image' : 'chat';
-  return `<article class="event-row"><div class="event-type-icon ${type}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(eventDescription(event))}</span><small>Чат ${escapeHtml(event.chat_id || '—')} · сообщение ${escapeHtml(event.message_id || '—')}</small></div></article>`;
 }
 
 function eventChat(event) {
@@ -305,14 +290,6 @@ function archiveEventRow(event) {
     return `<a class="event-file-link" href="${src}" target="_blank" rel="noopener" download>${escapeHtml(asset.file_name || 'Открыть сохранённый файл')}</a>`;
   }).join('');
   return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(archiveEventText(event))}</span>${media || fallbackPhoto}</div></article>`;
-}
-
-function homeContactRow(contact) {
-  const kinds = [...new Set(contact.events.map(event => {
-    const kind = archiveEventKind(event);
-    return kind === 'deleted' ? 'Удалено' : kind === 'edited' ? 'Изменено' : 'Одноразовое';
-  }))];
-  return `<button type="button" class="contact-row home-contact-row" data-contact-id="${escapeHtml(contact.id)}">${contactAvatar(contact)}<span class="contact-copy"><strong>${escapeHtml(contact.name)}</strong><small>${escapeHtml(kinds.join(' · '))}</small></span><span class="contact-count">${contact.events.length} ${plural(contact.events.length, 'событие', 'события', 'событий')}</span>${icon('chevron', 16)}</button>`;
 }
 
 function home() {

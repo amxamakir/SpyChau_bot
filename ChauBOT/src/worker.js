@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.118" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.119" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
