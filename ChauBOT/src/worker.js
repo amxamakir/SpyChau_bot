@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.113" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.114" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -268,6 +268,29 @@ async function handleTelegramWebhook(request, env) {
         message: { ...message },
       });
       savedEvents.push({ eventId, messageId, eventType });
+
+      // In Telegram's reply-before-open flow the original disappearing media can
+      // be included as reply_to_message. Save it as a separate archive event.
+      // Telegram may omit reply_to_message for ephemeral media, so this is best effort.
+      const repliedMedia = eventType === "new"
+        && message.from?.id != null
+        && String(message.from.id) === String(connectionRow.owner_id)
+        && message.chat?.type === "private"
+        ? message.reply_to_message
+        : null;
+      if (repliedMedia && oneTimeMedia(repliedMedia)) {
+        const originalId = repliedMedia.message_id == null ? "unknown" : String(repliedMedia.message_id);
+        const replyMediaEventId = await storeBusinessEvent(env, {
+          updateId,
+          ownerId: connectionRow.owner_id,
+          connectionId,
+          chatId,
+          messageId: `reply-media:${chatId}:${originalId}:${messageId}`,
+          eventType: "new",
+          message: { ...repliedMedia, __spychau_one_time_saved: true },
+        });
+        savedEvents.push({ eventId: replyMediaEventId, messageId: `reply-media:${chatId}:${originalId}:${messageId}`, eventType: "new" });
+      }
     }
 
     if (savedEvents.length && updateId !== null && env.TELEGRAM_BOT_TOKEN) {
@@ -425,16 +448,30 @@ async function sendEventNotification(env, { ownerId, updateId, messageId, event 
   if (Number(claim.meta?.changes || 0) !== 1) return;
 
   try {
-    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const current = event?.message || {};
+    const media = isOneTimeMessage(current) ? oneTimeMedia(current) : null;
+    const method = media?.method || "sendMessage";
+    const notificationText = formatEventNotification(event);
+    const payload = media
+      ? {
+          chat_id: ownerId,
+          [media.field]: media.fileId,
+          reply_markup: {
+            inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
+          },
+          ...(media.caption ? { caption: notificationText.slice(0, 1000) } : {}),
+        }
+      : {
+          chat_id: ownerId,
+          text: notificationText,
+          reply_markup: {
+            inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
+          },
+        };
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: ownerId,
-        text: formatEventNotification(event),
-        reply_markup: {
-          inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
-        },
-      }),
+      body: JSON.stringify(payload),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok) throw new Error("Telegram notification could not be delivered");
@@ -514,9 +551,29 @@ function constantTimeEqual(left, right) {
 }
 
 function isOneTimeMessage(message) {
-  return message?.ephemeral_message_id != null
+  return message?.__spychau_one_time_saved === true
+    || message?.ephemeral_message_id != null
     || message?.receiver_user?.id != null
     || Number(message?.ttl_period) > 0;
+}
+
+function oneTimeMedia(message) {
+  if (Array.isArray(message?.photo) && message.photo.length) {
+    const photo = [...message.photo].sort((left, right) => Number(right.file_size || 0) - Number(left.file_size || 0))[0];
+    return photo?.file_id ? { method: "sendPhoto", field: "photo", fileId: photo.file_id, caption: true } : null;
+  }
+  for (const [source, method, field, caption] of [
+    ["video", "sendVideo", "video", true],
+    ["video_note", "sendVideoNote", "video_note", false],
+    ["voice", "sendVoice", "voice", true],
+    ["audio", "sendAudio", "audio", true],
+    ["document", "sendDocument", "document", true],
+    ["animation", "sendAnimation", "animation", true],
+  ]) {
+    const fileId = message?.[source]?.file_id;
+    if (fileId) return { method, field, fileId, caption };
+  }
+  return null;
 }
 
 function publicError(error) {
