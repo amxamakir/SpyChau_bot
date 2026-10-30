@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.114" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.115" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -191,6 +191,8 @@ async function handleTelegramWebhook(request, env) {
     return json({ error: "invalid JSON" }, 400);
   }
 
+  logBusinessMediaDiagnostic(update);
+
   try {
     const incomingMessage = update.message;
     const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
@@ -327,6 +329,37 @@ async function handleTelegramWebhook(request, env) {
   } catch {
     return json({ error: "webhook processing failed" }, 500);
   }
+}
+
+function logBusinessMediaDiagnostic(update) {
+  const mediaFields = ["photo", "voice", "video_note", "video", "audio", "document", "animation"];
+  const candidates = [
+    ["business_message", update?.business_message],
+    ["edited_business_message", update?.edited_business_message],
+    ["message", update?.message],
+  ];
+  const messages = candidates
+    .filter(([, message]) => message && (
+      mediaFields.some((field) => message[field] != null)
+      || message.reply_to_message
+      || Number(message.ttl_period) > 0
+    ))
+    .map(([updateType, message]) => {
+      const reply = message.reply_to_message;
+      return {
+        updateType,
+        media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
+        hasReply: Boolean(reply),
+        replyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(reply?.[field])])),
+        hasTtlPeriod: Number(message.ttl_period) > 0,
+        hasProtectedContent: message.has_protected_content === true,
+      };
+    });
+
+  if (!messages.length) return;
+  // Temporary diagnostics intentionally record only update/media field presence.
+  // Never log message text, account/chat IDs, file IDs, or media contents.
+  console.log("[telegram-media-diagnostic]", JSON.stringify({ messages }));
 }
 
 async function validateInitData(raw, env) {
