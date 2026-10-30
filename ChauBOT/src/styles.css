@@ -1178,3 +1178,9 @@ body{background:#101827;color:#f4f6f9}
 .profile-page .profile-row[data-tab="delete-data"] .service-icon{background:rgba(242,118,124,.15);color:#f2767c}
 :root[data-theme="light"] .profile-page .profile-row[data-tab="support"] .service-icon,:root[data-theme="light"] .profile-page .profile-row[data-tab="privacy"] .service-icon{background:rgba(40,122,88,.12);color:#287a58}
 :root[data-theme="light"] .profile-page .profile-row[data-tab="delete-data"] .service-icon{background:rgba(201,75,86,.12);color:#c94b56}
+
+/* Service category icon colors */
+.services-page .service-icon.service-personal{background:rgba(77,163,255,.15);color:#4DA3FF}
+.services-page .service-icon.service-groups{background:rgba(169,120,255,.15);color:#A978FF}
+.services-page .service-icon.service-archive{background:rgba(51,209,182,.15);color:#33D1B6}
+.services-page .service-icon.service-tariffs{background:rgba(242,193,78,.16);color:#F2C14E}
