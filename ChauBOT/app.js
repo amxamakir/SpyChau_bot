@@ -38,7 +38,7 @@ const state = {
   tariffMode: 'unlimited', selectedTariff: 'month',
   theme: loadTheme(),
   notificationPreferences: loadNotificationPreferences(),
-  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -417,7 +417,7 @@ function profile() {
   const secondary = user?.username ? `@${user.username}` : 'Аккаунт Telegram';
   const telegramId = state.authenticated && user?.id ? String(user.id) : null;
   const photoUrl = state.authenticated && typeof user?.photo_url === 'string' && /^https:\/\//i.test(user.photo_url) ? user.photo_url : null;
-  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">МОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="subscription"><span class="service-icon purple">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="notifications"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Уведомления</strong></span>${icon('chevron', 18)}</button><button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button></div>${state.subscription?.can_test_override ? `<span class="list-label">ХОЗЯЙСКИЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Хозяйская подписка</strong></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button><button type="button" class="profile-row" data-tab="owner-statistics"><span class="service-icon yellow">${icon('chart', 19)}</span><span class="row-copy"><strong>Статистика</strong></span>${icon('chevron', 18)}</button></div>` : ''}<span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-tab="support"><span class="service-icon green">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="delete-data"><span class="service-icon red">${icon('close', 19)}</span><span class="row-copy"><strong>Удалить мои данные</strong></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpyChau · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
+  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">МОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="subscription"><span class="service-icon purple">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="notifications"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Уведомления</strong></span>${icon('chevron', 18)}</button><button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button></div>${state.subscription?.can_test_override ? `<span class="list-label">ХОЗЯЙСКИЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Хозяйская подписка</strong></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button><button type="button" class="profile-row" data-tab="owner-statistics"><span class="service-icon yellow">${icon('chart', 19)}</span><span class="row-copy"><strong>Статистика</strong></span>${icon('chevron', 18)}</button><button type="button" class="profile-row" data-tab="owner-test-group"><span class="service-icon purple">${icon('people', 19)}</span><span class="row-copy"><strong>Тестовая группа</strong></span>${icon('chevron', 18)}</button></div>` : ''}<span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-tab="support"><span class="service-icon green">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="delete-data"><span class="service-icon red">${icon('close', 19)}</span><span class="row-copy"><strong>Удалить мои данные</strong></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpyChau · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
 }
 
 function ownerStatisticsPage() {
@@ -437,6 +437,58 @@ async function loadOwnerStatistics() {
     state.apiError = error.message || 'Не удалось загрузить статистику.';
   } finally {
     state.ownerStatisticsLoading = false;
+    render();
+  }
+}
+
+function ownerTestGroupPage() {
+  const members = state.ownerTestGroup.map(member => `<div class="profile-row"><span class="service-icon green">${icon('user', 19)}</span><span class="row-copy"><strong>ID ${escapeHtml(member.telegram_id)}</strong><small>Активная тестовая подписка</small></span><button type="button" class="subtle-button" data-action="remove-test-group-member" data-telegram-id="${escapeHtml(member.telegram_id)}">Убрать</button></div>`).join('');
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('ХОЗЯЙСКИЙ РЕЖИМ', 'Тестовая группа', 'Добавляй пользователей, которым нужна активная тестовая подписка.')}<div class="profile-card profile-detail-card"><form id="owner-test-group-form"><label for="owner-test-group-id" class="receipt-email-label">Telegram ID пользователя</label><div class="owner-test-group-form" style="display:flex;align-items:center;gap:10px"><input id="owner-test-group-id" class="receipt-email-input" style="flex:1;min-width:0;width:auto" name="telegram_id" type="text" inputmode="numeric" autocomplete="off" placeholder="Например, 809418877" maxlength="20" required ${state.ownerTestGroupLoading || state.ownerTestGroupAdding ? 'disabled' : ''}><button class="button button-blue" type="submit" ${state.ownerTestGroupLoading || state.ownerTestGroupAdding ? 'disabled' : ''}>${state.ownerTestGroupAdding ? 'Добавляем…' : 'Добавить'}</button></div></form>${state.ownerTestGroupError ? `<p class="profile-detail-hint">${escapeHtml(state.ownerTestGroupError)}</p>` : ''}<span class="list-label">УЧАСТНИКИ${state.ownerTestGroupLoading ? ' · ЗАГРУЗКА…' : ` · ${state.ownerTestGroup.length}`}</span>${members ? `<div class="owner-test-group-list">${members}</div>` : `<p class="profile-detail-hint">${state.ownerTestGroupLoading ? 'Загружаем список…' : 'В группе пока нет участников.'}</p>`}</div></section>`;
+}
+
+async function loadOwnerTestGroup() {
+  if (state.ownerTestGroupLoading) return;
+  state.ownerTestGroupLoading = true;
+  state.ownerTestGroupError = '';
+  render();
+  try {
+    const result = await api('/api/owner/test-group');
+    state.ownerTestGroup = result.members || [];
+  } catch (error) {
+    state.ownerTestGroupError = error.message || 'Не удалось загрузить тестовую группу.';
+  } finally {
+    state.ownerTestGroupLoading = false;
+    render();
+  }
+}
+
+async function addOwnerTestGroupMember(form) {
+  if (!state.authenticated || state.ownerTestGroupAdding) return;
+  const telegramId = String(new FormData(form).get('telegram_id') || '').trim();
+  if (!/^\d{1,20}$/.test(telegramId)) { form.reportValidity(); return; }
+  state.ownerTestGroupAdding = true;
+  state.ownerTestGroupError = '';
+  render();
+  try {
+    await api('/api/owner/test-group', { method: 'POST', body: JSON.stringify({ telegram_id: telegramId }) });
+    await loadOwnerTestGroup();
+    toast(`Пользователь ${telegramId} добавлен в тестовую группу.`);
+  } catch (error) {
+    state.ownerTestGroupError = error.message || 'Не удалось добавить пользователя.';
+    toast(state.ownerTestGroupError);
+  } finally {
+    state.ownerTestGroupAdding = false;
+    render();
+  }
+}
+
+async function removeOwnerTestGroupMember(telegramId) {
+  try {
+    await api(`/api/owner/test-group/${encodeURIComponent(telegramId)}`, { method: 'DELETE' });
+    await loadOwnerTestGroup();
+    toast(`Пользователь ${telegramId} удалён из тестовой группы.`);
+  } catch (error) {
+    state.ownerTestGroupError = error.message || 'Не удалось удалить пользователя.';
     render();
   }
 }
@@ -481,18 +533,18 @@ function deleteDataPage() {
 function subscriptionPage() {
   const subscription = state.subscription || {};
   const active = Boolean(subscription.active);
-  const tariffLabel = subscription.plan_name || subscription.tariff_name || subscription.plan || subscription.tariff || (subscription.test_override ? 'Хозяйский' : 'Не указан');
+  const tariffLabel = subscription.test_group_member ? 'Тестовая группа' : subscription.plan_name || subscription.tariff_name || subscription.plan || subscription.tariff || (subscription.test_override ? 'Хозяйский' : 'Не указан');
   const rawExpiry = subscription.expires_at || subscription.active_until || subscription.valid_until || subscription.ends_at || subscription.current_period_end || null;
   const parsedExpiry = rawExpiry ? new Date(typeof rawExpiry === 'number' && rawExpiry < 1e12 ? rawExpiry * 1000 : rawExpiry) : null;
   const expiryLabel = parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
     ? parsedExpiry.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
-    : 'Срок окончания не указан';
+    : subscription.test_group_member ? 'На время тестирования' : 'Срок окончания не указан';
   return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус подписки для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row subscription-row"><span class="service-icon ${active ? 'green' : 'muted'}">${icon('lock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Моя подписка</strong></span><span class="subscription-status"><i class="${active ? 'active' : 'inactive'}"></i>${active ? 'Активна' : 'Не активна'}</span></div><div class="profile-row subscription-row"><span class="service-icon purple">${icon('spark', 19)}</span><span class="row-copy subscription-row-copy"><strong>Тариф</strong></span><span class="subscription-row-value">${escapeHtml(tariffLabel)}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Действует до</strong></span><span class="subscription-row-value">${escapeHtml(expiryLabel)}</span></div></div></section>`;
 }
 
 function nav() {
   const items = [['home', 'home', 'Главная'], ['services', 'grid', 'Сервисы'], ['profile', 'user', 'Профиль']];
-  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'services' && state.tab === 'tariffs') || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
+  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'services' && state.tab === 'tariffs') || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
 }
 
 function modal() {
@@ -520,7 +572,7 @@ function syncTelegramTheme() {
 function render() {
   document.documentElement.dataset.theme = state.theme;
   syncTelegramTheme();
-  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'about' ? aboutPage() : profile();
+  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'owner-test-group' ? ownerTestGroupPage() : state.tab === 'about' ? aboutPage() : profile();
   const mainTabs = ['home', 'services', 'profile'];
   app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   syncTelegramBackButton();
@@ -616,6 +668,11 @@ async function loadArchive() {
 }
 
 app.addEventListener('submit', async event => {
+  if (event.target.id === 'owner-test-group-form') {
+    event.preventDefault();
+    await addOwnerTestGroupMember(event.target);
+    return;
+  }
   if (event.target.id !== 'receipt-email-form') return;
   event.preventDefault();
   if (!state.authenticated) { toast('Открой приложение через Telegram, чтобы сохранить почту.'); return; }
@@ -709,7 +766,7 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.tab) {
     state.modal = null;
-    const profileDetailTabs = ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics'];
+    const profileDetailTabs = ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group'];
     if (target.dataset.tab === 'profile' && profileDetailTabs.includes(state.tab)) {
       if (state.navigationStack.length) goBack();
       else { state.tab = 'profile'; render(); }
@@ -727,6 +784,7 @@ app.addEventListener('click', async event => {
     state.tab = target.dataset.tab;
     render();
     if (state.tab === 'owner-statistics') await loadOwnerStatistics();
+    if (state.tab === 'owner-test-group') await loadOwnerTestGroup();
     return;
   }
   if (target.dataset.archiveFilter) {
@@ -770,6 +828,7 @@ app.addEventListener('click', async event => {
   if (action === 'refresh-home-events') { await loadHomeEvents(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
   if (action === 'refresh-owner-statistics') { await loadOwnerStatistics(); return; }
+  if (action === 'remove-test-group-member') { await removeOwnerTestGroupMember(target.dataset.telegramId); return; }
   if (action === 'toggle-test-subscription') {
     if (!state.subscription?.can_test_override || state.subscriptionToggleLoading) return;
     state.subscriptionToggleLoading = true;

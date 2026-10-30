@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.116" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.117" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -74,6 +74,30 @@ export default {
           await env.DB.prepare("INSERT OR IGNORE INTO app_visitors(telegram_id) SELECT telegram_id FROM users").run();
           const result = await env.DB.prepare("SELECT COUNT(*) AS total FROM app_visitors").first();
           return json({ unique_visitors: Number(result?.total || 0) });
+        }
+
+        if (route === "/api/owner/test-group" && ["GET", "POST"].includes(request.method)) {
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) return json({ error: "not found" }, 404);
+          await ensureTestGroup(env.DB, ownerId);
+          if (request.method === "GET") {
+            const members = await env.DB.prepare("SELECT telegram_id, added_at FROM test_group_members ORDER BY added_at DESC, telegram_id ASC").all();
+            return json({ members: members.results.map(({ telegram_id, added_at }) => ({ telegram_id, added_at })) });
+          }
+          const body = await readJson(request);
+          const telegramId = String(body.telegram_id || "").trim();
+          if (!/^\d{1,20}$/.test(telegramId)) return json({ error: "Укажи корректный Telegram ID." }, 400);
+          await env.DB.prepare("INSERT OR IGNORE INTO test_group_members(telegram_id, added_by) VALUES(?, ?)").bind(telegramId, ownerId).run();
+          return json({ added: true, members: (await env.DB.prepare("SELECT telegram_id, added_at FROM test_group_members ORDER BY added_at DESC, telegram_id ASC").all()).results });
+        }
+
+        const testGroupMemberMatch = route.match(/^\/api\/owner\/test-group\/(\d+)$/);
+        if (testGroupMemberMatch && request.method === "DELETE") {
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) return json({ error: "not found" }, 404);
+          await ensureTestGroup(env.DB, ownerId);
+          await env.DB.prepare("DELETE FROM test_group_members WHERE telegram_id = ?").bind(testGroupMemberMatch[1]).run();
+          return json({ removed: true });
         }
 
         if (route === "/api/subscription/test-override" && request.method === "POST") {
@@ -271,14 +295,13 @@ async function handleTelegramWebhook(request, env) {
       });
       savedEvents.push({ eventId, messageId, eventType });
 
-      // In Telegram's reply-before-open flow the original disappearing media can
-      // be included as reply_to_message. Save it as a separate archive event.
-      // Telegram may omit reply_to_message for ephemeral media, so this is best effort.
+      // In Telegram's reply-before-open flow, the original disappearing media
+      // may be attached to either reply_to_message or external_reply.
       const repliedMedia = eventType === "new"
         && message.from?.id != null
         && String(message.from.id) === String(connectionRow.owner_id)
         && message.chat?.type === "private"
-        ? message.reply_to_message
+        ? [message.reply_to_message, message.external_reply].find((candidate) => oneTimeMedia(candidate))
         : null;
       if (repliedMedia && oneTimeMedia(repliedMedia)) {
         const originalId = repliedMedia.message_id == null ? "unknown" : String(repliedMedia.message_id);
@@ -332,7 +355,7 @@ async function handleTelegramWebhook(request, env) {
 }
 
 function logBusinessMediaDiagnostic(update) {
-  const mediaFields = ["photo", "voice", "video_note", "video", "audio", "document", "animation"];
+  const mediaFields = ["photo", "voice", "video_note", "video", "audio", "document", "animation", "live_photo"];
   const candidates = [
     ["business_message", update?.business_message],
     ["edited_business_message", update?.edited_business_message],
@@ -347,11 +370,14 @@ function logBusinessMediaDiagnostic(update) {
     ))
     .map(([updateType, message]) => {
       const reply = message.reply_to_message;
+      const externalReply = message.external_reply;
       return {
         updateType,
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
         hasReply: Boolean(reply),
         replyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(reply?.[field])])),
+        hasExternalReply: Boolean(externalReply),
+        externalReplyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(externalReply?.[field])])),
         hasTtlPeriod: Number(message.ttl_period) > 0,
         hasEphemeralMessageId: message.ephemeral_message_id != null,
         hasReceiverUser: message.receiver_user != null,
@@ -408,7 +434,26 @@ async function userFromRequest(request, env) {
   const authorization = request.headers.get("Authorization") || "";
   if (!authorization.startsWith("tma ")) throw new Error("Telegram initData required");
   return validateInitData(authorization.slice(4), env);
-}async function getSubscription(db, ownerId) {
+}
+
+async function ensureTestGroup(db, ownerId) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS test_group_members (
+    telegram_id TEXT PRIMARY KEY,
+    added_by TEXT NOT NULL,
+    added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS test_group_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT NOT NULL
+  )`).run();
+  const seeded = await db.prepare("SELECT setting_value FROM test_group_settings WHERE setting_key = 'initial_tester_seeded'").first();
+  if (!seeded) {
+    await db.prepare("INSERT OR IGNORE INTO test_group_members(telegram_id, added_by) VALUES(?, ?)").bind("809418877", String(ownerId)).run();
+    await db.prepare("INSERT OR IGNORE INTO test_group_settings(setting_key, setting_value) VALUES('initial_tester_seeded', '1')").run();
+  }
+}
+
+async function getSubscription(db, ownerId) {
   let row;
   try {
     row = await db.prepare("SELECT expires_at FROM subscriptions WHERE owner_id = ?").bind(ownerId).first();
@@ -425,7 +470,19 @@ async function userFromRequest(request, env) {
   } catch (error) {
     if (!/no such table: subscription_test_overrides/i.test(String(error?.message || error))) throw error;
   }
-  return { active: override === null ? paidActive : override, expires_at: expiresAt, test_override: override };
+  let testGroupMember = false;
+  try {
+    const member = await db.prepare("SELECT 1 AS active FROM test_group_members WHERE telegram_id = ? LIMIT 1").bind(String(ownerId)).first();
+    testGroupMember = Boolean(member?.active);
+  } catch (error) {
+    if (!/no such table: test_group_members/i.test(String(error?.message || error))) throw error;
+  }
+  return {
+    active: testGroupMember || (override === null ? paidActive : override),
+    expires_at: expiresAt,
+    test_override: override,
+    test_group_member: testGroupMember,
+  };
 }
 
 const defaultNotificationPreferences = Object.freeze({
