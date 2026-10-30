@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.115" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.116" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -339,8 +339,9 @@ function logBusinessMediaDiagnostic(update) {
     ["message", update?.message],
   ];
   const messages = candidates
-    .filter(([, message]) => message && (
-      mediaFields.some((field) => message[field] != null)
+    .filter(([updateType, message]) => message && (
+      updateType !== "message"
+      || mediaFields.some((field) => message[field] != null)
       || message.reply_to_message
       || Number(message.ttl_period) > 0
     ))
@@ -352,6 +353,8 @@ function logBusinessMediaDiagnostic(update) {
         hasReply: Boolean(reply),
         replyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(reply?.[field])])),
         hasTtlPeriod: Number(message.ttl_period) > 0,
+        hasEphemeralMessageId: message.ephemeral_message_id != null,
+        hasReceiverUser: message.receiver_user != null,
         hasProtectedContent: message.has_protected_content === true,
       };
     });
