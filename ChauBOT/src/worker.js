@@ -15,7 +15,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.112" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.113" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -281,12 +281,15 @@ async function handleTelegramWebhook(request, env) {
           const [event] = await hydrateEventRows([eventRow], env);
           const chatType = event?.message?.chat?.type || event?.previous_message?.chat?.type || "private";
           const isGroup = chatType === "group" || chatType === "supergroup";
-          const preferenceKey = savedEvent.eventType === "deleted"
-            ? "deleted_messages"
+          const eventMessage = event?.message || {};
+          const messageAuthorId = eventMessage.from?.id == null ? "" : String(eventMessage.from.id);
+          const isOwnerAuthoredEdit = savedEvent.eventType === "edited" && messageAuthorId === String(connectionRow.owner_id);
+          const shouldNotify = savedEvent.eventType === "deleted"
+            ? preferences.preferences.deleted_messages || preferences.preferences.deleted_by_owner
             : savedEvent.eventType === "edited"
-              ? "edited_messages"
-              : isOneTimeMessage(event?.message) ? "one_time_messages" : null;
-          if (!preferenceKey || !preferences.preferences[preferenceKey] || (isGroup && !preferences.preferences.group_messages)) continue;
+              ? preferences.preferences.edited_messages || (isOwnerAuthoredEdit && preferences.preferences.edited_by_owner)
+              : isOneTimeMessage(eventMessage) && preferences.preferences.one_time_messages;
+          if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
           await sendEventNotification(env, {
             ownerId: connectionRow.owner_id,
             updateId,
