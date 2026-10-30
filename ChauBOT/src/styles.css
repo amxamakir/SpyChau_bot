@@ -1195,3 +1195,7 @@ body{background:#101827;color:#f4f6f9}
 .profile-page .profile-row[data-tab="owner-statistics"] .service-icon{background:rgba(126,217,87,.15);color:#7ED957}
 .home-page .connect-card .service-icon.home-personal{background:rgba(77,163,255,.15);color:#4DA3FF}
 .home-page .connect-card .service-icon.home-groups{background:rgba(169,120,255,.15);color:#A978FF}
+
+/* Keep the privacy heading left-aligned and reserve clear space for its future mascot. */
+.privacy-page .page-title{text-align:left}
+.privacy-page .page-title h1{max-width:68%;font-size:clamp(24px,6.5vw,30px);line-height:1.08}
