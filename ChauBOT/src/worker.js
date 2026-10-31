@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.125" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.126" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -740,6 +740,10 @@ function collectRepliedMedia(message) {
   const collected = [];
   const seen = new Set();
   for (const source of sources) {
+    // Replies to ordinary media are common in business chats. Do not turn
+    // every replied-to attachment into a one-time event: only archive and
+    // forward it when Telegram marked the source message as self-destructing.
+    if (!isOneTimeMessage(source)) continue;
     for (const field of ONE_TIME_MEDIA_FIELDS) {
       const value = source[field];
       const item = field === "photo" && Array.isArray(value)
