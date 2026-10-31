@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.126" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.127" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -394,6 +394,10 @@ function logBusinessMediaDiagnostic(update) {
         externalReplyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(externalReply?.[field])])),
         repliedMediaCount: repliedMedia.length,
         repliedMediaKinds: repliedMedia.map((item) => item.kind),
+        replyHasEphemeralMessageId: reply?.ephemeral_message_id != null,
+        replyHasTtlPeriod: Number(reply?.ttl_period) > 0,
+        externalReplyHasEphemeralMessageId: externalReply?.ephemeral_message_id != null,
+        externalReplyHasTtlPeriod: Number(externalReply?.ttl_period) > 0,
         hasTtlPeriod: Number(message.ttl_period) > 0,
         hasEphemeralMessageId: message.ephemeral_message_id != null,
         hasReceiverUser: message.receiver_user != null,
@@ -739,11 +743,15 @@ function collectRepliedMedia(message) {
   }
   const collected = [];
   const seen = new Set();
+  // Bot API may put the ephemeral target marker on the reply itself rather
+  // than on the embedded source message. In that case the reply proves that
+  // the referenced media was one-time; ordinary media replies have no marker.
+  const replyTargetsEphemeralMessage = message?.ephemeral_message_id != null;
   for (const source of sources) {
     // Replies to ordinary media are common in business chats. Do not turn
     // every replied-to attachment into a one-time event: only archive and
     // forward it when Telegram marked the source message as self-destructing.
-    if (!isOneTimeMessage(source)) continue;
+    if (!replyTargetsEphemeralMessage && !isOneTimeMessage(source)) continue;
     for (const field of ONE_TIME_MEDIA_FIELDS) {
       const value = source[field];
       const item = field === "photo" && Array.isArray(value)
