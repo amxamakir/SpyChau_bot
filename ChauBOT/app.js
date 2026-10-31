@@ -305,20 +305,57 @@ function services() {
   return `<section class="page services-page"><div class="page-title"><h1>Сервисы</h1><p>Всё, что умеет Кчау - подключай нужное</p></div><div class="service-card featured-service"><div class="service-card-top"><div class="service-icon service-personal large">${icon('chat', 24)}</div><div><h2>Личные чаты</h2><p>Архив событий из чатов, которые ты разрешил подключённому боту.</p></div></div><div class="service-card-bottom"><span class="green-label">${icon('check', 15)} ${state.preview ? 'Доступно после запуска в Telegram' : `${activeCount} активных подключений`}</span>${personalButton}</div><div class="card-glow"></div></div><div class="service-card"><div class="service-card-top"><div class="service-icon service-groups large">${icon('people', 24)}</div><div><h2>Группы</h2><p>Отдельный режим для групповых чатов. Пока не подключён.</p></div></div><div class="service-card-bottom"><span class="muted-price">Будет добавлен отдельно</span>${groupsButton}</div></div><div class="service-card archive-service"><div class="service-card-top"><div class="service-icon service-archive large">${icon('archive', 24)}</div><div><h2>Архив событий</h2><p>Список новых, изменённых и удалённых сообщений, полученных после подключения.</p></div></div><div class="service-card-bottom"><span class="lock-label">${icon('clock', 14)} ${state.preview ? 'Открой через Telegram' : `${state.events.length} событий загружено`}</span><button class="button button-blue" data-tab="archive">Открыть архив ${icon('chevron', 16)}</button></div></div><div class="coming-card"><span class="coming-label">ПОЗЖЕ</span><div class="coming-content"><div><h2>Дополнительные возможности</h2><p>${icon('spark', 14)} Поиск и фильтры архива</p><p>${icon('spark', 14)} Настройки хранения и экспорт</p><p>${icon('spark', 14)} Управление профилем</p></div><div class="racer racer-small" aria-hidden="true"><img src="./assets/mascot/knight-kitten-planning.png" alt="" /></div></div></div><button type="button" class="service-card tariff-entry" data-tab="tariffs"><div class="service-card-top"><div class="service-icon service-tariffs large">${icon('card', 24)}</div><div><h2>Тарифы и оплата</h2><p>Безлимитная подписка или пакет уведомлений для личных чатов.</p></div>${icon('chevron', 18)}</div></button></section>`;
 }
 
+const TARIFF_CATALOG = {
+  package: [
+    { id: 'pack100', title: '100 уведомлений', quantity: 100, priceRub: 189, stars: 119 },
+    { id: 'pack300', title: '300 уведомлений', quantity: 300, priceRub: 499, stars: 312, badge: 'Хит' },
+    { id: 'pack500', title: '500 уведомлений', quantity: 500, priceRub: 699, stars: 437 },
+  ],
+  unlimited: [
+    { id: 'month', title: '1 месяц', months: 1, priceRub: 349, stars: 219, hint: 'Хороший старт' },
+    { id: 'half-year', title: '6 месяцев', months: 6, priceRub: 1190, stars: 745 },
+    { id: 'year', title: '12 месяцев', months: 12, priceRub: 1790, stars: 1120 },
+  ],
+};
+
+function tariffPriceLabel(priceRub) {
+  return `${new Intl.NumberFormat('ru-RU').format(priceRub)} ₽`;
+}
+
+function tariffPlans(mode) {
+  const plans = TARIFF_CATALOG[mode];
+  if (mode === 'package') {
+    const basePricePerEvent = plans[0].priceRub / plans[0].quantity;
+    return plans.map(plan => {
+      const pricePerEvent = plan.priceRub / plan.quantity;
+      const discount = Math.round((1 - pricePerEvent / basePricePerEvent) * 100);
+      return {
+        ...plan,
+        hint: `${pricePerEvent.toFixed(2).replace('.', ',')} ₽ за уведомление`,
+        discount: discount ? `−${discount}%` : '',
+        starsLabel: new Intl.NumberFormat('ru-RU').format(plan.stars),
+        price: tariffPriceLabel(plan.priceRub),
+      };
+    });
+  }
+
+  return plans.map(plan => {
+    const monthlyPrice = plan.priceRub / plan.months;
+    const discount = Math.round((1 - plan.priceRub / (TARIFF_CATALOG.unlimited[0].priceRub * plan.months)) * 100);
+    return {
+      ...plan,
+      hint: plan.hint || `${Math.round(monthlyPrice)} ₽ в месяц`,
+      discount: discount ? `−${discount}%` : '',
+      starsLabel: new Intl.NumberFormat('ru-RU').format(plan.stars),
+      price: tariffPriceLabel(plan.priceRub),
+    };
+  });
+}
+
 function tariffPricing() {
-  const plans = state.tariffMode === 'unlimited'
-    ? [
-        { id: 'month', title: '1 месяц', hint: 'Хороший старт', stars: '244', price: '390 ₽' },
-        { id: 'half-year', title: '6 месяцев', hint: '215 ₽ в месяц', discount: '−45%', stars: '807', price: '1 290 ₽', old: '2 340 ₽' },
-        { id: 'year', title: '12 месяцев', hint: '166 ₽ в месяц', discount: '−57%', stars: '1 244', price: '1 990 ₽', old: '4 680 ₽' },
-      ]
-    : [
-        { id: 'pack100', title: '100 уведомлений', hint: '2 ₽ за уведомление', stars: '125', price: '200 ₽' },
-        { id: 'pack300', title: '300 уведомлений', hint: '1,8 ₽ за уведомление', discount: '−10%', badge: 'Хит', stars: '338', price: '540 ₽' },
-        { id: 'pack500', title: '500 уведомлений', hint: '1,5 ₽ за уведомление', discount: '−25%', stars: '469', price: '750 ₽' },
-      ];
+  const plans = tariffPlans(state.tariffMode);
   const selected = plans.find(plan => plan.id === state.selectedTariff) || plans[0];
-  const planRows = plans.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-tariff-option="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.title}</strong>${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}<small>${plan.hint}</small></span><span class="tariff-plan-price"><span>⭐ <small>${plan.stars}</small></span><strong>${plan.price}</strong>${plan.old ? `<del>${plan.old}</del>` : ''}</span></button>`).join('');
+  const planRows = plans.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-tariff-option="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.title}</strong>${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}<small>${plan.hint}</small></span><span class="tariff-plan-price"><span>⭐ <small>${plan.starsLabel}</small></span><strong>${plan.price}</strong></span></button>`).join('');
   const benefits = state.tariffMode === 'unlimited'
     ? ['Уведомления без лимита — сколько бы ни удалили', 'Архив переписки — файл или HTML-страница', 'Удалённое, изменённое и исчезающее — всё сохраню']
     : ['Уведомление списывается, только когда я что-то поймал', 'Нет срока — пакет не сгорает', 'Закончится — предложу пополнить', 'Архив переписки — только на безлимите'];
