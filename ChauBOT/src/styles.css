@@ -1199,3 +1199,11 @@ body{background:#101827;color:#f4f6f9}
 /* Keep the privacy heading left-aligned and reserve clear space for its future mascot. */
 .privacy-page .page-title{text-align:left}
 .privacy-page .page-title h1{max-width:68%;font-size:clamp(24px,6.5vw,30px);line-height:1.08}
+
+/* Notification icons follow the same high-contrast palette as event filters and service cards. */
+.notifications-page .notification-switch-row .service-icon.red{background:rgba(255,107,107,.16);color:#FF6B6B}
+.notifications-page .notification-switch-row .service-icon.yellow{background:rgba(242,193,78,.16);color:#F2C14E}
+.notifications-page .notification-switch-row .service-icon.purple{background:rgba(169,120,255,.16);color:#A978FF}
+.notifications-page .notification-switch-row .service-icon.blue{background:rgba(77,163,255,.16);color:#4DA3FF}
+.notifications-page .notification-switch-row:disabled{opacity:1}
+.notifications-page .notification-switch-row:disabled .row-copy,.notifications-page .notification-switch-row:disabled .test-switch{opacity:.62}
