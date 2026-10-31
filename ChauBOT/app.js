@@ -523,11 +523,11 @@ function aboutPage() {
 
 function privacyPage() {
   const points = [
-    ['shield', 'green frame-green', 'Подключение через Telegram', 'Используем функцию «Автоматизация чатов». Бот получает события только из тех чатов, к которым вы предоставили доступ.'],
-    ['lock', 'gold frame-gold', 'Ваши данные под защитой', 'Новые записи и медиа шифруются алгоритмом AES‑256‑GCM перед сохранением. Старые записи переносятся в зашифрованный журнал плановыми пакетами.'],
-    ['clock', 'coral frame-coral', 'Сохраняем только нужное', 'Содержимое событий из подключённых чатов хранится до 7 дней. Архив ограничен 5 000 последними событиями на аккаунт.'],
-    ['eye-off', 'purple frame-purple', 'Конфиденциальность переписки', 'Архив загружается после проверки Telegram-аккаунта. Для работы используются Telegram Bot API и Cloudflare; медиа открываются по временной ссылке до 15 минут.'],
-    ['archive', 'orange frame-orange', 'Вы управляете своими данными', 'Отключайте чаты в настройках Telegram: Профиль → Изм. → Автоматизация чатов. Кнопка ниже удалит данные SpyChau, связанные с аккаунтом.'],
+    ['shield', 'privacy-blue', 'Подключение через Telegram', 'Используем функцию «Автоматизация чатов». Бот получает события только из тех чатов, к которым вы предоставили доступ.'],
+    ['lock', 'privacy-green', 'Ваши данные под защитой', 'Новые записи и медиа шифруются алгоритмом AES‑256‑GCM перед сохранением. Старые записи переносятся в зашифрованный журнал плановыми пакетами.'],
+    ['clock', 'privacy-gold', 'Сохраняем только нужное', 'Содержимое событий из подключённых чатов хранится до 7 дней. Архив ограничен 5 000 последними событиями на аккаунт.'],
+    ['eye-off', 'privacy-orange', 'Конфиденциальность переписки', 'Архив загружается после проверки Telegram-аккаунта. Для работы используются Telegram Bot API и Cloudflare; медиа открываются по временной ссылке до 15 минут.'],
+    ['archive', 'privacy-red', 'Вы управляете своими данными', 'Отключайте чаты в настройках Telegram: Профиль → Изм. → Автоматизация чатов. Кнопка ниже удалит данные SpyChau, связанные с аккаунтом.'],
   ];
   return `<section class="page profile-page profile-detail-page privacy-page">${profileDetailHeader('', 'Безопасность<br>и данные', 'Как работает SpyChau и что происходит с вашими данными.')}<div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, title, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span class="privacy-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></span></div>`).join('')}</div></div><button type="button" class="button button-danger privacy-delete-button" data-action="delete-data-confirm" ${!state.authenticated ? 'disabled' : ''}><span class="privacy-delete-label">${icon('trash', 18)}<span>Удалить все мои данные</span></span>${icon('chevron', 18)}</button><p class="privacy-delete-warning">Профиль, архивные сообщения и медиа, а также настройки аккаунта будут удалены. Уже отправленные ботом сообщения в Telegram останутся в чате. Это действие нельзя отменить.</p>${!state.authenticated ? '<p class="profile-detail-hint">Открой Mini App через Telegram, чтобы управлять данными аккаунта.</p>' : ''}</section>`;
 }
