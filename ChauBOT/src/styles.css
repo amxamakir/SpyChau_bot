@@ -1234,5 +1234,6 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-point-icon.privacy-gold{background:rgba(242,193,78,.15);color:#F2C14E}
 .privacy-page .privacy-point-icon.privacy-orange{background:rgba(255,155,115,.15);color:#FF9B73}
 .privacy-page .privacy-point-icon.privacy-red{background:rgba(255,107,107,.15);color:#FF6B6B}
+.privacy-page .privacy-section-label{margin:0 3px 9px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em}
 
 .service-card-bottom .button-connected{background:rgba(51,209,182,.13);border:1px solid rgba(51,209,182,.34);color:#73dfc6;box-shadow:none;cursor:default}
