@@ -1226,5 +1226,13 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-delete-label{display:inline-flex;align-items:center;gap:10px;min-width:0}
 .privacy-page .privacy-delete-label svg,.privacy-page .privacy-delete-button>svg{flex:none}
 .privacy-page .privacy-delete-warning{margin:8px 3px 0;color:var(--muted);font-size:12px;line-height:1.5}
+.privacy-page .privacy-point{grid-template-columns:38px minmax(0,1fr)}
+.privacy-page .privacy-point-icon{width:38px;height:38px;border:0;border-radius:13px}
+.privacy-page .privacy-point-icon svg{color:inherit}
+.privacy-page .privacy-point-icon.frame-green{background:rgba(51,209,182,.15);color:#33D1B6}
+.privacy-page .privacy-point-icon.frame-gold{background:rgba(242,193,78,.15);color:#F2C14E}
+.privacy-page .privacy-point-icon.frame-coral{background:rgba(255,107,107,.15);color:#FF6B6B}
+.privacy-page .privacy-point-icon.frame-purple{background:rgba(169,120,255,.15);color:#A978FF}
+.privacy-page .privacy-point-icon.frame-orange{background:rgba(255,155,115,.15);color:#FF9B73}
 
 .service-card-bottom .button-connected{background:rgba(51,209,182,.13);border:1px solid rgba(51,209,182,.34);color:#73dfc6;box-shadow:none;cursor:default}
