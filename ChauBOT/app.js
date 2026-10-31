@@ -371,16 +371,16 @@ function tariffsPage() {
 }
 
 const GROUP_TARIFFS = [
-  { id: 'groups3', name: '3 группы', unit: '116 ₽ за группу в месяц', price: '349 ₽' },
-  { id: 'groups10', name: '10 групп', unit: '79 ₽ за группу в месяц', price: '790 ₽', badge: 'Популярный', discount: '−32%' },
-  { id: 'groups20', name: '20 групп', unit: '54 ₽ за группу в месяц', price: '1 090 ₽', discount: '−53%' }
+  { id: 'groups3', name: '3 группы', unit: '≈73 ⭐ за группу в месяц', price: '219 ⭐' },
+  { id: 'groups10', name: '10 групп', unit: '≈50 ⭐ за группу в месяц', price: '496 ⭐', badge: 'Популярный', discount: '−32%' },
+  { id: 'groups20', name: '20 групп', unit: '≈34 ⭐ за группу в месяц', price: '684 ⭐', discount: '−53%' }
 ];
 
 function groupTariffsPricing() {
   const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
-  const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><strong>${plan.price}</strong><small class="group-price-period">в месяц</small></span></button>`).join('');
+  const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><strong>${plan.price}</strong></span></button>`).join('');
   const benefits = ['Удалённые и изменённые сообщения', 'События из подключённых групп', 'Для подключения необходимы соответствующие права в группе'];
-  return `<div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits group-tariff-benefits">${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="group-tariff-pay">Оплатить ${selected.price} в месяц</button><p class="tariff-disclaimer">Приём оплаты пока не подключён — деньги не списываются.</p>`;
+  return `<div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits group-tariff-benefits">${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="group-tariff-pay">Оплатить ${selected.price}</button><p class="tariff-disclaimer">Приём оплаты пока не подключён — деньги не списываются.</p>`;
 }
 
 function groupTariffsPage() {
