@@ -18,6 +18,7 @@ const icon = (name, size = 20) => {
     check: '<path d="m5 12 4 4L19 6"/>',
     lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    'eye-off': '<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5 0 9 4 10 7a11.7 11.7 0 0 1-3.1 4.4M6.2 6.2C4.1 7.5 2.6 9.4 2 12c1 3 5 7 10 7 1.2 0 2.3-.2 3.3-.7"/>',
     close: '<path d="m18 6-12 12M6 6l12 12"/>',
     spark: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
@@ -522,13 +523,13 @@ function aboutPage() {
 
 function privacyPage() {
   const points = [
-    ['chat', 'coral frame-coral', 'Бот получает события только в чатах, которые ты подключил.'],
-    ['clock', 'gold frame-gold', 'Telegram не передаёт боту историю сообщений до подключения.'],
-    ['lock', 'orange frame-purple', 'Секретные чаты недоступны через официальный Bot API.'],
-    ['image', 'yellow frame-green', 'Фото показываются из сохранённого снимка сообщения Telegram.'],
-    ['trash', 'burgundy frame-orange', 'Удалить профиль и архив можно в разделе «Удалить мои данные».'],
+    ['shield', 'green frame-green', 'Подключение через Telegram', 'Используем функцию «Автоматизация чатов». Бот получает события только из тех чатов, к которым вы предоставили доступ.'],
+    ['lock', 'gold frame-gold', 'Ваши данные под защитой', 'Новые записи и медиа шифруются алгоритмом AES‑256‑GCM перед сохранением. Старые записи переносятся в зашифрованный журнал плановыми пакетами.'],
+    ['clock', 'coral frame-coral', 'Сохраняем только нужное', 'Содержимое событий из подключённых чатов хранится до 7 дней. Архив ограничен 5 000 последними событиями на аккаунт.'],
+    ['eye-off', 'purple frame-purple', 'Конфиденциальность переписки', 'Архив загружается после проверки Telegram-аккаунта. Для работы используются Telegram Bot API и Cloudflare; медиа открываются по временной ссылке до 15 минут.'],
+    ['archive', 'orange frame-orange', 'Вы управляете своими данными', 'Отключайте чаты в настройках Telegram: Профиль → Изм. → Автоматизация чатов. Кнопка ниже удалит данные SpyChau, связанные с аккаунтом.'],
   ];
-  return `<section class="page profile-page profile-detail-page privacy-page">${profileDetailHeader('', 'Безопасность<br>и данные', 'Как SpyChau получает и хранит данные.')}<div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span>${text}</span></div>`).join('')}</div></div></section>`;
+  return `<section class="page profile-page profile-detail-page privacy-page">${profileDetailHeader('', 'Безопасность<br>и данные', 'Как работает SpyChau и что происходит с вашими данными.')}<div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, title, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span class="privacy-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></span></div>`).join('')}</div></div><button type="button" class="button button-danger privacy-delete-button" data-action="delete-data-confirm" ${!state.authenticated ? 'disabled' : ''}><span class="privacy-delete-label">${icon('trash', 18)}<span>Удалить все мои данные</span></span>${icon('chevron', 18)}</button><p class="privacy-delete-warning">Профиль, архивные сообщения и медиа, а также настройки аккаунта будут удалены. Уже отправленные ботом сообщения в Telegram останутся в чате. Это действие нельзя отменить.</p>${!state.authenticated ? '<p class="profile-detail-hint">Открой Mini App через Telegram, чтобы управлять данными аккаунта.</p>' : ''}</section>`;
 }
 
 function receiptEmailPage() {
@@ -849,10 +850,13 @@ app.addEventListener('click', async event => {
   if (action === 'subscription-info') { state.modal = 'subscription'; render(); return; }
   if (action === 'delete-data-confirm') {
     if (!state.authenticated) { toast('Открой Mini App из Telegram для управления данными.'); return; }
-    if (!window.confirm('Удалить профиль и все события из архива? Это действие нельзя отменить.')) return;
+    if (!window.confirm('Удалить профиль, архивные сообщения и медиа, а также настройки аккаунта? Уже отправленные ботом сообщения в Telegram останутся в чате. Это действие нельзя отменить.')) return;
     try {
       await api('/api/me/data', { method: 'DELETE' });
       state.user = null; state.connections = []; state.events = []; state.subscription = null; state.authenticated = false;
+      state.ownerStatistics = null; state.ownerTestGroup = []; state.navigationStack = []; state.archiveContactId = null; state.query = '';
+      try { localStorage.removeItem('spychau-notification-preferences'); } catch {}
+      state.notificationPreferences = loadNotificationPreferences();
       state.tab = 'profile';
       toast('Данные удалены.');
       render();

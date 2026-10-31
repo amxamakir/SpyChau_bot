@@ -1215,4 +1215,16 @@ body{background:#101827;color:#f4f6f9}
 .subscription-page .subscription-row:nth-child(2) .service-icon.purple{background:rgba(169,120,255,.16);color:#A978FF}
 .subscription-page .subscription-row:nth-child(3) .service-icon.blue{background:rgba(77,163,255,.16);color:#4DA3FF}
 
+/* Compact single-card privacy list and its existing destructive action. */
+.privacy-page .privacy-points{display:block;gap:0;margin:0}
+.privacy-page .privacy-point{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:12px;width:100%;padding:13px 0;border-bottom:1px solid var(--line)}
+.privacy-page .privacy-point:last-child{border-bottom:0}
+.privacy-page .privacy-copy{display:flex;flex-direction:column;gap:3px;min-width:0;overflow-wrap:anywhere}
+.privacy-page .privacy-copy strong{font-size:14px;line-height:1.35;color:inherit}
+.privacy-page .privacy-copy>span{font-size:13px;line-height:1.5;color:var(--muted)}
+.privacy-page .privacy-delete-button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:14px}
+.privacy-page .privacy-delete-label{display:inline-flex;align-items:center;gap:10px;min-width:0}
+.privacy-page .privacy-delete-label svg,.privacy-page .privacy-delete-button>svg{flex:none}
+.privacy-page .privacy-delete-warning{margin:8px 3px 0;color:var(--muted);font-size:12px;line-height:1.5}
+
 .service-card-bottom .button-connected{background:rgba(51,209,182,.13);border:1px solid rgba(51,209,182,.34);color:#73dfc6;box-shadow:none;cursor:default}

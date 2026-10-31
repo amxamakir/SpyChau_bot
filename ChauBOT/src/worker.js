@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.127" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.128" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -161,8 +161,37 @@ export default {
         }
 
         if (route === "/api/me/data" && request.method === "DELETE") {
-          await deleteOwnerJournal(env, String(user.id));
-          await env.DB.prepare("DELETE FROM users WHERE telegram_id = ?").bind(String(user.id)).run();
+          const ownerId = String(user.id);
+          if (!env.JOURNAL) return json({ error: "Хранилище архива временно недоступно. Данные не удалены." }, 503);
+          const tables = await env.DB.prepare(`
+            SELECT name FROM sqlite_master WHERE type = 'table'
+          `).all();
+          const existingTables = new Set((tables.results || []).map((row) => row.name));
+          await deleteOwnerJournal(env, ownerId);
+          const deletions = [];
+          if (existingTables.has("test_group_members")) {
+            deletions.push(env.DB.prepare("UPDATE test_group_members SET added_by = 'deleted-account' WHERE added_by = ?").bind(ownerId));
+          }
+          const ownerTables = [
+            ["notification_deliveries", "owner_id"],
+            ["notification_preferences", "owner_id"],
+            ["events", "owner_id"],
+            ["connections", "owner_id"],
+            ["payments", "owner_id"],
+            ["subscriptions", "owner_id"],
+            ["journal_chunks", "owner_id"],
+            ["journal_locks", "owner_id"],
+            ["subscription_test_overrides", "owner_id"],
+            ["app_visitors", "telegram_id"],
+            ["test_group_members", "telegram_id"],
+          ];
+          for (const [table, column] of ownerTables) {
+            if (existingTables.has(table)) {
+              deletions.push(env.DB.prepare(`DELETE FROM ${table} WHERE ${column} = ?`).bind(ownerId));
+            }
+          }
+          deletions.push(env.DB.prepare("DELETE FROM users WHERE telegram_id = ?").bind(ownerId));
+          await env.DB.batch(deletions);
           return json({ deleted: true });
         }
 
