@@ -1220,7 +1220,7 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-point{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:12px;width:100%;padding:13px 0;border-bottom:1px solid var(--line)}
 .privacy-page .privacy-point:last-child{border-bottom:0}
 .privacy-page .privacy-copy{display:flex;flex-direction:column;gap:3px;min-width:0;overflow-wrap:anywhere}
-.privacy-page .privacy-copy strong{font-size:14px;line-height:1.35;color:inherit}
+.privacy-page .privacy-copy strong{font-size:16px;line-height:1.3;color:#fff;font-weight:700}
 .privacy-page .privacy-copy>span{font-size:13px;line-height:1.5;color:var(--muted)}
 .privacy-page .privacy-delete-button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:14px}
 .privacy-page .privacy-delete-label{display:inline-flex;align-items:center;gap:10px;min-width:0}
@@ -1237,18 +1237,18 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-section-label{margin:0 3px 9px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em}
 
 /* Place the security mascot beside the heading without covering its copy. */
-.privacy-page .privacy-header-with-mascot{position:relative;min-height:132px;margin-bottom:0;padding-right:130px}
+.privacy-page .privacy-header-with-mascot{position:relative;min-height:148px;margin-bottom:0;padding-right:148px}
 .privacy-page .privacy-header-with-mascot .page-title{margin-bottom:0}
 .privacy-page .privacy-header-with-mascot .page-title p{max-width:100%}
-.privacy-page .privacy-header-mascot{position:absolute;top:0;right:0;width:102px;height:132px;object-fit:contain;object-position:center top;pointer-events:none}
+.privacy-page .privacy-header-mascot{position:absolute;top:0;right:12px;width:126px;height:148px;object-fit:contain;object-position:center top;pointer-events:none}
 @media(max-width:430px){
-  .privacy-page .privacy-header-with-mascot{min-height:120px;margin-bottom:0;padding-right:100px}
-  .privacy-page .privacy-header-mascot{width:82px;height:120px}
+  .privacy-page .privacy-header-with-mascot{min-height:142px;margin-bottom:0;padding-right:128px}
+  .privacy-page .privacy-header-mascot{top:0;right:10px;width:116px;height:142px}
   .privacy-page .page-title h1{max-width:100%}
 }
 @media(max-width:350px){
-  .privacy-page .privacy-header-with-mascot{min-height:108px;padding-right:84px}
-  .privacy-page .privacy-header-mascot{width:68px;height:104px}
+  .privacy-page .privacy-header-with-mascot{min-height:128px;padding-right:110px}
+  .privacy-page .privacy-header-mascot{width:100px;height:128px}
 }
 
 .service-card-bottom .button-connected{background:rgba(51,209,182,.13);border:1px solid rgba(51,209,182,.34);color:#73dfc6;box-shadow:none;cursor:default}
