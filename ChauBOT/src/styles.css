@@ -1237,18 +1237,18 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-section-label{margin:0 3px 9px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em}
 
 /* Place the security mascot beside the heading without covering its copy. */
-.privacy-page .privacy-header-with-mascot{position:relative;min-height:144px;margin-bottom:20px;padding-right:130px}
+.privacy-page .privacy-header-with-mascot{position:relative;min-height:132px;margin-bottom:0;padding-right:130px}
 .privacy-page .privacy-header-with-mascot .page-title{margin-bottom:0}
 .privacy-page .privacy-header-with-mascot .page-title p{max-width:100%}
-.privacy-page .privacy-header-mascot{position:absolute;top:0;right:0;width:112px;height:144px;object-fit:contain;object-position:center top;pointer-events:none}
+.privacy-page .privacy-header-mascot{position:absolute;top:0;right:0;width:102px;height:132px;object-fit:contain;object-position:center top;pointer-events:none}
 @media(max-width:430px){
-  .privacy-page .privacy-header-with-mascot{min-height:132px;margin-bottom:18px;padding-right:100px}
-  .privacy-page .privacy-header-mascot{width:88px;height:128px}
+  .privacy-page .privacy-header-with-mascot{min-height:120px;margin-bottom:0;padding-right:100px}
+  .privacy-page .privacy-header-mascot{width:82px;height:120px}
   .privacy-page .page-title h1{max-width:100%}
 }
 @media(max-width:350px){
-  .privacy-page .privacy-header-with-mascot{min-height:120px;padding-right:84px}
-  .privacy-page .privacy-header-mascot{width:74px;height:112px}
+  .privacy-page .privacy-header-with-mascot{min-height:108px;padding-right:84px}
+  .privacy-page .privacy-header-mascot{width:68px;height:104px}
 }
 
 .service-card-bottom .button-connected{background:rgba(51,209,182,.13);border:1px solid rgba(51,209,182,.34);color:#73dfc6;box-shadow:none;cursor:default}
