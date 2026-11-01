@@ -1227,13 +1227,13 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-section-label{margin:0 3px 9px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em}
 
 /* Scout mascot for the notification settings page. */
-.notifications-page .notifications-heading-with-mascot{position:relative;min-height:229px;margin-bottom:0;padding:15px 215px 0 0}
+.notifications-page .notifications-heading-with-mascot{position:relative;min-height:170px;margin-bottom:0;padding:15px 215px 0 0}
 .notifications-page .notifications-heading-with-mascot .page-title{margin-bottom:0}
 .notifications-page .notifications-heading-with-mascot .page-title p{max-width:100%}
 .notifications-page .notifications-heading-with-mascot .profile-detail-back{margin-bottom:14px}
-.notifications-page .notifications-header-mascot{position:absolute;top:23px;right:4px;width:198px;height:198px;object-fit:contain;object-position:center;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}
-@media(max-width:430px){.notifications-page .notifications-heading-with-mascot{min-height:227px;padding:15px 195px 0 0}.notifications-page .notifications-header-mascot{top:21px;right:0;width:180px;height:195px}}
-@media(max-width:350px){.notifications-page .notifications-heading-with-mascot{min-height:205px;padding-right:170px}.notifications-page .notifications-header-mascot{width:153px;height:177px}}
+.notifications-page .notifications-header-mascot{position:absolute;top:23px;right:4px;width:198px;height:132px;object-fit:contain;object-position:center;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}
+@media(max-width:430px){.notifications-page .notifications-heading-with-mascot{min-height:160px;padding:15px 195px 0 0}.notifications-page .notifications-header-mascot{top:21px;right:0;width:180px;height:120px}}
+@media(max-width:350px){.notifications-page .notifications-heading-with-mascot{min-height:145px;padding-right:170px}.notifications-page .notifications-header-mascot{width:153px;height:102px}}
 
 /* Place the security mascot beside the heading without covering its copy. */
 .privacy-page .privacy-header-with-mascot{position:relative;min-height:168px;margin-bottom:0;padding:15px 215px 0 0}
