@@ -401,7 +401,7 @@ function tariffsPage() {
   const intro = state.tariffMode === 'package'
     ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.'
     : 'Слежу за личными чатами и сохраняю изменения и удаления.';
-  return `<section class="page tariffs-page"><div class="tariff-mascot tariff-main-mascot"><img src="./assets/cat-horse.png" alt="Котёнок-рыцарь на коне" /></div><div class="tariff-intro"><h2>Личные чаты</h2><p>${intro}</p></div><div class="tariff-pricing" data-tariff-pricing>${tariffPricing()}</div></section>`;
+  return `<section class="page tariffs-page"><div class="tariff-mascot tariff-main-mascot"><img src="./assets/mascot/scout-tablet.png" alt="Скаут со светящимся планшетом" /></div><div class="tariff-intro"><h2>Личные чаты</h2><p>${intro}</p></div><div class="tariff-pricing" data-tariff-pricing>${tariffPricing()}</div></section>`;
 }
 
 const GROUP_TARIFFS = [

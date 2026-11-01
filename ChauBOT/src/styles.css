@@ -183,9 +183,9 @@ html,body{touch-action:pan-x pan-y}
 .service-card-bottom>.button{max-width:100%;white-space:normal}
 .coming-content{min-width:0;gap:8px}
 .coming-content>div:first-child{min-width:0}
-.coming-card{position:relative;min-height:210px;overflow:hidden}
+.coming-card{position:relative;min-height:230px;overflow:hidden}
 .coming-content>div:first-child{padding-right:155px}
-.coming-content>.racer-small{position:absolute;right:14px;bottom:45px;width:300px;height:210px;flex:none;margin:0;pointer-events:none}
+.coming-content>.racer-small{position:absolute;right:14px;bottom:22px;width:360px;height:252px;flex:none;margin:0;pointer-events:none}
 .archive-page{width:100%;min-width:0}
 .archive-page .search-field,.archive-page .archive-list{width:100%;min-width:0;max-width:100%}
 .archive-page .search-field{padding-inline:10px}
@@ -259,7 +259,7 @@ html,body{touch-action:pan-x pan-y}
   .service-card,.coming-card{padding:13px}
   .service-card-bottom .button{font-size:11px;padding:9px}
   .coming-content>div:first-child{padding-right:120px}
-  .coming-content>.racer-small{width:230px;height:170px;right:4px;bottom:34px}
+  .coming-content>.racer-small{width:276px;height:204px;right:4px;bottom:17px}
   .page-title h1{font-size:27px}
   .profile-intro{padding-bottom:18px}
 }
