@@ -678,6 +678,23 @@ function toast(message) {
   window.setTimeout(() => element.classList.remove('visible'), 2800);
 }
 
+async function copyBotUsername() {
+  try {
+    await navigator.clipboard.writeText('@SpyChau_bot');
+    return true;
+  } catch {
+    const input = document.createElement('textarea');
+    input.value = '@SpyChau_bot';
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.append(input);
+    input.select();
+    const copied = document.execCommand('copy');
+    input.remove();
+    return copied;
+  }
+}
+
 async function api(path, options = {}) {
   if (!state.telegram?.initData) throw new Error('Открой приложение через Telegram.');
   const response = await fetch(path, {
@@ -830,24 +847,21 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.action === 'copy-bot-name') {
-    try {
-      await navigator.clipboard.writeText('@SpyChau_bot');
-      toast('Имя бота скопировано.');
-    } catch {
-      const input = document.createElement('textarea');
-      input.value = '@SpyChau_bot';
-      input.style.position = 'fixed';
-      input.style.opacity = '0';
-      document.body.append(input);
-      input.select();
-      const copied = document.execCommand('copy');
-      input.remove();
-      toast(copied ? 'Имя бота скопировано.' : 'Скопируй имя бота: @SpyChau_bot');
-    }
+    const copied = await copyBotUsername();
+    toast(copied ? 'Имя бота скопировано.' : 'Скопируй имя бота: @SpyChau_bot');
     return;
   }
   if (target.dataset.action === 'open-telegram-business-settings') {
-    window.location.href = 'tg://settings';
+    const copied = await copyBotUsername();
+    let instructionsSent = false;
+    try {
+      const result = await api('/api/telegram/connect-instructions', { method: 'POST' });
+      instructionsSent = result.sent === true;
+    } catch {}
+    if (!copied) toast('Скопируй имя бота: @SpyChau_bot');
+    const botLink = instructionsSent ? 'https://t.me/SpyChau_bot' : 'https://t.me/SpyChau_bot?start=connect';
+    if (state.telegram?.openTelegramLink) state.telegram.openTelegramLink(botLink);
+    else window.location.href = botLink;
     return;
   }
   if (target.dataset.action === 'tutorial-help') {

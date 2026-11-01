@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.152" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.153" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -52,6 +52,11 @@ export default {
 
       try {
         await saveUser(env.DB, user);
+        if (route === "/api/telegram/connect-instructions" && request.method === "POST") {
+          const sent = await sendConnectInstructions(env, String(user.id));
+          return json({ sent });
+        }
+
         if (route === "/api/me" && request.method === "GET") {
           return json(await getUserBootstrap(env, user));
         }
@@ -252,8 +257,15 @@ async function handleTelegramWebhook(request, env) {
   try {
     const incomingMessage = update.message;
     const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
-    if (incomingMessage?.chat?.id && /^\/start(?:@SpyChau_bot)?(?:\s|$)/i.test(commandText)) {
+    const startMatch = commandText.match(/^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{1,64}))?$/i);
+    if (incomingMessage?.chat?.id && startMatch) {
       if (!env.TELEGRAM_BOT_TOKEN) return json({ error: "bot token is not configured" }, 500);
+      if (startMatch[1] === "connect") {
+        const sent = await sendConnectInstructions(env, incomingMessage.chat.id);
+        if (!sent) return json({ error: "Telegram could not send the connection instructions" }, 502);
+        return json({ ok: true, handled: "connect_start" });
+      }
+
       const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -639,6 +651,21 @@ async function callTelegramJson(env, method, payload) {
   } catch {
     return false;
   }
+}
+
+async function sendConnectInstructions(env, chatId) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  return callTelegramJson(env, "sendMessage", {
+    chat_id: chatId,
+    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n@SpyChau_bot — нажми, чтобы скопировать.",
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "@SpyChau_bot — нажми, чтобы скопировать", copy_text: { text: "@SpyChau_bot" } }],
+        [{ text: "⚙️Открыть настройки", url: "tg://settings/edit_profile" }],
+      ],
+    },
+  });
 }
 
 async function callTelegramUpload(env, media, archived, notificationText, replyMarkup, ownerId) {
