@@ -18,7 +18,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.164" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.165" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -371,7 +371,6 @@ async function handleTelegramWebhook(request, env) {
         if (source.from?.id != null && String(source.from.id) === String(connectionRow.owner_id)) continue;
         const originalId = source.message_id == null ? "unknown" : String(source.message_id);
         const syntheticMessageId = `reply-media:${chatId}:${originalId}:${messageId}:${kind}:${mediaIndex}`;
-        const explicitlyOneTime = hasOneTimeMarker(source) || Number(source.message_id) === 0;
         const syntheticMessage = {
           ...source,
           chat: source.chat || message.chat,
@@ -388,14 +387,8 @@ async function handleTelegramWebhook(request, env) {
           messageId: syntheticMessageId,
           eventType: "new",
           message: syntheticMessage,
-          ...(explicitlyOneTime ? {} : {
-            pending: {
-              targetMessageId: originalId,
-              expiresAtMs: Date.now() + 5 * 60 * 1000,
-            },
-          }),
         });
-        if (explicitlyOneTime) savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
+        savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
 
       const eventId = await storeBusinessEvent(env, {
@@ -827,12 +820,6 @@ function isEventEnabledForOwner(event, ownerId, preferences) {
 function isOneTimeMessage(message) {
   return message?.__spychau_one_time_saved === true
     || Number(message?.ephemeral_message_id) > 0
-    || Number(message?.receiver_user?.id) > 0
-    || Number(message?.ttl_period) > 0;
-}
-
-function hasOneTimeMarker(message) {
-  return Number(message?.ephemeral_message_id) > 0
     || Number(message?.receiver_user?.id) > 0
     || Number(message?.ttl_period) > 0;
 }
