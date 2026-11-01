@@ -595,7 +595,14 @@ function supportPage() {
 }
 
 function aboutPage() {
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'О SpyChau', 'Архив событий подключённых чатов.')}<div class="profile-card profile-detail-card"><div class="privacy-points"><div class="privacy-point"><span class="privacy-point-icon frame-green">${icon('chat', 18)}</span><span>Бот получает события и сообщения только из чатов, которые ты подключил.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-gold">${icon('clock', 18)}</span><span>Telegram не передаёт боту историю сообщений до подключения.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-purple">${icon('lock', 18)}</span><span>Секретные чаты недоступны через официальный Bot API.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-green">${icon('image', 18)}</span><span>Для фото используется сохранённый снимок сообщения Telegram.</span></div><div class="privacy-point"><span class="privacy-point-icon frame-orange">${icon('trash', 18)}</span><span>Удалить профиль и архив можно в разделе «Удалить мои данные».</span></div></div></div></section>`;
+  const points = [
+    ['people', 'privacy-green', 'Только выбранные чаты', 'Бот получает сообщения и события только из подключённых тобой чатов.'],
+    ['lock', 'privacy-gold', 'История остаётся приватной', 'Сообщения до подключения недоступны боту.'],
+    ['shield', 'privacy-purple', 'Официальные возможности Telegram', 'Секретные чаты недоступны через Telegram Bot API.'],
+    ['image', 'privacy-green', 'Сохранение фотографий', 'Фото отображаются из сохранённой копии сообщения.'],
+    ['trash', 'privacy-orange', 'Контроль над данными', 'Ты можешь удалить профиль и архив в любой момент.'],
+  ];
+  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'О SpyChau', 'Сохраняем важные события из подключённых чатов.')}<p class="privacy-section-label">КАК ЭТО РАБОТАЕТ</p><div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, title, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span class="privacy-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></span></div>`).join('')}</div></div></section>`;
 }
 
 function privacyPage() {
