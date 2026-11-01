@@ -647,17 +647,12 @@ html,body{touch-action:pan-x pan-y}
 /* Give desktop and laptop layouts a little more room; handset widths stay unchanged. */
 @media(min-width:740px){.topbar,.page{width:100%;max-width:470px}.bottom-nav{max-width:470px}}
 
-/* Desktop back control, matching Telegram's round upper-left affordance. */
-.desktop-back-button{display:none}
 @media(max-width:739px){
   .profile-detail-back,.archive-back{display:none!important}
   .tutorial-heading{padding-top:0}
 }
 @media(min-width:740px){
-  .desktop-back-button{position:fixed;z-index:12;top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));width:40px;height:40px;display:grid;place-items:center;padding:0;border:1px solid rgba(255,192,91,.17);border-radius:50%;background:rgba(55,28,32,.92);color:#fff4e8;box-shadow:0 5px 18px rgba(0,0,0,.2);cursor:pointer;transition:transform .16s ease,background .16s ease}
-  .desktop-back-button:hover{transform:translateX(-2px);background:#542328}
   .profile-detail-back,.archive-back{display:none!important}
-  :root[data-theme="light"] .desktop-back-button{background:rgba(255,248,241,.96);border-color:rgba(115,64,48,.22);color:#8f3b35;box-shadow:0 5px 18px rgba(82,47,35,.12)}
 }
 
 /* Tariffs and payment preview */
@@ -880,8 +875,6 @@ body{background:#08140f;color:#f3f8f3}
 .tariff-benefits>div{color:#e3ece4}
 .tariff-benefits>div i{color:#59b985}
 .tariff-disclaimer{color:#9eb2a1}
-.desktop-back-button{border-color:var(--line);background:rgba(22,43,30,.92);color:#e5f2e7}
-.desktop-back-button:hover{background:#2a5338}
 .profile-telegram-id{color:#a4c8ab!important}
 .modal input#receipt-email{background:var(--panel)!important;color:inherit!important;border-color:var(--line)!important}
 .modal input#receipt-email:focus{border-color:#7fca96!important;box-shadow:0 0 0 3px rgba(47,127,76,.15)}
@@ -936,8 +929,6 @@ body{background:#08140f;color:#f3f8f3}
 :root[data-theme="light"] .tariff-mode-switch button.active{color:#fff}
 :root[data-theme="light"] .tariff-benefits>div{color:#38543d}
 :root[data-theme="light"] .tariff-plan.selected{background:#e8f2e9;border-color:#287a59}
-:root[data-theme="light"] .desktop-back-button{background:rgba(255,255,255,.96);border-color:rgba(64,96,69,.18);color:#45694b;box-shadow:0 5px 18px rgba(44,67,100,.12)}
-:root[data-theme="light"] .desktop-back-button:hover{background:#e1efe3}
 :root[data-theme="light"] .profile-telegram-id{color:#4c7c53!important}
 
 /* Rich evergreen edition: stronger saturation, clearer surfaces, warm coral hero. */
@@ -983,8 +974,6 @@ body{background:#04130c;color:#f4fff5}
 .tariff-plan.selected .tariff-radio{border-color:#36cb72;background:#20a85a}
 .privacy-point-icon svg{color:#67e99a}
 .trust-note svg,.privacy-points svg,.archive-disclaimer svg{color:#5ce38d}
-.desktop-back-button{background:rgba(14,49,29,.96);border-color:rgba(104,212,137,.3);color:#eaffed}
-.desktop-back-button:hover{background:#1c6538}
 :root[data-theme="light"] .hero-card{background:radial-gradient(ellipse at 78% 16%,rgba(255,244,218,.34),transparent 39%),linear-gradient(118deg,#ff8b68 0%,#f65a6d 50%,#c83d70 100%);box-shadow:0 18px 48px rgba(196,61,77,.2)}
 :root[data-theme="light"] .bottom-nav button.active{background:linear-gradient(145deg,#28a95c,#147744);color:#fff;box-shadow:0 4px 14px rgba(18,125,63,.2)}
 :root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#16884b;border-color:#16884b;color:#fff}
@@ -1026,8 +1015,6 @@ body{background:#06110c;color:#f1f6f2}
 .card-glow{background:#397a51}
 .tariff-mode-switch button.active{background:linear-gradient(135deg,#39855e,#246544);box-shadow:0 5px 14px rgba(25,91,55,.2)}
 .tariff-plan.selected{background:linear-gradient(110deg,rgba(35,91,55,.42),rgba(13,35,22,.96));border-color:#78b887;box-shadow:0 0 0 1px rgba(120,184,135,.12)}
-.desktop-back-button{background:rgba(17,35,24,.92);border-color:var(--line);color:#e1eee3}
-.desktop-back-button:hover{background:#234b32}
 :root[data-theme="light"]{background:#f2f7f2;--muted:#687b6c;--panel:#fff;--panel-2:#eaf2eb;--line:rgba(55,94,65,.15);--blue:#2d7751;--purple:#50795c;--archive-all:#2d7751}
 :root[data-theme="light"] body{background:#f2f7f2;color:#1b3324}
 :root[data-theme="light"] .app-shell{background:radial-gradient(ellipse at 10% 0%,rgba(89,145,99,.1),transparent 43%),linear-gradient(155deg,#f8fbf8 0%,#edf4ee 60%,#f3f8f3 100%)}
@@ -1129,8 +1116,6 @@ body{background:#101827;color:#f4f6f9}
 .tariff-benefits>span{color:#c5ced8}
 .tariff-benefits>div{color:#e0e5ec}
 .tariff-benefits>div i{color:#c5ced8}
-.desktop-back-button{background:rgba(27,40,60,.96);border-color:rgba(197,206,216,.23);color:#e1e7ee}
-.desktop-back-button:hover{background:#344760}
 :root[data-theme="light"]{color-scheme:light;color:#172235;background:#edf1f5;--muted:#69788c;--panel:#fff;--panel-2:#e6ebf1;--line:rgba(59,75,96,.16);--blue:#53677f;--purple:#718096;--archive-all:#53677f}
 :root[data-theme="light"] body{background:#edf1f5;color:#172235}
 :root[data-theme="light"] .app-shell{background:radial-gradient(ellipse at 8% 0%,rgba(175,190,209,.22),transparent 43%),linear-gradient(155deg,#f6f8fb 0%,#e9eef4 60%,#f0f3f7 100%)}
@@ -1154,7 +1139,6 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .tariff-plan.selected .tariff-radio{box-shadow:inset 0 0 0 5px #fff}
 :root[data-theme="light"] .search-field input,:root[data-theme="light"] .receipt-email-input{color:#fff}
 :root[data-theme="light"] .receipt-email-input{background:#fff;border-color:rgba(59,75,96,.18)}
-:root[data-theme="light"] .desktop-back-button{background:rgba(255,255,255,.96);border-color:rgba(59,75,96,.18);color:#45566d}
 .archive-filter.active,.archive-filter[data-archive-filter="all"].active{background:linear-gradient(135deg,#e0e5eb,#c5ced8);border-color:#e0e5eb;color:#101827;box-shadow:0 5px 16px rgba(4,11,22,.24)}
 :root[data-theme="light"] .archive-filter.active,:root[data-theme="light"] .archive-filter[data-archive-filter="all"].active{background:#53677f;border-color:#53677f;color:#fff}
 

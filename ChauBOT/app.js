@@ -23,7 +23,6 @@ const icon = (name, size = 20) => {
     spark: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
     arrow: '<path d="M5 12h14m-7-7 7 7-7 7"/>',
-    back: '<path d="M19 12H5m7 7-7-7 7-7"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
     chart: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/>'
@@ -674,7 +673,7 @@ function render() {
   const mainTabs = ['home', 'services', 'profile'];
   const tariffDockActive = ['tariffs', 'group-tariffs'].includes(state.tab);
   const telegramSettingsDockActive = state.tab === 'connection-tutorial' && state.tutorialType !== 'groups';
-  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) || state.telegram?.BackButton ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   const settingsButton = app.querySelector('.tutorial-open-settings');
   const settingsHelp = app.querySelector('.tutorial-help-link');
   const settingsDock = app.querySelector('.telegram-settings-dock');
@@ -941,7 +940,6 @@ app.addEventListener('click', async event => {
     return;
   }
   const action = target.dataset.action;
-  if (action === 'app-back') { goBack(); return; }
   if (action === 'tariff-pay') { toast('Приём оплаты подключим отдельно.'); return; }
   if (action === 'group-tariff-pay') { toast('Оплата групп пока не подключена — деньги не списаны.'); return; }
   if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
