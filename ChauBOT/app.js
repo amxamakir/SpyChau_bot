@@ -308,14 +308,14 @@ function services() {
 
 const TARIFF_CATALOG = {
   package: [
-    { id: 'pack100', title: '100 уведомлений', quantity: 100, priceRub: 189, stars: 119 },
+    { id: 'pack100', title: '100 уведомлений', quantity: 100, priceRub: 189, stars: 118 },
     { id: 'pack300', title: '300 уведомлений', quantity: 300, priceRub: 499, stars: 312, badge: 'Хит' },
     { id: 'pack500', title: '500 уведомлений', quantity: 500, priceRub: 699, stars: 437 },
   ],
   unlimited: [
-    { id: 'month', title: '1 месяц', months: 1, priceRub: 349, stars: 219, hint: 'Хороший старт' },
+    { id: 'month', title: '1 месяц', months: 1, priceRub: 249, stars: 156, hint: '249 ₽ в месяц' },
     { id: 'half-year', title: '6 месяцев', months: 6, priceRub: 1190, stars: 745 },
-    { id: 'year', title: '12 месяцев', months: 12, priceRub: 1790, stars: 1120 },
+    { id: 'year', title: '12 месяцев', months: 12, priceRub: 1790, stars: 1119 },
   ],
 };
 
@@ -728,7 +728,7 @@ app.addEventListener('click', async event => {
   if (!target) return;
   if (target.dataset.tariffMode) {
     state.tariffMode = target.dataset.tariffMode;
-    state.selectedTariff = state.tariffMode === 'unlimited' ? 'month' : 'pack100';
+    state.selectedTariff = state.tariffMode === 'unlimited' ? 'month' : 'pack300';
     refreshTariffPricing();
     return;
   }
