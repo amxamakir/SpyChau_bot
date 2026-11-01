@@ -135,14 +135,37 @@ function connectionTutorialPage() {
 }
 
 function archiveEventKind(event) {
-  const message = event.message || {};
+  if (!isEventVisibleByNotificationPreferences(event)) return null;
   if (event.event_type === 'deleted') return 'deleted';
   if (event.event_type === 'edited') return 'edited';
-  const ownerId = state.user?.id;
-  const senderId = message.from?.id;
-  const isOwnerReply = ownerId != null && senderId != null && String(ownerId) === String(senderId);
-  if (!isOwnerReply && (message.__spychau_one_time_saved === true || Number(message.ephemeral_message_id) > 0 || Number(message.receiver_user?.id) > 0 || Number(message.ttl_period) > 0)) return 'one-time';
+  if (event.event_type === 'new') return 'one-time';
   return null;
+}
+
+function isEventVisibleByNotificationPreferences(event) {
+  const preferences = state.notificationPreferences || {};
+  const message = event?.message || {};
+  const chat = message.chat || event?.previous_message?.chat || {};
+  if ((chat.type === 'group' || chat.type === 'supergroup') && !preferences.group_messages) return false;
+
+  if (event?.event_type === 'deleted' || event?.event_type === 'edited') {
+    const senderId = message.from?.id;
+    if (senderId == null || state.user?.id == null) return false;
+    const isOwnerAuthored = String(senderId) === String(state.user.id);
+    const preferenceKey = event.event_type === 'deleted'
+      ? (isOwnerAuthored ? 'deleted_by_owner' : 'deleted_messages')
+      : (isOwnerAuthored ? 'edited_by_owner' : 'edited_messages');
+    return Boolean(preferences[preferenceKey]);
+  }
+
+  if (event?.event_type !== 'new') return false;
+  const senderId = message.from?.id;
+  const isOwnerAuthored = state.user?.id != null && senderId != null && String(senderId) === String(state.user.id);
+  const isOneTimeMessage = message.__spychau_one_time_saved === true
+    || Number(message.ephemeral_message_id) > 0
+    || Number(message.receiver_user?.id) > 0
+    || Number(message.ttl_period) > 0;
+  return state.user?.id != null && senderId != null && !isOwnerAuthored && isOneTimeMessage && Boolean(preferences.one_time_messages);
 }
 
 function eventTitle(event) {
@@ -526,7 +549,7 @@ async function removeOwnerTestGroupMember(telegramId) {
 function notificationsPage() {
   const preferences = state.notificationPreferences;
   const switchRow = (key, title, description, iconName, color, disabled = false) => `<button type="button" class="profile-row notification-switch-row" role="switch" aria-checked="${Boolean(preferences[key])}" aria-label="${escapeHtml(title)}" data-notification-toggle="${key}" ${disabled || !state.authenticated ? 'disabled' : ''}><span class="service-icon ${color}">${icon(iconName, 19)}</span><span class="row-copy"><strong>${escapeHtml(title)}</strong>${description ? `<small>${escapeHtml(description)}</small>` : ''}</span><span class="test-switch ${preferences[key] ? 'on' : ''}" aria-hidden="true"><i></i></span></button>`;
-  return `<section class="page profile-page notifications-page">${profileDetailHeader('МОЙ АККАУНТ', 'Уведомления', 'Выбирай, о чём я пишу тебе в чат с ботом.')}<span class="list-label">СООБЩЕНИЯ СОБЕСЕДНИКОВ</span><div class="profile-card">${switchRow('deleted_messages', 'Удалённые сообщения', '', 'trash', 'red')}${switchRow('edited_messages', 'Изменённые сообщения', '', 'edit', 'yellow')}${switchRow('one_time_messages', 'Одноразовые сообщения', '', 'clock', 'purple')}${switchRow('group_messages', 'Сообщения в группах', '', 'people', 'purple', true)}</div><span class="list-label">МОИ ДЕЙСТВИЯ</span><div class="profile-card">${switchRow('deleted_by_owner', 'Удалённые мной', 'Уведомлять об удалениях моих сообщений и собеседника', 'trash', 'red')}${switchRow('edited_by_owner', 'Изменённые мной', 'Уведомлять об изменениях моих сообщений', 'edit', 'yellow')}</div><div class="notification-note">${state.preview ? 'Открой приложение через Telegram, чтобы синхронизировать настройки.' : 'Уведомления от бота приходят в этот личный чат. Настройки синхронизируются с Telegram-аккаунтом.'} Telegram может не передать боту исходное вложение в ответе.</div></section>`;
+  return `<section class="page profile-page notifications-page">${profileDetailHeader('МОЙ АККАУНТ', 'Уведомления', 'Выбирай, о чём я пишу тебе в чат с ботом.')}<span class="list-label">СООБЩЕНИЯ СОБЕСЕДНИКОВ</span><div class="profile-card">${switchRow('deleted_messages', 'Удалённые сообщения', '', 'trash', 'red')}${switchRow('edited_messages', 'Изменённые сообщения', '', 'edit', 'yellow')}${switchRow('one_time_messages', 'Одноразовые сообщения', '', 'clock', 'purple')}${switchRow('group_messages', 'Сообщения в группах', '', 'people', 'purple', true)}</div><span class="list-label">МОИ ДЕЙСТВИЯ</span><div class="profile-card">${switchRow('deleted_by_owner', 'Удалённые мной', 'Уведомлять об удалениях моих сообщений', 'trash', 'red')}${switchRow('edited_by_owner', 'Изменённые мной', 'Уведомлять об изменениях моих сообщений', 'edit', 'yellow')}</div><div class="notification-note">${state.preview ? 'Открой приложение через Telegram, чтобы синхронизировать настройки.' : 'Уведомления от бота приходят в этот личный чат. Настройки синхронизируются с Telegram-аккаунтом.'} Telegram может не передать боту исходное вложение в ответе.</div></section>`;
 }
 
 function profileDetailHeader(eyebrow, title, description) {

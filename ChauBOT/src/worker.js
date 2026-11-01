@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.143" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.144" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -59,11 +59,12 @@ export default {
         if (route === "/api/home/events" && request.method === "GET") {
           const subscription = await getSubscription(env.DB, String(user.id));
           if (!subscription.active) return json({ events: [] });
+          const preferences = await getNotificationPreferences(env.DB, String(user.id));
           const rows = await env.DB.prepare(
             "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 25",
           ).bind(String(user.id)).all();
           const events = (await hydrateEventRows(rows.results, env)).filter((event) =>
-            event.event_type === "edited" || event.event_type === "deleted" || isIncomingOneTimeMessage(event.message, user.id)
+            isEventEnabledForOwner(event, user.id, preferences.preferences)
           );
           return json({ events });
         }
@@ -150,12 +151,13 @@ export default {
         if (route === "/api/archive" && request.method === "GET") {
           const subscription = await getSubscription(env.DB, String(user.id));
           if (!subscription.active) return json({ error: "subscription_required" }, 403);
+          const preferences = await getNotificationPreferences(env.DB, String(user.id));
           const rows = await env.DB.prepare(
             "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 5000",
           ).bind(String(user.id)).all();
           const hydrated = await hydrateEventRows(rows.results, env);
           const events = hydrated.filter((event) =>
-            event.event_type === "edited" || event.event_type === "deleted" || isIncomingOneTimeMessage(event.message, user.id)
+            isEventEnabledForOwner(event, user.id, preferences.preferences)
           );
           return json({ events });
         }
@@ -372,13 +374,7 @@ async function handleTelegramWebhook(request, env) {
           const chatType = event?.message?.chat?.type || event?.previous_message?.chat?.type || "private";
           const isGroup = chatType === "group" || chatType === "supergroup";
           const eventMessage = event?.message || {};
-          const messageAuthorId = eventMessage.from?.id == null ? "" : String(eventMessage.from.id);
-          const isOwnerAuthoredEdit = savedEvent.eventType === "edited" && messageAuthorId === String(connectionRow.owner_id);
-          const shouldNotify = savedEvent.eventType === "deleted"
-            ? preferences.preferences.deleted_messages || preferences.preferences.deleted_by_owner
-            : savedEvent.eventType === "edited"
-              ? preferences.preferences.edited_messages || (isOwnerAuthoredEdit && preferences.preferences.edited_by_owner)
-              : isIncomingOneTimeMessage(eventMessage, connectionRow.owner_id) && preferences.preferences.one_time_messages;
+          const shouldNotify = isEventEnabledForOwner(event, connectionRow.owner_id, preferences.preferences);
           if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
           await sendEventNotification(env, {
             ownerId: connectionRow.owner_id,
@@ -727,6 +723,26 @@ function constantTimeEqual(left, right) {
   const length = Math.max(a.length, b.length);
   for (let index = 0; index < length; index += 1) difference |= (a[index] || 0) ^ (b[index] || 0);
   return difference === 0;
+}
+
+function isEventEnabledForOwner(event, ownerId, preferences) {
+  const message = event?.message || {};
+  const chat = message.chat || event?.previous_message?.chat || {};
+  if ((chat.type === "group" || chat.type === "supergroup") && !preferences.group_messages) return false;
+
+  if (event?.event_type === "deleted" || event?.event_type === "edited") {
+    const senderId = message.from?.id;
+    if (senderId == null) return false;
+    const isOwnerAuthored = String(senderId) === String(ownerId);
+    const preferenceKey = event.event_type === "deleted"
+      ? (isOwnerAuthored ? "deleted_by_owner" : "deleted_messages")
+      : (isOwnerAuthored ? "edited_by_owner" : "edited_messages");
+    return Boolean(preferences[preferenceKey]);
+  }
+
+  return event?.event_type === "new"
+    && isIncomingOneTimeMessage(message, ownerId)
+    && Boolean(preferences.one_time_messages);
 }
 
 function isOneTimeMessage(message) {
