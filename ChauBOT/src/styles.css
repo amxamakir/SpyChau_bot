@@ -1276,6 +1276,9 @@ body{background:#101827;color:#f4f6f9}
 .tariff-benefits>div i,.group-tariffs-page .tariff-benefits i{color:#59b985}
 
 @media(max-width:600px){
+  .home-page .connect-card .service-icon{width:50px;height:50px}
+  .home-page .connect-card .service-icon svg{width:22px;height:22px;min-width:22px;min-height:22px}
+  .home-page .connect-card .connect-row .row-copy strong{font-size:18px;line-height:1.3}
   .profile-page .profile-row .service-icon{width:42px;height:42px}
   .profile-page .profile-row .service-icon svg{width:21px;height:21px;min-width:21px;min-height:21px}
   .profile-page .profile-row .row-copy strong{font-size:18px;line-height:1.3}
