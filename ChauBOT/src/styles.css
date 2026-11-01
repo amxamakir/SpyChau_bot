@@ -217,6 +217,11 @@ html,body{touch-action:pan-x pan-y}
 .contact-event-row .event-copy>span{font-size:12px;line-height:1.5}
 .contact-event-row .event-title-line strong{font-size:11px}
 .contact-event-row .event-title-line time{font-size:10px}
+.archive-page .edited-message-diff{display:grid;gap:6px;margin-top:7px}
+.archive-page .edited-message-version{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:6px;padding:7px 9px;border:1px solid transparent;border-radius:11px;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.archive-page .edited-message-version strong{font-size:inherit;line-height:inherit;color:inherit;white-space:nowrap}
+.archive-page .edited-message-before{background:rgba(197,206,216,.1);border-color:rgba(197,206,216,.14);color:#bdc8d5}
+.archive-page .edited-message-after{background:rgba(217,181,106,.16);border-color:rgba(217,181,106,.24);color:#ead7a5}
 .event-type-icon.one-time{color:#d0a4ff;background:rgba(157,108,236,.16)}
 @media(max-width:360px){.contact-row{gap:8px;padding-inline:10px}.contact-count{font-size:9px}.contact-detail-heading{gap:8px}.contact-detail-heading .text-button{font-size:10px}.contact-detail-heading .contact-avatar{height:40px;width:40px}}
 .archive-filter{min-height:38px;padding-inline:10px}

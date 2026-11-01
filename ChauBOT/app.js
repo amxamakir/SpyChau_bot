@@ -294,10 +294,16 @@ function archiveContacts() {
   return [...contacts.values()].sort((left, right) => right.latestId - left.latestId);
 }
 
-function archiveEventRow(event) {
+function archiveEventRow(event, showEditedDiff = false) {
   const kind = archiveEventKind(event);
   const iconName = kind === 'deleted' ? 'close' : kind === 'one-time' ? 'clock' : event.message?.voice ? 'mic' : event.message?.photo ? 'image' : 'chat';
   const original = kind === 'deleted' ? previousMessageSnapshot(event) : null;
+  const previous = kind === 'edited' ? previousMessageSnapshot(event) : null;
+  const previousText = previous ? eventDescription(previous) : '';
+  const currentText = eventDescription(event);
+  const editedDiff = showEditedDiff && previous && previousText !== currentText
+    ? `<div class="edited-message-diff"><div class="edited-message-version edited-message-before"><strong>Было:</strong><span>${escapeHtml(previousText)}</span></div><div class="edited-message-version edited-message-after"><strong>Стало:</strong><span>${escapeHtml(currentText)}</span></div></div>`
+    : `<span>${escapeHtml(archiveEventText(event))}</span>`;
   const imageUrl = event.media_url || original?.media_url;
   const mediaItems = Array.isArray(event.media) ? event.media : [];
   const fallbackPhoto = !mediaItems.length && imageUrl
@@ -311,7 +317,7 @@ function archiveEventRow(event) {
     if (asset.kind === 'video' || asset.kind === 'video_note' || asset.kind === 'animation') return `<video class="event-video" controls playsinline preload="metadata" src="${src}">Браузер не поддерживает воспроизведение видео.</video>`;
     return `<a class="event-file-link" href="${src}" target="_blank" rel="noopener" download>${escapeHtml(asset.file_name || 'Открыть сохранённый файл')}</a>`;
   }).join('');
-  return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div><span>${escapeHtml(archiveEventText(event))}</span>${media || fallbackPhoto}</div></article>`;
+  return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div>${editedDiff}${media || fallbackPhoto}</div></article>`;
 }
 
 function home() {
@@ -322,7 +328,7 @@ function home() {
     : state.eventFeedError
       ? `<div class="empty-events"><strong>Не удалось загрузить события</strong><p>Остальные разделы приложения работают.</p><button class="subtle-button" data-action="refresh-home-events">${icon('arrow', 15)} Повторить</button></div>`
       : recentEvents.length
-        ? `<div class="events-list home-event-feed">${recentEvents.map(archiveEventRow).join('')}</div>`
+        ? `<div class="events-list home-event-feed">${recentEvents.map(event => archiveEventRow(event)).join('')}</div>`
         : `<div class="empty-events empty-events-with-mascot"><div class="empty-art search-mascot"><img src="./assets/mascot/knight-kitten-watching.png" alt="Котёнок-рыцарь следит за сообщениями" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока ничего не вижу'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`;
   return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionActive ? 'Подписка активна' : 'Подписка не активна'}</h1><p>${subscriptionActive ? 'Я в строю, сохраняю все изменения и удаления.' : 'Я не на посту и не сохраняю события. Подключай — вернусь в строй.'}</p><button class="button button-light" data-action="${state.preview ? 'telegram' : 'connect'}"><span class="button-stencil-text">Подключить</span>${icon('chevron', 16)}</button></div>${racer(false, subscriptionActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
@@ -475,7 +481,7 @@ function archive() {
     const selectedEvents = selectedContact.events.filter(event => state.archiveFilter === 'all' || archiveEventKind(event) === state.archiveFilter);
     const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
     const identity = eventContactIdentity(selectedContact);
-    return `<section class="page archive-page"><button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading">${contactAvatar(selectedContact)}<div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}</div></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(archiveEventRow).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
+    return `<section class="page archive-page"><button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading">${contactAvatar(selectedContact)}<div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}</div></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
   }
 
   const matchingContacts = contacts.filter(contact => {
