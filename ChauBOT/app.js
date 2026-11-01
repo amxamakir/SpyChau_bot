@@ -596,7 +596,23 @@ function profileDetailHeader(eyebrow, title, description) {
 }
 
 function supportPage() {
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'Поддержка', 'Помощь по работе SpyChau.')}<div class="profile-card profile-detail-card"><div class="profile-row"><span class="service-icon blue">${icon('help', 20)}</span><span class="row-copy"><strong>Связь с поддержкой</strong><small>Контакт поддержки пока не настроен. Добавим его перед запуском сервиса.</small></span></div></div></section>`;
+  const questions = [
+    ['Как работает SpyChau?', 'После подключения Telegram передаёт приложению события из выбранных тобой чатов. Новые события появляются в архиве, а уведомления — в чате с ботом, если они включены. История до подключения недоступна.'],
+    ['Как подключить личные чаты?', 'На главной нажми «Подключить» в карточке личных чатов. В Telegram открой Профиль → Изм. → Автоматизация чатов, добавь @SpyChau_bot и выбери нужные чаты.'],
+    ['Безопасно ли это?', 'SpyChau получает события только из чатов, которым ты сам разрешил доступ в настройках Telegram. Секретные чаты недоступны через официальный Telegram Bot API.'],
+    ['Чего бот не может?', 'Бот не видит переписку до подключения, не получает события из невыбранных чатов и не имеет доступа к секретным чатам. Групповой режим пока не подключён.'],
+    ['Не вижу удалённые или изменённые сообщения', 'Проверь, что нужный чат подключён и подписка активна. В архив попадают события, которые Telegram передал после подключения. Переключатели в Профиль → Уведомления управляют показом моих действий в приложении и отправкой этих уведомлений в бот.'],
+    ['Почему не сохранилось одноразовое сообщение?', 'Сохранение зависит от того, передал ли Telegram содержимое события приложению. Для одноразовых фото, видео и голосовых это работает не во всех случаях: если Telegram не прислал файл, восстановить его нельзя.'],
+    ['Почему в архиве нет текста или файла?', 'Иногда Telegram присылает событие без исходного текста или вложения. SpyChau показывает только те данные, которые получил от Telegram, и не может восстановить то, чего в событии нет.'],
+    ['Сколько хранятся события?', 'Содержимое событий хранится в архиве до 7 дней, затем удаляется.'],
+    ['Можно подключить группу?', 'Пока нет: групповой режим ещё готовится. Просто добавить бота в группу недостаточно, события пока не будут сохраняться. Не выдавай боту права администратора ради этой функции.'],
+    ['Как удалить мои данные?', 'Открой Профиль → Безопасность и данные и нажми «Удалить все мои данные». Профиль, архив и сохранённые медиа будут удалены. Это действие нельзя отменить.'],
+  ];
+  return `<section class="page profile-page profile-detail-page support-page"><div class="support-heading-with-mascot">${profileDetailHeader('', 'Чем помочь?', 'Частые вопросы — или напиши нам')}<img class="support-header-mascot" src="./assets/mascot/spy-chau-searching.png" alt="Котёнок SpyChau ищет ответ" /></div><label class="search-field support-search-field">${icon('search', 18)}<input id="support-search" type="search" placeholder="Найти ответ" autocomplete="off" aria-label="Найти ответ на частый вопрос"></label><div class="support-faq-list" aria-label="Частые вопросы">${questions.map(([question, answer]) => `<details class="support-faq-item"><summary><span>${escapeHtml(question)}</span>${icon('chevron', 17)}</summary><p>${escapeHtml(answer)}</p></details>`).join('')}<p class="support-empty" hidden>Ничего не найдено. Попробуй изменить запрос.</p></div></section>`;
+}
+
+function supportDock() {
+  return `<div class="support-dock"><button type="button" class="button support-contact-button" data-action="support-unavailable">${icon('chat', 19)} Написать в поддержку</button><p class="support-dock-note">Подключим чат поддержки в Telegram чуть позже</p></div>`;
 }
 
 function aboutPage() {
@@ -654,7 +670,6 @@ function modal() {
   if (state.modal === 'groups') body = `<div class="modal-icon purple">${icon('people', 23)}</div><span class="eyebrow">ГРУППОВЫЕ ЧАТЫ</span><h2>Это отдельная функция</h2><p>Подключение Telegram Business работает с разрешёнными личными чатами. Для группового режима нужно отдельно добавить бота в группу и корректно настроить его права. Этот сценарий пока не реализован.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
   if (state.modal === 'subscription') body = `<div class="modal-icon blue">${icon('lock', 23)}</div><span class="eyebrow">ПОДПИСКА</span><h2>Подключение подписки</h2><p>Покупка подписки пока не подключена. Сейчас её статус проверяется на сервере, а переключатель хозяйского режима доступен владельцу приложения в профиле.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
   if (state.modal === 'receipt-email') body = `<div class="modal-icon blue">${icon('mail', 23)}</div><span class="eyebrow">ЧЕКИ О ПОКУПКАХ</span><h2>Почта для чеков</h2><p>Укажи адрес, на который отправлять чеки о покупке. Его можно изменить в любой момент.</p><form id="receipt-email-form"><label for="receipt-email" style="display:block;font-size:12px;color:var(--muted);margin-bottom:7px">Электронная почта</label><input id="receipt-email" class="receipt-email-input" name="email" type="email" value="${escapeHtml(state.user?.receipt_email || '')}" placeholder="name@example.com" autocomplete="email" maxlength="254" required><button class="button button-blue modal-primary" type="submit" ${state.receiptEmailSaving ? 'disabled' : ''}>${state.receiptEmailSaving ? 'Сохраняем…' : 'Сохранить'}</button></form>`;
-  if (state.modal === 'support') body = `<div class="modal-icon blue">${icon('help', 23)}</div><span class="eyebrow">ПОДДЕРЖКА</span><h2>Контакт поддержки ещё не настроен</h2><p>Добавим его до запуска сервиса для пользователей.</p><button class="button button-blue modal-primary" data-action="close">Закрыть ${icon('chevron', 16)}</button>`;
   return `<div class="modal-backdrop" data-action="backdrop"><div class="modal">${body}<button class="modal-close" data-action="close" aria-label="Закрыть">${icon('close', 18)}</button></div></div>`;
 }
 
@@ -672,8 +687,9 @@ function render() {
   const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'group-tariffs' ? groupTariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'owner-test-group' ? ownerTestGroupPage() : state.tab === 'about' ? aboutPage() : profile();
   const mainTabs = ['home', 'services', 'profile'];
   const tariffDockActive = ['tariffs', 'group-tariffs'].includes(state.tab);
+  const supportDockActive = state.tab === 'support';
   const telegramSettingsDockActive = state.tab === 'connection-tutorial' && state.tutorialType !== 'groups';
-  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${supportDockActive ? 'has-support-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${supportDockActive ? supportDock() : ''}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   const settingsButton = app.querySelector('.tutorial-open-settings');
   const settingsHelp = app.querySelector('.tutorial-help-link');
   const settingsDock = app.querySelector('.telegram-settings-dock');
@@ -880,6 +896,10 @@ app.addEventListener('click', async event => {
     toast('Настройки → Изм. → Автоматизация чатов. Там выбери @SpyChau_bot и нужные чаты.');
     return;
   }
+  if (target.dataset.action === 'support-unavailable') {
+    toast('Чат поддержки в Telegram скоро появится.');
+    return;
+  }
   if (target.dataset.tutorial) {
     pushNavigation();
     state.modal = null;
@@ -985,6 +1005,17 @@ app.addEventListener('click', async event => {
 });
 
 app.addEventListener('input', event => {
+  if (event.target.id === 'support-search') {
+    const query = event.target.value.trim().toLocaleLowerCase('ru');
+    const items = [...app.querySelectorAll('.support-faq-item')];
+    let visibleCount = 0;
+    for (const item of items) {
+      item.hidden = !item.textContent.toLocaleLowerCase('ru').includes(query);
+      if (!item.hidden) visibleCount += 1;
+    }
+    const empty = app.querySelector('.support-empty');
+    if (empty) empty.hidden = visibleCount > 0;
+  }
   if (event.target.id === 'archive-search') {
     const cursor = event.target.selectionStart;
     state.query = event.target.value;
