@@ -4,7 +4,7 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-22",
   "triggers": {
-    "crons": ["*/30 * * * *"]
+    "crons": ["* * * * *"]
   },
   "r2_buckets": [
     {
@@ -45,7 +45,7 @@
     "production": {
       "name": "spychau-bot-production",
       "triggers": {
-        "crons": ["*/30 * * * *"]
+        "crons": ["* * * * *"]
       },
       "r2_buckets": [
         {

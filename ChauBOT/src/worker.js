@@ -1,5 +1,7 @@
 import {
+  confirmPendingReplyEvents,
   deleteOwnerJournal,
+  expirePendingReplyEvents,
   hydrateEventRows,
   maintainJournal,
   readArchivedMedia,
@@ -16,7 +18,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.162" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.163" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -233,8 +235,12 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
-      await maintainJournal(env);
-      await env.DB.prepare("DELETE FROM notification_deliveries WHERE sent_at < datetime('now', '-7 days')").run();
+      await expirePendingReplyEvents(env);
+      const scheduledMinute = Math.floor(Number(_controller.scheduledTime || Date.now()) / 60_000);
+      if (scheduledMinute % 30 === 0) {
+        await maintainJournal(env);
+        await env.DB.prepare("DELETE FROM notification_deliveries WHERE sent_at < datetime('now', '-7 days')").run();
+      }
     })());
   },
 };
@@ -313,6 +319,18 @@ async function handleTelegramWebhook(request, env) {
     if (deleted) {
       const chatId = deleted.chat?.id == null ? "" : String(deleted.chat.id);
       for (const messageId of deleted.message_ids || []) {
+        const promotedReplies = await confirmPendingReplyEvents(env, {
+          ownerId: connectionRow.owner_id,
+          connectionId,
+          chatId,
+          targetMessageId: String(messageId),
+        });
+        savedEvents.push(...promotedReplies.map((candidate) => ({
+          eventId: candidate.eventId,
+          messageId: candidate.messageId,
+          eventType: "new",
+          updateId: candidate.updateId,
+        })));
         const eventId = await storeBusinessEvent(env, {
           updateId,
           ownerId: connectionRow.owner_id,
@@ -351,8 +369,10 @@ async function handleTelegramWebhook(request, env) {
         : [];
       for (const [mediaIndex, replied] of repliedMedia.entries()) {
         const { source, media, kind } = replied;
+        if (source.from?.id != null && String(source.from.id) === String(connectionRow.owner_id)) continue;
         const originalId = source.message_id == null ? "unknown" : String(source.message_id);
         const syntheticMessageId = `reply-media:${chatId}:${originalId}:${messageId}:${kind}:${mediaIndex}`;
+        const explicitlyOneTime = hasOneTimeMarker(source) || Number(source.message_id) === 0;
         const syntheticMessage = {
           ...source,
           chat: source.chat || message.chat,
@@ -369,8 +389,14 @@ async function handleTelegramWebhook(request, env) {
           messageId: syntheticMessageId,
           eventType: "new",
           message: syntheticMessage,
+          ...(explicitlyOneTime ? {} : {
+            pending: {
+              targetMessageId: originalId,
+              expiresAtMs: Date.now() + 5 * 60 * 1000,
+            },
+          }),
         });
-        savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
+        if (explicitlyOneTime) savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
     }
 
@@ -390,7 +416,7 @@ async function handleTelegramWebhook(request, env) {
           if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
           await sendEventNotification(env, {
             ownerId: connectionRow.owner_id,
-            updateId,
+            updateId: savedEvent.updateId ?? updateId,
             messageId: savedEvent.messageId,
             event,
           });
@@ -442,10 +468,18 @@ function logBusinessMediaDiagnostic(update) {
       };
     });
 
-  if (!messages.length) return;
+  const deleted = update?.deleted_business_messages;
+  if (!messages.length && !deleted) return;
   // Temporary diagnostics intentionally record only update/media field presence.
   // Never log message text, account/chat IDs, file IDs, or media contents.
-  console.log("[telegram-media-diagnostic]", JSON.stringify({ messages }));
+  console.log("[telegram-media-diagnostic]", JSON.stringify({
+    messages,
+    deletedBusinessMessages: deleted ? {
+      present: true,
+      hasChat: Boolean(deleted.chat),
+      messageCount: Array.isArray(deleted.message_ids) ? deleted.message_ids.length : 0,
+    } : null,
+  }));
 }
 
 async function validateInitData(raw, env) {
@@ -750,6 +784,7 @@ function constantTimeEqual(left, right) {
 }
 
 function isEventEnabledForOwner(event, ownerId, preferences) {
+  if (event?.pending_expires_at_ms != null) return false;
   const message = event?.message || {};
   const chat = message.chat || event?.previous_message?.chat || {};
   if ((chat.type === "group" || chat.type === "supergroup") && !preferences.group_messages) return false;
@@ -772,6 +807,12 @@ function isEventEnabledForOwner(event, ownerId, preferences) {
 function isOneTimeMessage(message) {
   return message?.__spychau_one_time_saved === true
     || Number(message?.ephemeral_message_id) > 0
+    || Number(message?.receiver_user?.id) > 0
+    || Number(message?.ttl_period) > 0;
+}
+
+function hasOneTimeMarker(message) {
+  return Number(message?.ephemeral_message_id) > 0
     || Number(message?.receiver_user?.id) > 0
     || Number(message?.ttl_period) > 0;
 }
@@ -817,16 +858,7 @@ function collectRepliedMedia(message) {
   }
   const collected = [];
   const seen = new Set();
-  // Some reply updates identify an ephemeral target on the reply itself.
-  // Treat that as a target marker only when the embedded target has the
-  // Bot API's ephemeral message_id sentinel, never for ordinary replies.
   for (const source of sources) {
-    // Replies to ordinary media are common in business chats. Do not turn
-    // every replied-to attachment into a one-time event: only archive and
-    // forward it when Telegram marked the source message as self-destructing.
-    const replyReferencesEphemeralTarget = Number(message?.ephemeral_message_id) > 0
-      && Number(source.message_id) === 0;
-    if (!replyReferencesEphemeralTarget && !isOneTimeMessage(source)) continue;
     for (const field of ONE_TIME_MEDIA_FIELDS) {
       const value = source[field];
       const item = field === "photo" && Array.isArray(value)

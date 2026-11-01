@@ -156,6 +156,35 @@ export async function maintainJournal(env) {
   for (const { owner_id: ownerId } of owners.results) await enforceRetentionAndLimit(env, String(ownerId));
 }
 
+export async function expirePendingReplyEvents(env, now = Date.now()) {
+  const owners = await env.DB.prepare(`
+    SELECT DISTINCT owner_id FROM events
+    WHERE pending_expires_at_ms IS NOT NULL AND pending_expires_at_ms <= ?
+    ORDER BY owner_id LIMIT 100
+  `).bind(Number(now)).all();
+  for (const { owner_id: ownerId } of owners.results) await enforceRetentionAndLimit(env, String(ownerId));
+}
+
+export async function confirmPendingReplyEvents(env, { ownerId, connectionId, chatId, targetMessageId, now = Date.now() }) {
+  const rows = await env.DB.prepare(`
+    SELECT id, update_id, message_id FROM events
+    WHERE owner_id = ? AND connection_id = ? AND chat_id = ?
+      AND pending_target_message_id = ? AND pending_expires_at_ms > ?
+    ORDER BY id LIMIT 20
+  `).bind(String(ownerId), String(connectionId), String(chatId), String(targetMessageId), Number(now)).all();
+  const promoted = [];
+  for (const row of rows.results) {
+    const result = await env.DB.prepare(`
+      UPDATE events SET pending_target_message_id = NULL, pending_expires_at_ms = NULL
+      WHERE id = ? AND owner_id = ? AND pending_target_message_id = ? AND pending_expires_at_ms > ?
+    `).bind(Number(row.id), String(ownerId), String(targetMessageId), Number(now)).run();
+    if (Number(result.meta?.changes || 0) === 1) {
+      promoted.push({ eventId: Number(row.id), updateId: row.update_id == null ? null : Number(row.update_id), messageId: String(row.message_id) });
+    }
+  }
+  return promoted;
+}
+
 export async function deleteOwnerJournal(env, ownerId) {
   if (!env.JOURNAL) return;
   const prefix = `journal/${String(ownerId)}/`;
@@ -184,9 +213,21 @@ async function persistRecord(env, input) {
     if (row?.stored_at) return Number(row.id);
     if (!row) {
       const inserted = await env.DB.prepare(`
-        INSERT OR IGNORE INTO events(update_id, owner_id, connection_id, chat_id, message_id, event_type, message_json, snapshot_event_id)
-        VALUES(?, ?, ?, ?, ?, ?, '{}', ?)
-      `).bind(updateId, ownerId, connectionId || null, String(chatId || ""), messageId, eventType, input.snapshotEventId || null).run();
+        INSERT OR IGNORE INTO events(
+          update_id, owner_id, connection_id, chat_id, message_id, event_type, message_json, snapshot_event_id,
+          pending_target_message_id, pending_expires_at_ms
+        ) VALUES(?, ?, ?, ?, ?, ?, '{}', ?, ?, ?)
+      `).bind(
+        updateId,
+        ownerId,
+        connectionId || null,
+        String(chatId || ""),
+        messageId,
+        eventType,
+        input.snapshotEventId || null,
+        input.pending?.targetMessageId == null ? null : String(input.pending.targetMessageId),
+        input.pending?.expiresAtMs == null ? null : Number(input.pending.expiresAtMs),
+      ).run();
       rowId = Number(inserted.meta?.last_row_id || 0);
       row = updateId == null
         ? await env.DB.prepare("SELECT * FROM events WHERE id = ?").bind(rowId).first()
@@ -499,9 +540,10 @@ async function pruneOwnerUnderLock(env, ownerId) {
       SELECT id, journal_key FROM events
       WHERE owner_id = ? AND (
         created_at < datetime('now', '-7 days')
+        OR (pending_expires_at_ms IS NOT NULL AND pending_expires_at_ms <= ?)
         OR id NOT IN (SELECT id FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT ?)
       ) ORDER BY id LIMIT 500
-    `).bind(ownerId, ownerId, MESSAGE_LIMIT).all();
+    `).bind(ownerId, Date.now(), ownerId, MESSAGE_LIMIT).all();
     if (!removeResult.results.length) return;
     const removedIds = new Set(removeResult.results.map((row) => Number(row.id)));
     const chunkKeys = [...new Set(removeResult.results.map((row) => row.journal_key).filter(Boolean))];
