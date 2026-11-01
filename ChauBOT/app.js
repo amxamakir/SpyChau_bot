@@ -418,7 +418,7 @@ function groupTariffsPricing() {
 }
 
 function groupTariffsPage() {
-  return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/cat-groups.png" alt="Котёнок-рыцарь с иконками общения" /></div><div class="tariff-intro"><h2>Группы</h2><p>Сохраняем удалённые и изменённые сообщения в подключённых группах.</p></div><div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
+  return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/mascot/scout-groups.png" alt="Скаут среди групповых значков" /></div><div class="tariff-intro"><h2>Группы</h2><p>Сохраняем удалённые и изменённые сообщения в подключённых группах.</p></div><div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
 }
 
 function tariffPaymentDock() {
