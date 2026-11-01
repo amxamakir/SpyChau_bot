@@ -1274,3 +1274,9 @@ body{background:#101827;color:#f4f6f9}
 .group-tariffs-page .tariff-intro h2,.group-tariffs-page .tariff-plan-copy strong,.group-tariffs-page .tariff-plan-price strong,.group-tariffs-page .tariff-benefits strong{color:#f5f6ff}
 .group-tariffs-page .tariff-intro p,.group-tariffs-page .tariff-plan-copy small,.group-tariffs-page .tariff-plan-price small{color:#aab7cd}
 .tariff-benefits>div i,.group-tariffs-page .tariff-benefits i{color:#59b985}
+
+@media(max-width:600px){
+  .profile-page .profile-row .service-icon{width:42px;height:42px}
+  .profile-page .profile-row .service-icon svg{width:21px;height:21px;min-width:21px;min-height:21px}
+  .profile-page .profile-row .row-copy strong{font-size:18px;line-height:1.3}
+}
