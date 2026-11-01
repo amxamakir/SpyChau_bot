@@ -1258,9 +1258,11 @@ body{background:#101827;color:#f4f6f9}
 .tariff-dock .group-tariff-pay-button{background:linear-gradient(135deg,#e1e6eb,#b8c3cf);color:#101827;box-shadow:0 10px 24px rgba(0,0,0,.18)}
 .tariff-dock-note{margin:0 auto;padding:2px 8px;border-radius:8px;background:rgba(18,29,46,.88);color:#aab5c4;text-align:center;font-size:11px;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,.45)}
 .app-shell.has-telegram-settings-dock{padding-bottom:200px}
-.telegram-settings-dock{position:fixed;z-index:11;left:0;right:0;bottom:0;width:100%;padding:8px 15px calc(max(8px,env(safe-area-inset-bottom)) + 8px);background:#0f1725}
+.telegram-settings-dock{position:fixed;z-index:11;left:0;right:0;bottom:0;display:grid;justify-items:center;gap:4px;width:100%;padding:8px 15px calc(max(8px,var(--app-mobile-bottom-inset,0px),env(safe-area-inset-bottom,0px)) + 8px);background:#0f1725}
 .telegram-settings-dock .tutorial-open-settings{display:flex;width:min(100%,450px);margin:0 auto}
+.telegram-settings-dock .tutorial-help-link{color:#aab5c4}
 :root[data-theme="light"] .telegram-settings-dock{background:#f0f3f7}
+:root[data-theme="light"] .telegram-settings-dock .tutorial-help-link{color:#69788e}
 @media(min-width:740px){.tariff-dock{width:min(100%,470px);bottom:102px}}
 
 .service-card-bottom .button-connected{background:rgba(51,209,182,.13);border:1px solid rgba(51,209,182,.34);color:#73dfc6;box-shadow:none;cursor:default}

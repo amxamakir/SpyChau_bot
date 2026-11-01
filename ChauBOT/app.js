@@ -83,6 +83,8 @@ const app = document.querySelector('#root');
 function syncTelegramSafeArea() {
   const safeTop = Number(state.telegram?.safeAreaInset?.top) || 0;
   const contentTop = Number(state.telegram?.contentSafeAreaInset?.top) || 0;
+  const safeBottom = Number(state.telegram?.safeAreaInset?.bottom) || 0;
+  const contentBottom = Number(state.telegram?.contentSafeAreaInset?.bottom) || 0;
   const stableHeight = Number(state.telegram?.viewportStableHeight) || 0;
   const visualHeight = Number(window.visualViewport?.height) || 0;
   const viewportHeight = stableHeight || visualHeight || window.innerHeight;
@@ -94,6 +96,7 @@ function syncTelegramSafeArea() {
     ? Math.max(insetTop + 12, fullscreenFallback)
     : insetTop;
   document.documentElement.style.setProperty('--app-mobile-top-inset', `${topInset}px`);
+  document.documentElement.style.setProperty('--app-mobile-bottom-inset', `${Math.max(safeBottom, contentBottom)}px`);
   document.documentElement.style.setProperty('--app-viewport-height', `${Math.round(viewportHeight)}px`);
 }
 
@@ -660,8 +663,10 @@ function render() {
   const telegramSettingsDockActive = state.tab === 'connection-tutorial' && state.tutorialType !== 'groups';
   app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   const settingsButton = app.querySelector('.tutorial-open-settings');
+  const settingsHelp = app.querySelector('.tutorial-help-link');
   const settingsDock = app.querySelector('.telegram-settings-dock');
   if (settingsButton && settingsDock) settingsDock.append(settingsButton);
+  if (settingsHelp && settingsDock) settingsDock.append(settingsHelp);
   syncTelegramBackButton();
 }
 
