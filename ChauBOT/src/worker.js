@@ -18,7 +18,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.14" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.15" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -286,7 +286,7 @@ async function handleTelegramWebhook(request, env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: incomingMessage.chat.id,
-          text: "Привет! Я SpyChau.\n\nЧтобы подключить меня, открой в Telegram:\nПрофиль → Изм. → Автоматизация чатов.\n\nВыбери SpyChau и нужные чаты. После подключения новые события начнут появляться в приложении.",
+          text: "Привет! Я SpySkaut.\n\nЧтобы подключить меня, открой в Telegram:\nПрофиль → Изм. → Автоматизация чатов.\n\nВыбери SpySkaut и нужные чаты. После подключения новые события начнут появляться в приложении.",
           reply_markup: {
             inline_keyboard: [[{ text: "Открыть SpyChau", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]],
           },
@@ -704,7 +704,7 @@ async function sendConnectInstructions(env, chatId) {
   if (!env.TELEGRAM_BOT_TOKEN) return false;
   return callTelegramJson(env, "sendMessage", {
     chat_id: chatId,
-    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n<code>@SpyChau_bot</code> — нажми, чтобы скопировать.",
+    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n<code>@SpySkaut_bot</code> — нажми, чтобы скопировать.",
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [[{ text: "⚙️Открыть настройки", url: "tg://settings/edit_profile" }]],

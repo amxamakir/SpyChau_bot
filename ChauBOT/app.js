@@ -132,7 +132,7 @@ function connectCard() {
 function connectionTutorialPage() {
   const personal = state.tutorialType !== 'groups';
   const header = `<button type="button" class="profile-detail-back" data-action="tutorial-back">${icon('chevron', 16)} Назад</button>`;
-  if (personal) return `<section class="page connection-tutorial-page"><div class="tutorial-intro">${header}<div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи меня<br>к личным чатам</h1><p>Три шага — и я начну сохранять новые изменения и удаления.</p></div><div class="tutorial-mascot-space" aria-hidden="true"></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Скопируй моё имя</h2><div class="tutorial-copy-row"><strong>@SpyChau_bot</strong><button type="button" class="tutorial-copy-button" data-action="copy-bot-name">${icon('archive', 16)} Копировать</button></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Открой «Автоматизацию чатов»</h2><p>В настройках открой свой профиль, нажми «Изм.» и выбери автоматизацию чатов.</p><div class="tutorial-breadcrumb"><span>Настройки</span>${icon('chevron', 13)}<span>Изм.</span>${icon('chevron', 13)}<b>Автоматизация чатов</b></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Вставь имя и сохрани</h2><p>Дай доступ ко всем личным чатам — или только к нужным.</p></div></article></div><div class="tutorial-loop" role="img" aria-label="Зацикленная демонстрация подключения SpyChau_bot в Telegram"><div class="tutorial-loop-head"><span></span><b>Как подключить SpyChau_bot</b><small>Анимация шагов</small></div><div class="tutorial-loop-scenes"><div class="tutorial-loop-scene scene-settings"><div class="telegram-mock-top"><span>‹</span><b>Настройки</b></div><div class="telegram-mock-row">Уведомления и звуки <i>›</i></div><div class="telegram-mock-row">Конфиденциальность <i>›</i></div><div class="telegram-mock-row focus">Профиль <i>›</i></div><div class="telegram-mock-caption">Открой свой профиль в настройках</div></div><div class="tutorial-loop-scene scene-business"><div class="telegram-mock-top"><span>‹</span><b>Изменить профиль</b></div><div class="telegram-mock-row">Имя</div><div class="telegram-mock-row">Имя пользователя</div><div class="telegram-mock-row focus">Автоматизация чатов <i>›</i></div><div class="telegram-mock-caption">Нажми «Изм.» и открой автоматизацию чатов</div></div><div class="tutorial-loop-scene scene-bot"><div class="telegram-mock-top"><span>‹</span><b>Автоматизация чатов</b></div><div class="telegram-mock-bot"><span>SC</span><b>SpyChau_bot<small>@SpyChau_bot</small></b></div><div class="telegram-mock-action">Подключить бота</div><div class="telegram-mock-caption">Выбери нашего бота</div></div><div class="tutorial-loop-scene scene-chats"><div class="telegram-mock-top"><span>‹</span><b>Доступ к чатам</b></div><div class="telegram-mock-row">Личные чаты</div><div class="telegram-mock-row">Максим <i class="mock-check">✓</i></div><div class="telegram-mock-row">Аня <i class="mock-check">✓</i></div><div class="telegram-mock-action">Сохранить</div><div class="telegram-mock-caption">Дай доступ ко всем личным чатам или выбери нужные</div></div></div><div class="tutorial-loop-progress"><i></i><i></i><i></i><i></i></div></div><div class="tutorial-footer"><button type="button" class="button tutorial-open-settings" data-action="open-telegram-business-settings">Открыть настройки Telegram ${icon('arrow', 19)}</button><button type="button" class="tutorial-help-link" data-action="tutorial-help">${icon('help', 15)} Не получается? Помогу</button></div></section>`;
+  if (personal) return `<section class="page connection-tutorial-page"><div class="tutorial-intro">${header}<div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи меня<br>к личным чатам</h1><p>Три шага — и я начну сохранять новые изменения и удаления.</p></div><div class="tutorial-mascot-space" aria-hidden="true"></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Скопируй моё имя</h2><div class="tutorial-copy-row"><strong>@SpySkaut_bot</strong><button type="button" class="tutorial-copy-button" data-action="copy-bot-name">${icon('archive', 16)} Копировать</button></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Открой «Автоматизацию чатов»</h2><p>В настройках открой свой профиль, нажми «Изм.» и выбери автоматизацию чатов.</p><div class="tutorial-breadcrumb"><span>Настройки</span>${icon('chevron', 13)}<span>Изм.</span>${icon('chevron', 13)}<b>Автоматизация чатов</b></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Вставь имя и сохрани</h2><p>Дай доступ ко всем личным чатам — или только к нужным.</p></div></article></div><div class="tutorial-loop" role="img" aria-label="Зацикленная демонстрация подключения SpySkaut_bot в Telegram"><div class="tutorial-loop-head"><span></span><b>Как подключить SpySkaut_bot</b><small>Анимация шагов</small></div><div class="tutorial-loop-scenes"><div class="tutorial-loop-scene scene-settings"><div class="telegram-mock-top"><span>‹</span><b>Настройки</b></div><div class="telegram-mock-row">Уведомления и звуки <i>›</i></div><div class="telegram-mock-row">Конфиденциальность <i>›</i></div><div class="telegram-mock-row focus">Профиль <i>›</i></div><div class="telegram-mock-caption">Открой свой профиль в настройках</div></div><div class="tutorial-loop-scene scene-business"><div class="telegram-mock-top"><span>‹</span><b>Изменить профиль</b></div><div class="telegram-mock-row">Имя</div><div class="telegram-mock-row">Имя пользователя</div><div class="telegram-mock-row focus">Автоматизация чатов <i>›</i></div><div class="telegram-mock-caption">Нажми «Изм.» и открой автоматизацию чатов</div></div><div class="tutorial-loop-scene scene-bot"><div class="telegram-mock-top"><span>‹</span><b>Автоматизация чатов</b></div><div class="telegram-mock-bot"><span>SC</span><b>SpySkaut_bot<small>@SpySkaut_bot</small></b></div><div class="telegram-mock-action">Подключить бота</div><div class="telegram-mock-caption">Выбери нашего бота</div></div><div class="tutorial-loop-scene scene-chats"><div class="telegram-mock-top"><span>‹</span><b>Доступ к чатам</b></div><div class="telegram-mock-row">Личные чаты</div><div class="telegram-mock-row">Максим <i class="mock-check">✓</i></div><div class="telegram-mock-row">Аня <i class="mock-check">✓</i></div><div class="telegram-mock-action">Сохранить</div><div class="telegram-mock-caption">Дай доступ ко всем личным чатам или выбери нужные</div></div></div><div class="tutorial-loop-progress"><i></i><i></i><i></i><i></i></div></div><div class="tutorial-footer"><button type="button" class="button tutorial-open-settings" data-action="open-telegram-business-settings">Открыть настройки Telegram ${icon('arrow', 19)}</button><button type="button" class="tutorial-help-link" data-action="tutorial-help">${icon('help', 15)} Не получается? Помогу</button></div></section>`;
   return `<section class="page connection-tutorial-page">${header}<div class="service-card connection-tutorial-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Групповой режим готовится</h2><p>Сейчас SpyChau не сохраняет события из групп.</p></div></div><div class="tutorial-note tutorial-note-pending">Добавление бота в группу пока не включит архивирование сообщений. Не выдавай боту права администратора ради этой функции. Когда групповой режим будет реализован, здесь появятся точные шаги и необходимые разрешения.</div></div></section>`;
 }
 
@@ -607,7 +607,7 @@ function supportPage() {
       ],
       note: 'Если сообщение пришло до подключения SpySkaut, восстановить его содержимое не получится.',
     }],
-    ['Как подключить личные чаты?', 'На главной нажми «Подключить» в карточке личных чатов. В Telegram открой Профиль → Изм. → Автоматизация чатов, добавь @SpyChau_bot и выбери нужные чаты.'],
+    ['Как подключить личные чаты?', 'На главной нажми «Подключить» в карточке личных чатов. В Telegram открой Профиль → Изм. → Автоматизация чатов, добавь @SpySkaut_bot и выбери нужные чаты.'],
     ['Безопасно ли это?', 'SpyChau получает события только из чатов, которым ты сам разрешил доступ в настройках Telegram. Секретные чаты недоступны через официальный Telegram Bot API.'],
     ['Чего бот не может?', 'Бот не видит переписку до подключения, не получает события из невыбранных чатов и не имеет доступа к секретным чатам. Групповой режим пока не подключён.'],
     ['Не вижу удалённые или изменённые сообщения', 'Проверь, что нужный чат подключён и подписка активна. В архив попадают события, которые Telegram передал после подключения. Переключатели в Профиль → Уведомления управляют показом моих действий в приложении и отправкой этих уведомлений в бот.'],
@@ -720,11 +720,11 @@ function toast(message) {
 
 async function copyBotUsername() {
   try {
-    await navigator.clipboard.writeText('@SpyChau_bot');
+    await navigator.clipboard.writeText('@SpySkaut_bot');
     return true;
   } catch {
     const input = document.createElement('textarea');
-    input.value = '@SpyChau_bot';
+    input.value = '@SpySkaut_bot';
     input.style.position = 'fixed';
     input.style.opacity = '0';
     document.body.append(input);
@@ -888,7 +888,7 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.action === 'copy-bot-name') {
     const copied = await copyBotUsername();
-    toast(copied ? 'Имя бота скопировано.' : 'Скопируй имя бота: @SpyChau_bot');
+    toast(copied ? 'Имя бота скопировано.' : 'Скопируй имя бота: @SpySkaut_bot');
     return;
   }
   if (target.dataset.action === 'open-telegram-business-settings') {
@@ -898,14 +898,14 @@ app.addEventListener('click', async event => {
       const result = await api('/api/telegram/connect-instructions', { method: 'POST' });
       instructionsSent = result.sent === true;
     } catch {}
-    if (!copied) toast('Скопируй имя бота: @SpyChau_bot');
-    const botLink = instructionsSent ? 'https://t.me/SpyChau_bot' : 'https://t.me/SpyChau_bot?start=connect';
+    if (!copied) toast('Скопируй имя бота: @SpySkaut_bot');
+    const botLink = instructionsSent ? 'https://t.me/SpySkaut_bot' : 'https://t.me/SpySkaut_bot?start=connect';
     if (state.telegram?.openTelegramLink) state.telegram.openTelegramLink(botLink);
     else window.location.href = botLink;
     return;
   }
   if (target.dataset.action === 'tutorial-help') {
-    toast('Настройки → Изм. → Автоматизация чатов. Там выбери @SpyChau_bot и нужные чаты.');
+    toast('Настройки → Изм. → Автоматизация чатов. Там выбери @SpySkaut_bot и нужные чаты.');
     return;
   }
   if (target.dataset.action === 'support-unavailable') {
