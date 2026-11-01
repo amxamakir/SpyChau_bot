@@ -18,7 +18,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.163" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.164" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -235,7 +235,16 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
-      await expirePendingReplyEvents(env);
+      const promotedReplies = await expirePendingReplyEvents(env);
+      const repliesByOwner = new Map();
+      for (const reply of promotedReplies) {
+        const items = repliesByOwner.get(reply.ownerId) || [];
+        items.push(reply);
+        repliesByOwner.set(reply.ownerId, items);
+      }
+      for (const [ownerId, replies] of repliesByOwner) {
+        await notifySavedEvents(env, ownerId, replies);
+      }
       const scheduledMinute = Math.floor(Number(_controller.scheduledTime || Date.now()) / 60_000);
       if (scheduledMinute % 30 === 0) {
         await maintainJournal(env);
@@ -346,21 +355,11 @@ async function handleTelegramWebhook(request, env) {
       const eventType = update.edited_business_message ? "edited" : "new";
       const chatId = message.chat?.id == null ? "" : String(message.chat.id);
       const messageId = message.message_id == null ? "" : String(message.message_id);
-      const eventId = await storeBusinessEvent(env, {
-        updateId,
-        ownerId: connectionRow.owner_id,
-        connectionId,
-        chatId,
-        messageId,
-        eventType,
-        message: { ...message },
-      });
-      savedEvents.push({ eventId, messageId, eventType });
-
       // In Telegram's reply-before-open flow, the original disappearing media
       // may be attached to either reply_to_message or external_reply. Collect
       // every supported attachment from both shapes instead of stopping at the
-      // first one found.
+      // first one found. Capture it before writing the owner's reply so a
+      // one-time file has the best chance of still being downloadable.
       const repliedMedia = eventType === "new"
         && message.from?.id != null
         && String(message.from.id) === String(connectionRow.owner_id)
@@ -376,7 +375,7 @@ async function handleTelegramWebhook(request, env) {
         const syntheticMessage = {
           ...source,
           chat: source.chat || message.chat,
-          from: source.from || message.reply_to_message?.from || {},
+          from: source.from || message.reply_to_message?.from || message.external_reply?.from || {},
           __spychau_one_time_saved: true,
         };
         for (const field of ONE_TIME_MEDIA_FIELDS) delete syntheticMessage[field];
@@ -398,31 +397,20 @@ async function handleTelegramWebhook(request, env) {
         });
         if (explicitlyOneTime) savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
+
+      const eventId = await storeBusinessEvent(env, {
+        updateId,
+        ownerId: connectionRow.owner_id,
+        connectionId,
+        chatId,
+        messageId,
+        eventType,
+        message: { ...message },
+      });
+      savedEvents.push({ eventId, messageId, eventType });
     }
 
-    if (savedEvents.length && updateId !== null && env.TELEGRAM_BOT_TOKEN) {
-      const subscription = await getSubscription(env.DB, connectionRow.owner_id);
-      if (subscription.active) {
-        const preferences = await getNotificationPreferences(env.DB, connectionRow.owner_id);
-        for (const savedEvent of savedEvents) {
-          const eventRow = await env.DB.prepare("SELECT * FROM events WHERE id = ? AND owner_id = ?")
-            .bind(savedEvent.eventId, connectionRow.owner_id).first();
-          if (!eventRow) continue;
-          const [event] = await hydrateEventRows([eventRow], env);
-          const chatType = event?.message?.chat?.type || event?.previous_message?.chat?.type || "private";
-          const isGroup = chatType === "group" || chatType === "supergroup";
-          const eventMessage = event?.message || {};
-          const shouldNotify = isEventEnabledForOwner(event, connectionRow.owner_id, preferences.preferences);
-          if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
-          await sendEventNotification(env, {
-            ownerId: connectionRow.owner_id,
-            updateId: savedEvent.updateId ?? updateId,
-            messageId: savedEvent.messageId,
-            event,
-          });
-        }
-      }
-    }
+    await notifySavedEvents(env, connectionRow.owner_id, savedEvents, updateId);
 
     return json({ ok: true });
   } catch {
@@ -452,6 +440,7 @@ function logBusinessMediaDiagnostic(update) {
         updateType,
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
         hasReply: Boolean(reply),
+        replyMessageIdIsZero: Number(reply?.message_id) === 0,
         replyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(reply?.[field])])),
         hasExternalReply: Boolean(externalReply),
         externalReplyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(externalReply?.[field])])),
@@ -670,6 +659,37 @@ async function sendEventNotification(env, { ownerId, updateId, messageId, event 
     await env.DB.prepare("DELETE FROM notification_deliveries WHERE owner_id = ? AND update_id = ? AND message_id = ?")
       .bind(String(ownerId), updateId, String(messageId)).run();
     throw error;
+  }
+}
+
+async function notifySavedEvents(env, ownerId, savedEvents, fallbackUpdateId = null) {
+  if (!savedEvents.length || !env.TELEGRAM_BOT_TOKEN) return;
+  const resolved = savedEvents
+    .map((savedEvent) => ({
+      ...savedEvent,
+      updateId: savedEvent.updateId ?? fallbackUpdateId,
+    }))
+    .filter((savedEvent) => savedEvent.updateId != null && Number.isInteger(Number(savedEvent.updateId)));
+  if (!resolved.length) return;
+
+  const subscription = await getSubscription(env.DB, ownerId);
+  if (!subscription.active) return;
+  const preferences = await getNotificationPreferences(env.DB, ownerId);
+  for (const savedEvent of resolved) {
+    const eventRow = await env.DB.prepare("SELECT * FROM events WHERE id = ? AND owner_id = ?")
+      .bind(savedEvent.eventId, String(ownerId)).first();
+    if (!eventRow) continue;
+    const [event] = await hydrateEventRows([eventRow], env);
+    const chatType = event?.message?.chat?.type || event?.previous_message?.chat?.type || "private";
+    const isGroup = chatType === "group" || chatType === "supergroup";
+    const shouldNotify = isEventEnabledForOwner(event, ownerId, preferences.preferences);
+    if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
+    await sendEventNotification(env, {
+      ownerId: String(ownerId),
+      updateId: Number(savedEvent.updateId),
+      messageId: savedEvent.messageId,
+      event,
+    });
   }
 }
 

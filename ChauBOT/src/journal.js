@@ -41,7 +41,7 @@ export async function hydrateEventRows(rows, env) {
       ...asset,
       url: await signedMediaUrl(mediaSourceRow, index, env),
     })));
-    const legacyPhoto = !hydratedMedia.length && Array.isArray(message.photo) && message.photo.some((photo) => photo.file_id);
+    const legacyPhoto = !row.stored_at && !hydratedMedia.length && Array.isArray(message.photo) && message.photo.some((photo) => photo.file_id);
     const mediaUrl = hydratedMedia.find((asset) => asset.kind === "photo")?.url
       || (legacyPhoto ? await signedMediaUrl(mediaSourceRow, 0, env) : null);
     const avatarUrl = (message.chat?.photo?.small_file_id || message.chat?.photo?.big_file_id)
@@ -157,12 +157,108 @@ export async function maintainJournal(env) {
 }
 
 export async function expirePendingReplyEvents(env, now = Date.now()) {
+  const currentTime = Number(now);
+  const candidates = await env.DB.prepare(`
+    SELECT * FROM events
+    WHERE pending_target_message_id IS NOT NULL AND pending_expires_at_ms <= ?
+    ORDER BY pending_expires_at_ms, id LIMIT 50
+  `).bind(currentTime).all();
+  const expiredCounts = await env.DB.prepare(`
+    SELECT owner_id, COUNT(*) AS count FROM events
+    WHERE pending_target_message_id IS NOT NULL AND pending_expires_at_ms <= ?
+    GROUP BY owner_id
+  `).bind(currentTime).all();
+
+  for (const row of candidates.results) {
+    let message = {};
+    try {
+      const record = await readJournalRecord(row, env, new Map());
+      if (!record && row.stored_at) {
+        if (withinPendingRetryWindow(row, currentTime)) await deferPendingReplyEvent(env, row, currentTime);
+        continue;
+      }
+      message = record?.message || {};
+      if (!row.stored_at && row.message_json) message = JSON.parse(row.message_json);
+    } catch {
+      if (withinPendingRetryWindow(row, currentTime)) await deferPendingReplyEvent(env, row, currentTime);
+      continue;
+    }
+
+    const candidate = mediaCandidate(message);
+    const availability = candidate?.file_id
+      ? await telegramFileAvailability(candidate.file_id, env)
+      : "unavailable";
+
+    if (availability === "retry") {
+      if (withinPendingRetryWindow(row, currentTime)) await deferPendingReplyEvent(env, row, currentTime);
+      continue;
+    }
+
+    if (availability === "unavailable") {
+      const result = await env.DB.prepare(`
+        UPDATE events SET pending_target_message_id = NULL, pending_expires_at_ms = NULL
+        WHERE id = ? AND pending_target_message_id = ? AND pending_expires_at_ms <= ?
+      `).bind(Number(row.id), String(row.pending_target_message_id), currentTime).run();
+      if (Number(result.meta?.changes || 0) === 1) {
+        row.pending_target_message_id = null;
+        row.pending_expires_at_ms = null;
+      }
+    }
+  }
+
+  for (const owner of expiredCounts.results) {
+    const selectedIds = candidates.results
+      .filter((row) => String(row.owner_id) === String(owner.owner_id))
+      .map((row) => Number(row.id));
+    if (Number(owner.count) <= selectedIds.length || !selectedIds.length) continue;
+    const placeholders = selectedIds.map(() => "?").join(",");
+    await env.DB.prepare(`
+      UPDATE events SET pending_expires_at_ms = ?
+      WHERE owner_id = ? AND pending_target_message_id IS NOT NULL
+        AND pending_expires_at_ms <= ? AND id NOT IN (${placeholders})
+    `).bind(Number(currentTime) + 60_000, String(owner.owner_id), currentTime, ...selectedIds).run();
+  }
+
   const owners = await env.DB.prepare(`
     SELECT DISTINCT owner_id FROM events
     WHERE pending_expires_at_ms IS NOT NULL AND pending_expires_at_ms <= ?
     ORDER BY owner_id LIMIT 100
-  `).bind(Number(now)).all();
+  `).bind(currentTime).all();
   for (const { owner_id: ownerId } of owners.results) await enforceRetentionAndLimit(env, String(ownerId));
+
+  return candidates.results
+    .filter((row) => row.pending_expires_at_ms === null && row.update_id != null)
+    .map((row) => ({
+      ownerId: String(row.owner_id),
+      eventId: Number(row.id),
+      messageId: String(row.message_id),
+      updateId: Number(row.update_id),
+    }));
+}
+
+async function deferPendingReplyEvent(env, row, now) {
+  await env.DB.prepare(`
+    UPDATE events SET pending_expires_at_ms = ?
+    WHERE id = ? AND pending_target_message_id = ? AND pending_expires_at_ms <= ?
+  `).bind(Number(now) + 60_000, Number(row.id), String(row.pending_target_message_id), Number(now)).run();
+}
+
+function withinPendingRetryWindow(row, now) {
+  const createdAt = Date.parse(`${String(row.created_at || "").replace(" ", "T")}Z`);
+  return Number.isFinite(createdAt) && Number(now) - createdAt < 10 * 60_000;
+}
+
+async function telegramFileAvailability(fileId, env) {
+  if (!env.TELEGRAM_BOT_TOKEN) return "retry";
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${encodeURIComponent(fileId)}`);
+    const result = await response.json().catch(() => ({}));
+    if (response.ok && result.ok === true && result.result?.file_path) return "available";
+    if (response.status === 400 || response.status === 404 || Number(result.error_code) === 400) return "unavailable";
+    return "retry";
+  } catch {
+    return "retry";
+  }
 }
 
 export async function confirmPendingReplyEvents(env, { ownerId, connectionId, chatId, targetMessageId, now = Date.now() }) {
