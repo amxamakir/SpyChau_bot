@@ -386,7 +386,7 @@ function tariffPricing() {
   const benefits = state.tariffMode === 'unlimited'
     ? ['Уведомления без лимита — сколько бы ни удалили', 'Архив переписки — файл или HTML-страница', 'Удалённое, изменённое и исчезающее — всё сохраню']
     : ['Уведомление списывается, только когда я что-то поймал', 'Нет срока — пакет не сгорает', 'Закончится — предложу пополнить', 'Архив переписки — только на безлимите'];
-  return `<div class="tariff-mode-switch" role="tablist" aria-label="Вариант тарифа"><button type="button" class="${state.tariffMode === 'unlimited' ? 'active' : ''}" data-tariff-mode="unlimited" aria-pressed="${state.tariffMode === 'unlimited'}"><strong>Безлимит</strong><small>на 1–12 месяцев</small></button><button type="button" class="${state.tariffMode === 'package' ? 'active' : ''}" data-tariff-mode="package" aria-pressed="${state.tariffMode === 'package'}"><strong>Пакет</strong><small>от 100 уведомлений</small></button></div><div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits"><span>${state.tariffMode === 'unlimited' ? 'ВХОДИТ В БЕЗЛИМИТ' : 'КАК РАБОТАЕТ ПАКЕТ'}</span>${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="tariff-pay">Оплатить ${selected.price}</button><p class="tariff-disclaimer">Пока это макет: приём оплаты ещё не подключён.</p>`;
+  return `<div class="tariff-mode-switch" role="tablist" aria-label="Вариант тарифа"><button type="button" class="${state.tariffMode === 'unlimited' ? 'active' : ''}" data-tariff-mode="unlimited" aria-pressed="${state.tariffMode === 'unlimited'}"><strong>Безлимит</strong><small>на 1–12 месяцев</small></button><button type="button" class="${state.tariffMode === 'package' ? 'active' : ''}" data-tariff-mode="package" aria-pressed="${state.tariffMode === 'package'}"><strong>Пакет</strong><small>от 100 уведомлений</small></button></div><div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits"><span>${state.tariffMode === 'unlimited' ? 'ВХОДИТ В БЕЗЛИМИТ' : 'КАК РАБОТАЕТ ПАКЕТ'}</span>${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div>`;
 }
 
 function tariffsPage() {
@@ -406,11 +406,23 @@ function groupTariffsPricing() {
   const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
   const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><span>⭐ <small>${plan.stars}</small></span><strong>${plan.rubles}</strong></span></button>`).join('');
   const benefits = ['Удалённые и изменённые сообщения', 'События из подключённых групп', 'Для подключения необходимы соответствующие права в группе'];
-  return `<div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits group-tariff-benefits">${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div><button type="button" class="button tariff-pay-button" data-action="group-tariff-pay">Оплатить ${selected.rubles} в месяц</button><p class="tariff-disclaimer">Приём оплаты пока не подключён — деньги не списываются.</p>`;
+  return `<div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits group-tariff-benefits">${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div>`;
 }
 
 function groupTariffsPage() {
   return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/cat-groups.png" alt="Котёнок-рыцарь с иконками общения" /></div><div class="tariff-intro"><h2>Группы</h2><p>Сохраняем удалённые и изменённые сообщения в подключённых группах.</p></div><div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
+}
+
+function tariffPaymentDock() {
+  if (state.tab === 'tariffs') {
+    const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="tariff-pay" data-sticky-tariff-payment>Оплатить ${selected.price}</button><p class="tariff-dock-note">Приём оплаты пока не подключён.</p></div>`;
+  }
+  if (state.tab === 'group-tariffs') {
+    const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-action="group-tariff-pay" data-sticky-tariff-payment>Оплатить ${selected.rubles} в месяц</button><p class="tariff-dock-note">Приём оплаты пока не подключён — деньги не списываются.</p></div>`;
+  }
+  return '';
 }
 
 function refreshTariffPricing() {
@@ -421,6 +433,19 @@ function refreshTariffPricing() {
     ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.'
     : 'Слежу за личными чатами и сохраняю изменения и удаления.';
   pricing.innerHTML = tariffPricing();
+  refreshTariffPaymentButton();
+}
+
+function refreshTariffPaymentButton() {
+  const button = app.querySelector('[data-sticky-tariff-payment]');
+  if (!button) return;
+  if (state.tab === 'tariffs') {
+    const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
+    button.textContent = `Оплатить ${selected.price}`;
+  } else if (state.tab === 'group-tariffs') {
+    const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
+    button.textContent = `Оплатить ${selected.rubles} в месяц`;
+  }
 }
 function archive() {
   if (!state.preview && !state.subscription?.active) {
@@ -625,7 +650,8 @@ function render() {
   syncTelegramTheme();
   const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'group-tariffs' ? groupTariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'owner-test-group' ? ownerTestGroupPage() : state.tab === 'about' ? aboutPage() : profile();
   const mainTabs = ['home', 'services', 'profile'];
-  app.innerHTML = `<div class="app-shell"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  const tariffDockActive = ['tariffs', 'group-tariffs'].includes(state.tab);
+  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}${mainTabs.includes(state.tab) ? '' : `<button type="button" class="desktop-back-button" data-action="app-back" aria-label="Назад">${icon('back', 19)}</button>`}<main>${page}</main>${tariffPaymentDock()}${nav()}${state.tab === 'about' ? '' : modal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   syncTelegramBackButton();
 }
 
@@ -768,6 +794,7 @@ app.addEventListener('click', async event => {
     const pricing = app.querySelector('[data-group-tariff-pricing]');
     if (pricing) pricing.innerHTML = groupTariffsPricing();
     else render();
+    refreshTariffPaymentButton();
     return;
   }
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
