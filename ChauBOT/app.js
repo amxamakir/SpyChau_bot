@@ -136,9 +136,12 @@ function connectionTutorialPage() {
 
 function archiveEventKind(event) {
   const message = event.message || {};
-  if (message.__spychau_one_time_saved === true || message.ephemeral_message_id != null || message.receiver_user?.id != null || Number(message.ttl_period) > 0) return 'one-time';
   if (event.event_type === 'deleted') return 'deleted';
   if (event.event_type === 'edited') return 'edited';
+  const ownerId = state.user?.id;
+  const senderId = message.from?.id;
+  const isOwnerReply = ownerId != null && senderId != null && String(ownerId) === String(senderId);
+  if (!isOwnerReply && (message.__spychau_one_time_saved === true || Number(message.ephemeral_message_id) > 0 || Number(message.receiver_user?.id) > 0 || Number(message.ttl_period) > 0)) return 'one-time';
   return null;
 }
 

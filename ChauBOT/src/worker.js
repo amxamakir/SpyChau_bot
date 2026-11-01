@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.142" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.143" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -63,7 +63,7 @@ export default {
             "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 25",
           ).bind(String(user.id)).all();
           const events = (await hydrateEventRows(rows.results, env)).filter((event) =>
-            event.event_type === "edited" || event.event_type === "deleted" || isOneTimeMessage(event.message)
+            event.event_type === "edited" || event.event_type === "deleted" || isIncomingOneTimeMessage(event.message, user.id)
           );
           return json({ events });
         }
@@ -155,7 +155,7 @@ export default {
           ).bind(String(user.id)).all();
           const hydrated = await hydrateEventRows(rows.results, env);
           const events = hydrated.filter((event) =>
-            event.event_type === "edited" || event.event_type === "deleted" || isOneTimeMessage(event.message)
+            event.event_type === "edited" || event.event_type === "deleted" || isIncomingOneTimeMessage(event.message, user.id)
           );
           return json({ events });
         }
@@ -378,7 +378,7 @@ async function handleTelegramWebhook(request, env) {
             ? preferences.preferences.deleted_messages || preferences.preferences.deleted_by_owner
             : savedEvent.eventType === "edited"
               ? preferences.preferences.edited_messages || (isOwnerAuthoredEdit && preferences.preferences.edited_by_owner)
-              : isOneTimeMessage(eventMessage) && preferences.preferences.one_time_messages;
+              : isIncomingOneTimeMessage(eventMessage, connectionRow.owner_id) && preferences.preferences.one_time_messages;
           if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
           await sendEventNotification(env, {
             ownerId: connectionRow.owner_id,
@@ -423,13 +423,13 @@ function logBusinessMediaDiagnostic(update) {
         externalReplyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(externalReply?.[field])])),
         repliedMediaCount: repliedMedia.length,
         repliedMediaKinds: repliedMedia.map((item) => item.kind),
-        replyHasEphemeralMessageId: reply?.ephemeral_message_id != null,
+        replyHasEphemeralMessageId: Number(reply?.ephemeral_message_id) > 0,
         replyHasTtlPeriod: Number(reply?.ttl_period) > 0,
-        externalReplyHasEphemeralMessageId: externalReply?.ephemeral_message_id != null,
+        externalReplyHasEphemeralMessageId: Number(externalReply?.ephemeral_message_id) > 0,
         externalReplyHasTtlPeriod: Number(externalReply?.ttl_period) > 0,
         hasTtlPeriod: Number(message.ttl_period) > 0,
-        hasEphemeralMessageId: message.ephemeral_message_id != null,
-        hasReceiverUser: message.receiver_user != null,
+        hasEphemeralMessageId: Number(message.ephemeral_message_id) > 0,
+        hasReceiverUser: Number(message.receiver_user?.id) > 0,
         hasProtectedContent: message.has_protected_content === true,
       };
     });
@@ -731,9 +731,14 @@ function constantTimeEqual(left, right) {
 
 function isOneTimeMessage(message) {
   return message?.__spychau_one_time_saved === true
-    || message?.ephemeral_message_id != null
-    || message?.receiver_user?.id != null
+    || Number(message?.ephemeral_message_id) > 0
+    || Number(message?.receiver_user?.id) > 0
     || Number(message?.ttl_period) > 0;
+}
+
+function isIncomingOneTimeMessage(message, ownerId) {
+  const senderId = message?.from?.id;
+  return isOneTimeMessage(message) && senderId != null && String(senderId) !== String(ownerId);
 }
 
 function oneTimeMedia(message) {
@@ -772,15 +777,16 @@ function collectRepliedMedia(message) {
   }
   const collected = [];
   const seen = new Set();
-  // Bot API may put the ephemeral target marker on the reply itself rather
-  // than on the embedded source message. In that case the reply proves that
-  // the referenced media was one-time; ordinary media replies have no marker.
-  const replyTargetsEphemeralMessage = message?.ephemeral_message_id != null;
+  // Some reply updates identify an ephemeral target on the reply itself.
+  // Treat that as a target marker only when the embedded target has the
+  // Bot API's ephemeral message_id sentinel, never for ordinary replies.
   for (const source of sources) {
     // Replies to ordinary media are common in business chats. Do not turn
     // every replied-to attachment into a one-time event: only archive and
     // forward it when Telegram marked the source message as self-destructing.
-    if (!replyTargetsEphemeralMessage && !isOneTimeMessage(source)) continue;
+    const replyReferencesEphemeralTarget = Number(message?.ephemeral_message_id) > 0
+      && Number(source.message_id) === 0;
+    if (!replyReferencesEphemeralTarget && !isOneTimeMessage(source)) continue;
     for (const field of ONE_TIME_MEDIA_FIELDS) {
       const value = source[field];
       const item = field === "photo" && Array.isArray(value)
