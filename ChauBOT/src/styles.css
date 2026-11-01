@@ -1227,27 +1227,27 @@ body{background:#101827;color:#f4f6f9}
 .privacy-page .privacy-section-label{margin:0 3px 9px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em}
 
 /* Scout mascot for the notification settings page. */
-.notifications-page .notifications-heading-with-mascot{position:relative;min-height:148px;margin-bottom:0;padding-right:145px}
+.notifications-page .notifications-heading-with-mascot{position:relative;min-height:214px;margin-bottom:0;padding-right:215px}
 .notifications-page .notifications-heading-with-mascot .page-title{margin-bottom:0}
 .notifications-page .notifications-heading-with-mascot .page-title p{max-width:100%}
 .notifications-page .notifications-heading-with-mascot .profile-detail-back{margin-bottom:14px}
-.notifications-page .notifications-header-mascot{position:absolute;top:8px;right:4px;width:132px;height:132px;object-fit:contain;object-position:center;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}
-@media(max-width:430px){.notifications-page .notifications-heading-with-mascot{min-height:142px;padding-right:128px}.notifications-page .notifications-header-mascot{top:6px;right:0;width:120px;height:130px}}
-@media(max-width:350px){.notifications-page .notifications-heading-with-mascot{min-height:128px;padding-right:110px}.notifications-page .notifications-header-mascot{width:102px;height:118px}}
+.notifications-page .notifications-header-mascot{position:absolute;top:8px;right:4px;width:198px;height:198px;object-fit:contain;object-position:center;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}
+@media(max-width:430px){.notifications-page .notifications-heading-with-mascot{min-height:212px;padding-right:195px}.notifications-page .notifications-header-mascot{top:6px;right:0;width:180px;height:195px}}
+@media(max-width:350px){.notifications-page .notifications-heading-with-mascot{min-height:190px;padding-right:170px}.notifications-page .notifications-header-mascot{width:153px;height:177px}}
 
 /* Place the security mascot beside the heading without covering its copy. */
-.privacy-page .privacy-header-with-mascot{position:relative;min-height:148px;margin-bottom:0;padding-right:148px}
+.privacy-page .privacy-header-with-mascot{position:relative;min-height:222px;margin-bottom:0;padding-right:215px}
 .privacy-page .privacy-header-with-mascot .page-title{margin-bottom:0}
 .privacy-page .privacy-header-with-mascot .page-title p{max-width:100%}
-.privacy-page .privacy-header-mascot{position:absolute;top:0;right:12px;width:126px;height:148px;object-fit:contain;object-position:center top;pointer-events:none}
+.privacy-page .privacy-header-mascot{position:absolute;top:0;right:12px;width:189px;height:222px;object-fit:contain;object-position:center top;pointer-events:none}
 @media(max-width:430px){
-  .privacy-page .privacy-header-with-mascot{min-height:142px;margin-bottom:0;padding-right:128px}
-  .privacy-page .privacy-header-mascot{top:0;right:10px;width:116px;height:142px}
+  .privacy-page .privacy-header-with-mascot{min-height:213px;margin-bottom:0;padding-right:195px}
+  .privacy-page .privacy-header-mascot{top:0;right:10px;width:174px;height:213px}
   .privacy-page .page-title h1{max-width:100%}
 }
 @media(max-width:350px){
-  .privacy-page .privacy-header-with-mascot{min-height:128px;padding-right:110px}
-  .privacy-page .privacy-header-mascot{width:100px;height:128px}
+  .privacy-page .privacy-header-with-mascot{min-height:192px;padding-right:170px}
+  .privacy-page .privacy-header-mascot{width:150px;height:192px}
 }
 
 .app-shell.has-tariff-dock{padding-bottom:220px}
@@ -1308,12 +1308,12 @@ body{background:#101827;color:#f4f6f9}
 /* Support center: SpyChau's dark silver surfaces, searchable FAQ and a safe sticky CTA. */
 .app-shell.has-support-dock{padding-bottom:220px}
 .support-page{width:min(100%,610px);padding-bottom:165px}
-.support-heading-with-mascot{position:relative;min-height:152px;margin-bottom:17px;padding-right:150px}
+.support-heading-with-mascot{position:relative;min-height:192px;margin-bottom:17px;padding-right:220px}
 .support-heading-with-mascot .profile-detail-back{position:absolute;top:0;left:0;margin:0}
 .support-heading-with-mascot .page-title{margin:0;padding-top:45px;text-align:left}
 .support-heading-with-mascot .page-title h1{margin:0 0 7px;font-size:clamp(27px,6vw,34px);line-height:1.12;letter-spacing:-.8px}
 .support-heading-with-mascot .page-title p{max-width:340px;margin:0;text-align:left;color:#aab7cd;font-size:15px;line-height:1.45}
-.support-header-mascot{position:absolute;right:2px;top:22px;width:140px;height:128px;object-fit:contain;object-position:center;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}
+.support-header-mascot{position:absolute;right:2px;top:22px;width:210px;height:192px;object-fit:contain;object-position:center;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}
 .support-search-field{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 14px;padding:12px 15px;border:1px solid rgba(197,206,216,.14);border-radius:16px;background:rgba(24,38,59,.94);color:#8293ad}
 .support-search-field:focus-within{border-color:rgba(197,206,216,.52);box-shadow:0 0 0 3px rgba(197,206,216,.09)}
 .support-search-field input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#f5f6ff;font-size:16px}
@@ -1338,11 +1338,11 @@ body{background:#101827;color:#f4f6f9}
 @media(min-width:740px){.support-dock::before{width:min(100%,470px)}.support-contact-button,.support-dock-note{width:min(100%,470px)}}
 @media(max-width:430px){
   .support-page{padding-bottom:155px}
-  .support-heading-with-mascot{min-height:140px;margin-bottom:14px;padding-right:126px}
+  .support-heading-with-mascot{min-height:168px;margin-bottom:14px;padding-right:195px}
   .support-heading-with-mascot .page-title{padding-top:42px}
   .support-heading-with-mascot .page-title h1{font-size:29px}
   .support-heading-with-mascot .page-title p{font-size:13px}
-  .support-header-mascot{top:24px;right:-5px;width:124px;height:112px}
+  .support-header-mascot{top:24px;right:-5px;width:186px;height:168px}
   .support-faq-list{padding-inline:14px}
   .support-faq-item summary{min-height:56px;font-size:15px}
   .support-faq-item>p{font-size:13px}
@@ -1350,8 +1350,8 @@ body{background:#101827;color:#f4f6f9}
   .support-dock::before{height:165px}
 }
 @media(max-width:350px){
-  .support-heading-with-mascot{min-height:130px;padding-right:110px}
-  .support-header-mascot{width:108px;height:104px}
+  .support-heading-with-mascot{min-height:156px;padding-right:170px}
+  .support-header-mascot{width:162px;height:156px}
 }
 :root[data-theme="light"] .support-heading-with-mascot .page-title p{color:#69788e}
 :root[data-theme="light"] .support-search-field,:root[data-theme="light"] .support-faq-list{background:rgba(255,255,255,.95);border-color:rgba(58,75,96,.16);box-shadow:0 10px 26px rgba(30,50,75,.08)}
