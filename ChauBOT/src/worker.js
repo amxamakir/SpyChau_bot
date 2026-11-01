@@ -18,7 +18,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.167" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.168" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -221,7 +221,7 @@ export default {
     const assetResponse = await env.ASSETS.fetch(request);
     if (route === "/" || route === "/index.html" || route === "/app.js" || route === "/src/styles.css") {
       const headers = new Headers(assetResponse.headers);
-      headers.set("Cache-Control", route === "/" || route === "/index.html"
+      headers.set("Cache-Control", ["/", "/index.html", "/app.js", "/src/styles.css"].includes(route)
         ? "no-cache"
         : "public, max-age=31536000, immutable");
       return new Response(assetResponse.body, {
