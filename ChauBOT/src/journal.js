@@ -87,14 +87,7 @@ export async function serveArchivedMedia(request, env, eventId) {
         await userKey(env, legacyRow.owner_id),
         cipher,
       );
-      return new Response(plain, {
-        headers: {
-          "Content-Type": safeMime(asset.mime_type),
-          "Cache-Control": "private, no-store",
-          "X-Content-Type-Options": "nosniff",
-          "Content-Disposition": "inline",
-        },
-      });
+      return archivedMediaResponse(request, new Uint8Array(plain), safeMime(asset.mime_type));
     } catch {
       return new Response("Not found", { status: 404 });
     }
@@ -586,6 +579,53 @@ function aad(ownerId, context = "journal") {
 function safeMime(value) {
   const mime = String(value || "application/octet-stream").split(";")[0].trim().toLowerCase();
   return /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(mime) ? mime : "application/octet-stream";
+}
+
+function archivedMediaResponse(request, bytes, mimeType) {
+  const headers = new Headers({
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "private, no-store",
+    "Content-Disposition": "inline",
+    "Content-Type": mimeType,
+    "X-Content-Type-Options": "nosniff",
+  });
+  const range = request.headers.get("Range")?.trim() || "";
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(range);
+  if (!match) {
+    headers.set("Content-Length", String(bytes.byteLength));
+    return new Response(bytes, { headers });
+  }
+
+  const [, first, last] = match;
+  const length = bytes.byteLength;
+  let start;
+  let end;
+  if (!first) {
+    const suffixLength = Number(last);
+    if (!suffixLength || !length) return unsatisfiableRange(length);
+    start = Math.max(length - suffixLength, 0);
+    end = length - 1;
+  } else {
+    start = Number(first);
+    end = last ? Number(last) : length - 1;
+    if (!length || start >= length || end < start) return unsatisfiableRange(length);
+    end = Math.min(end, length - 1);
+  }
+
+  headers.set("Content-Length", String(end - start + 1));
+  headers.set("Content-Range", `bytes ${start}-${end}/${length}`);
+  return new Response(bytes.slice(start, end + 1), { status: 206, headers });
+}
+
+function unsatisfiableRange(length) {
+  return new Response(null, {
+    status: 416,
+    headers: {
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, no-store",
+      "Content-Range": `bytes */${length}`,
+    },
+  });
 }
 
 function defaultMime(kind) {
