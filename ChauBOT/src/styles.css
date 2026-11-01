@@ -1328,6 +1328,13 @@ body{background:#101827;color:#f4f6f9}
 .support-faq-item summary svg{flex:none;color:#aab7cd;transition:transform .18s ease}
 .support-faq-item[open] summary svg{transform:rotate(90deg)}
 .support-faq-item>p{margin:0;padding:0 26px 16px 0;color:#aab7cd;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.support-rich-answer{padding:0 26px 16px 0;color:#aab7cd;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.support-rich-answer>p{margin:0 0 12px}
+.support-rich-answer ol{display:grid;gap:12px;margin:0 0 14px;padding-left:22px}
+.support-rich-answer li{padding-left:2px}
+.support-rich-answer li strong,.support-rich-answer .support-answer-note strong{display:block;margin-bottom:2px;color:#f3f5f9}
+.support-rich-answer li span{display:block}
+.support-rich-answer .support-answer-note{margin:0}
 .support-empty{margin:0;padding:20px 3px;color:#aab7cd;font-size:14px;line-height:1.5;text-align:center}
 .support-empty[hidden]{display:none}
 .support-dock{position:fixed;z-index:11;isolation:isolate;right:0;bottom:calc(max(14px,var(--app-mobile-bottom-inset,0px),env(safe-area-inset-bottom,0px)) + 76px);left:0;display:grid;justify-items:center;gap:7px;padding-top:25px;padding-right:max(10px,env(safe-area-inset-right,0px));padding-bottom:2px;padding-left:max(10px,env(safe-area-inset-left,0px));background:transparent}
@@ -1346,6 +1353,7 @@ body{background:#101827;color:#f4f6f9}
   .support-faq-list{padding-inline:14px}
   .support-faq-item summary{min-height:56px;font-size:15px}
   .support-faq-item>p{font-size:13px}
+  .support-rich-answer{font-size:13px}
   .support-dock{padding-top:25px;padding-right:max(10px,env(safe-area-inset-right,0px));padding-left:max(10px,env(safe-area-inset-left,0px))}
   .support-dock::before{height:165px}
 }
@@ -1360,7 +1368,8 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .support-search-field input::placeholder{color:#77869a}
 :root[data-theme="light"] .support-faq-item{border-bottom-color:rgba(58,75,96,.12)}
 :root[data-theme="light"] .support-faq-item summary{color:#1a2637}
-:root[data-theme="light"] .support-faq-item summary svg,:root[data-theme="light"] .support-faq-item>p,:root[data-theme="light"] .support-empty{color:#69788e}
+:root[data-theme="light"] .support-faq-item summary svg,:root[data-theme="light"] .support-faq-item>p,:root[data-theme="light"] .support-rich-answer,:root[data-theme="light"] .support-empty{color:#69788e}
+:root[data-theme="light"] .support-rich-answer li strong,:root[data-theme="light"] .support-rich-answer .support-answer-note strong{color:#1a2637}
 :root[data-theme="light"] .tariff-dock::before{background:radial-gradient(ellipse at 50% 100%,rgba(240,243,247,.98) 0%,rgba(240,243,247,.78) 42%,rgba(240,243,247,.28) 74%,transparent 100%)}
 :root[data-theme="light"] .support-dock::before{background:radial-gradient(ellipse at 50% 100%,rgba(240,243,247,.98) 0%,rgba(240,243,247,.78) 42%,rgba(240,243,247,.28) 74%,transparent 100%)}
 :root[data-theme="light"] .support-dock-note{color:#69788e}

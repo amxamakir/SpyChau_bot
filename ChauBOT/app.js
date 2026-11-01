@@ -597,7 +597,16 @@ function profileDetailHeader(eyebrow, title, description) {
 
 function supportPage() {
   const questions = [
-    ['Как работает SpyChau?', 'После подключения Telegram передаёт приложению события из выбранных тобой чатов. Новые события появляются в архиве, а уведомления — в чате с ботом, если они включены. История до подключения недоступна.'],
+    ['Как работает SpySkaut?', {
+      intro: 'SpySkaut — твой помощник, который замечает удалённые и изменённые сообщения и сохраняет важные события из подключённых чатов.',
+      steps: [
+        ['Подключи SpySkaut к Telegram', 'Используй официальную функцию «Автоматизация чатов». Ты сам выбираешь, к каким перепискам предоставить доступ.'],
+        ['Мы следим только за выбранными чатами', 'SpySkaut получает сообщения и события только после подключения. Предыдущая история переписок недоступна.'],
+        ['Сообщение удалили или изменили? Мы сохраним событие', 'Удалённый текст, изменения сообщений и поддерживаемые медиа фиксируются в архиве. При включённых уведомлениях бот сообщит о событии.'],
+        ['Все события в одном месте', 'Просматривай удалённые и изменённые сообщения в архиве SpySkaut или получай уведомления в Telegram.'],
+      ],
+      note: 'Если сообщение пришло до подключения SpySkaut, восстановить его содержимое не получится.',
+    }],
     ['Как подключить личные чаты?', 'На главной нажми «Подключить» в карточке личных чатов. В Telegram открой Профиль → Изм. → Автоматизация чатов, добавь @SpyChau_bot и выбери нужные чаты.'],
     ['Безопасно ли это?', 'SpyChau получает события только из чатов, которым ты сам разрешил доступ в настройках Telegram. Секретные чаты недоступны через официальный Telegram Bot API.'],
     ['Чего бот не может?', 'Бот не видит переписку до подключения, не получает события из невыбранных чатов и не имеет доступа к секретным чатам. Групповой режим пока не подключён.'],
@@ -608,7 +617,10 @@ function supportPage() {
     ['Можно подключить группу?', 'Пока нет: групповой режим ещё готовится. Просто добавить бота в группу недостаточно, события пока не будут сохраняться. Не выдавай боту права администратора ради этой функции.'],
     ['Как удалить мои данные?', 'Открой Профиль → Безопасность и данные и нажми «Удалить все мои данные». Профиль, архив и сохранённые медиа будут удалены. Это действие нельзя отменить.'],
   ];
-  return `<section class="page profile-page profile-detail-page support-page"><div class="support-heading-with-mascot">${profileDetailHeader('', 'Чем помочь?', 'Частые вопросы — или напиши нам')}<img class="support-header-mascot" src="./assets/mascot/scout-support.png" alt="Скаут помогает найти ответ" /></div><label class="search-field support-search-field">${icon('search', 18)}<input id="support-search" type="search" placeholder="Найти ответ" autocomplete="off" aria-label="Найти ответ на частый вопрос"></label><div class="support-faq-list" aria-label="Частые вопросы">${questions.map(([question, answer]) => `<details class="support-faq-item"><summary><span>${escapeHtml(question)}</span>${icon('chevron', 17)}</summary><p>${escapeHtml(answer)}</p></details>`).join('')}<p class="support-empty" hidden>Ничего не найдено. Попробуй изменить запрос.</p></div></section>`;
+  const renderAnswer = answer => typeof answer === 'string'
+    ? `<p>${escapeHtml(answer)}</p>`
+    : `<div class="support-rich-answer"><p>${escapeHtml(answer.intro)}</p><ol>${answer.steps.map(([title, text]) => `<li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></li>`).join('')}</ol><p class="support-answer-note"><strong>Важно:</strong> ${escapeHtml(answer.note)}</p></div>`;
+  return `<section class="page profile-page profile-detail-page support-page"><div class="support-heading-with-mascot">${profileDetailHeader('', 'Чем помочь?', 'Частые вопросы — или напиши нам')}<img class="support-header-mascot" src="./assets/mascot/scout-support.png" alt="Скаут помогает найти ответ" /></div><label class="search-field support-search-field">${icon('search', 18)}<input id="support-search" type="search" placeholder="Найти ответ" autocomplete="off" aria-label="Найти ответ на частый вопрос"></label><div class="support-faq-list" aria-label="Частые вопросы">${questions.map(([question, answer]) => `<details class="support-faq-item"><summary><span>${escapeHtml(question)}</span>${icon('chevron', 17)}</summary>${renderAnswer(answer)}</details>`).join('')}<p class="support-empty" hidden>Ничего не найдено. Попробуй изменить запрос.</p></div></section>`;
 }
 
 function supportDock() {
