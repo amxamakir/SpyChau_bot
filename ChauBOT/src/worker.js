@@ -16,7 +16,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.8.155" });
+      return json({ status: "ok", service: "spychau-api", version: "0.8.154" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -657,13 +657,10 @@ async function sendConnectInstructions(env, chatId) {
   if (!env.TELEGRAM_BOT_TOKEN) return false;
   return callTelegramJson(env, "sendMessage", {
     chat_id: chatId,
-    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».",
+    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n@SpyChau_bot — нажми, чтобы скопировать.",
     parse_mode: "HTML",
     reply_markup: {
-      inline_keyboard: [
-        [{ text: "@SpyChau_bot", copy_text: { text: "@SpyChau_bot" } }],
-        [{ text: "⚙️Открыть настройки", url: "tg://settings/edit_profile" }],
-      ],
+      inline_keyboard: [[{ text: "⚙️Открыть настройки", url: "tg://settings/edit_profile" }]],
     },
   });
 }
