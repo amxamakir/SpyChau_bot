@@ -602,7 +602,7 @@ function aboutPage() {
     ['image', 'privacy-green', 'Сохранение фотографий', 'Фото отображаются из сохранённой копии сообщения.'],
     ['trash', 'privacy-orange', 'Контроль над данными', 'Ты можешь удалить профиль и архив в любой момент.'],
   ];
-  return `<section class="page profile-page profile-detail-page">${profileDetailHeader('', 'О SpyChau', 'Сохраняем важные события из подключённых чатов.')}<p class="privacy-section-label">КАК ЭТО РАБОТАЕТ</p><div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, title, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span class="privacy-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></span></div>`).join('')}</div></div></section>`;
+  return `<section class="page profile-page profile-detail-page about-page">${profileDetailHeader('', 'О SpyChau', 'Сохраняем важные события из подключённых чатов.')}<p class="privacy-section-label">КАК ЭТО РАБОТАЕТ</p><div class="profile-card profile-detail-card"><div class="privacy-points">${points.map(([name, color, title, text]) => `<div class="privacy-point"><span class="privacy-point-icon ${color}">${icon(name, 18)}</span><span class="privacy-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></span></div>`).join('')}</div></div></section>`;
 }
 
 function privacyPage() {
