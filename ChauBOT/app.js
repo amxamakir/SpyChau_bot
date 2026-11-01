@@ -107,9 +107,9 @@ function racer(small = false, subscriptionActive = true) {
   const image = small
     ? './assets/mascot/kchau-trophies.png'
     : subscriptionActive
-      ? './assets/mascot/knight-kitten.png'
-      : './assets/mascot/knight-kitten-sad.png';
-  return `<div class="racer ${small ? 'racer-small' : 'racer-kitten'}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
+      ? './assets/mascot/scout-active.png'
+      : './assets/mascot/scout-inactive.png';
+  return `<div class="racer ${small ? 'racer-small' : 'scout-mascot'}" aria-hidden="true"><img src="${image}" alt="" /></div>`;
 }
 
 function displayName() {

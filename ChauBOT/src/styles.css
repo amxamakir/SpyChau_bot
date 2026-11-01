@@ -1355,3 +1355,9 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .tariff-dock::before{background:radial-gradient(ellipse at 50% 100%,rgba(240,243,247,.98) 0%,rgba(240,243,247,.78) 42%,rgba(240,243,247,.28) 74%,transparent 100%)}
 :root[data-theme="light"] .support-dock::before{background:radial-gradient(ellipse at 50% 100%,rgba(240,243,247,.98) 0%,rgba(240,243,247,.78) 42%,rgba(240,243,247,.28) 74%,transparent 100%)}
 :root[data-theme="light"] .support-dock-note{color:#69788e}
+
+/* Scout is the subscription hero mascot; keep the supplied transparent art inside the card. */
+.home-page .hero-card>.scout-mascot:not(.racer-small){width:190px;height:157px;right:2px;bottom:1px;transform:none;filter:drop-shadow(0 10px 14px rgba(3,8,17,.26))}
+@media(max-width:600px){.home-page .hero-card>.scout-mascot:not(.racer-small){width:174px;height:144px;right:1px;bottom:1px}}
+@media(max-width:380px){.home-page .hero-card>.scout-mascot:not(.racer-small){width:158px;height:131px;right:1px;bottom:1px}}
+@media(max-width:340px){.home-page .hero-card>.scout-mascot:not(.racer-small){width:142px;height:118px;right:0;bottom:1px}}
