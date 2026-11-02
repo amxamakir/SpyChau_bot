@@ -81,6 +81,20 @@ async function getTributeProduct(productId, env) {
   try { return await response.json(); } catch { return null; }
 }
 
+async function getTributeProductByWebLink(webLink, env) {
+  const query = new URLSearchParams({ page: "1", size: "100", type: "digital" });
+  const response = await fetch(`https://tribute.tg/api/v1/products?${query}`, {
+    headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
+  });
+  if (!response.ok) return null;
+  try {
+    const result = await response.json();
+    const target = String(webLink || "").trim().replace(/\/$/, "");
+    const products = Array.isArray(result?.rows) ? result.rows : [];
+    return products.find((product) => String(product?.webLink || "").trim().replace(/\/$/, "") === target) || null;
+  } catch { return null; }
+}
+
 function archiveCursor(url) {
   const value = url.searchParams.get("before_id");
   if (value === null) return { value: null, error: false };
@@ -106,7 +120,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.55" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.56" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -174,6 +188,13 @@ export default {
           }
           const product = tributeProduct(env, serviceKey, planId);
           if (!product) return json({ error: "plan_unavailable" }, 400);
+          const actualProduct = await getTributeProductByWebLink(product.web_link, env);
+          if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
+            || String(actualProduct.currency || "").toUpperCase() !== "RUB"
+            || Number(actualProduct.amount) !== product.amount_rub * 100
+            || actualProduct.starsAmountEnabled !== true) {
+            return json({ error: "tribute_product_price_mismatch" }, 409);
+          }
           await env.DB.prepare(`INSERT INTO tribute_product_consents(consent_id, owner_id, plan_id, terms_version, service_key)
             VALUES(?, ?, ?, ?, ?)`)
             .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();

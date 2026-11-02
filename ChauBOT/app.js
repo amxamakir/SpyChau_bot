@@ -569,7 +569,10 @@ function tributePlanAvailable(serviceKey, planId) {
 }
 
 function paymentSheet() {
-  const selection = state.paymentSelection || { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
+  const selection = state.paymentSelection || {
+    service_key: state.tariffMode === 'package' ? 'personal_package' : 'personal_unlimited',
+    plan_id: state.selectedTariff,
+  };
   const isPackage = selection.service_key === 'personal_package';
   const plans = tariffPlans(isPackage ? 'package' : 'unlimited');
   const selected = plans.find(plan => plan.id === selection.plan_id) || plans[0];
@@ -602,8 +605,14 @@ function refreshTariffPaymentButton() {
   if (!button) return;
   if (state.tab === 'tariffs') {
     const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
+    const isSubscription = state.tariffMode === 'unlimited';
+    button.dataset.action = isSubscription ? 'open-payment-sheet' : 'open-package-payment-sheet';
     button.textContent = `Оплатить ${selected.price}`;
     button.disabled = state.paymentLoading;
+    const note = app.querySelector('.tariff-dock-note');
+    if (note) note.textContent = isSubscription
+      ? 'Автопродление оформляется в Tribute. Отменить его можно в подписке Tribute.'
+      : 'Пакет событий не сгорает. Архив личных чатов в пакет не входит.';
   }
 }
 function archive() {
@@ -895,7 +904,10 @@ async function api(path, options = {}) {
 const PAYMENT_TERMS_VERSION = '2026-11-02';
 
 async function purchaseSelectedPlan() {
-  const selection = state.paymentSelection || { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
+  const selection = state.paymentSelection || {
+    service_key: state.tariffMode === 'package' ? 'personal_package' : 'personal_unlimited',
+    plan_id: state.selectedTariff,
+  };
   if (!state.authenticated || !state.telegram?.openTelegramLink) { toast('Открой приложение через Telegram.'); return; }
   if (!state.paymentTermsAccepted) { toast('Сначала прими условия оплаты.'); return; }
   if (state.paymentLoading) return;
@@ -906,6 +918,12 @@ async function purchaseSelectedPlan() {
     const result = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({
       service_key: selection.service_key, plan_id: selection.plan_id, terms_accepted: true, terms_version: PAYMENT_TERMS_VERSION
     }) });
+    const mode = selection.service_key === 'personal_package' ? 'package' : 'unlimited';
+    const expected = tariffPlans(mode).find(plan => plan.id === selection.plan_id);
+    if (!expected || result.service_key !== selection.service_key || result.plan_id !== selection.plan_id
+      || Number(result.amount) !== expected.priceRub || String(result.currency).toUpperCase() !== 'RUB') {
+      throw new Error('Цена или тариф не совпали. Закрой оплату и попробуй ещё раз.');
+    }
     state.paymentLoading = false;
     state.paymentSheetOpen = false;
     state.tributeCheckoutPending = true;
@@ -916,11 +934,36 @@ async function purchaseSelectedPlan() {
     state.paymentLoading = false;
     state.paymentSheetOpen = true;
     render();
-    toast(error.message === 'payments_not_ready' ? 'Платёжные продукты Tribute ещё не настроены.' : error.message || 'Не удалось открыть оплату.');
+    const message = error.message === 'payments_not_ready'
+      ? 'Платёжные продукты Tribute ещё не настроены.'
+      : error.message === 'tribute_product_price_mismatch'
+        ? 'Цена товара в Tribute не совпадает с тарифом. Оплата не открыта.'
+        : error.message || 'Не удалось открыть оплату.';
+    toast(message);
   }
 }
 
 let tributeRefreshRunning = false;
+function applyLatestPaymentState(latest) {
+  const previous = JSON.stringify([
+    state.subscription, state.packageBalance, state.groupEntitlement,
+    state.paymentsAvailable, state.packagePaymentsAvailable, state.groupPaymentsAvailable,
+    state.tributePlanAvailability,
+  ]);
+  state.subscription = { ...(latest.subscription || {}), can_test_override: Boolean(latest.can_test_override) };
+  state.packageBalance = latest.package_balance || null;
+  state.groupEntitlement = latest.group_entitlement || null;
+  state.paymentsAvailable = Boolean(latest.payments_available);
+  state.packagePaymentsAvailable = Boolean(latest.package_payments_available);
+  state.groupPaymentsAvailable = Boolean(latest.group_payments_available);
+  state.tributePlanAvailability = latest.tribute_plan_availability || {};
+  return previous !== JSON.stringify([
+    state.subscription, state.packageBalance, state.groupEntitlement,
+    state.paymentsAvailable, state.packagePaymentsAvailable, state.groupPaymentsAvailable,
+    state.tributePlanAvailability,
+  ]);
+}
+
 async function refreshAfterTributeCheckout() {
   if (tributeRefreshRunning || document.visibilityState === 'hidden') return;
   if (!state.tributeCheckoutPending) {
@@ -928,10 +971,7 @@ async function refreshAfterTributeCheckout() {
     tributeRefreshRunning = true;
     try {
       const latest = await api('/api/me');
-      state.subscription = { ...(latest.subscription || {}), can_test_override: Boolean(latest.can_test_override) };
-      state.packageBalance = latest.package_balance || null;
-      state.groupEntitlement = latest.group_entitlement || null;
-      render();
+      if (applyLatestPaymentState(latest)) render();
     } catch {}
     tributeRefreshRunning = false;
     return;
@@ -941,20 +981,17 @@ async function refreshAfterTributeCheckout() {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
       const latest = await api('/api/me');
-      state.subscription = { ...(latest.subscription || {}), can_test_override: Boolean(latest.can_test_override) };
-      state.packageBalance = latest.package_balance || null;
-      state.paymentsAvailable = Boolean(latest.payments_available);
-      state.packagePaymentsAvailable = Boolean(latest.package_payments_available);
-      state.tributePlanAvailability = latest.tribute_plan_availability || {};
+      const changed = applyLatestPaymentState(latest);
       const current = `${state.subscription?.expires_at || ''}|${state.packageBalance?.remaining ?? ''}`;
-      render();
       if (current !== previous) {
         state.tributeCheckoutPending = false;
         state.tributeCheckoutPreviousEntitlements = '';
+        render();
         toast('Оплата подтверждена, доступ обновлён.');
         tributeRefreshRunning = false;
         return;
       }
+      if (changed) render();
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 1500));
   }
