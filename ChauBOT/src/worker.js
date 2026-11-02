@@ -702,32 +702,13 @@ async function callTelegramJson(env, method, payload) {
 
 async function sendConnectInstructions(env, chatId) {
   if (!env.TELEGRAM_BOT_TOKEN) return false;
-  const introSent = await callTelegramJson(env, "sendMessage", {
+  return callTelegramJson(env, "sendMessage", {
     chat_id: chatId,
-    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> →",
-    parse_mode: "HTML",
-  });
-  if (!introSent) return false;
-
-  const continuation = {
-    chat_id: chatId,
-    caption: "<b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n<code>@SpySkaut_bot</code> — нажми, чтобы скопировать.",
+    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n<code>@SpySkaut_bot</code> — нажми, чтобы скопировать.",
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [[{ text: "⚙️ Открыть настройки", url: "tg://settings/edit" }]],
     },
-  };
-  const photoSent = await callTelegramJson(env, "sendPhoto", {
-    ...continuation,
-    photo: "https://spychau-bot.senba11.workers.dev/assets/automation-chats-icon.png",
-  });
-  if (photoSent) return true;
-
-  return callTelegramJson(env, "sendMessage", {
-    chat_id: chatId,
-    text: "✨ " + continuation.caption,
-    parse_mode: "HTML",
-    reply_markup: continuation.reply_markup,
   });
 }
 
