@@ -320,7 +320,14 @@ function archiveEventRow(event, showEditedDiff = false) {
 }
 
 function home() {
-  const subscriptionActive = Boolean(state.subscription?.active);
+  const subscription = state.subscription || {};
+  const subscriptionActive = Boolean(subscription.active);
+  const rawExpiry = subscription.expires_at || subscription.active_until || subscription.valid_until || subscription.ends_at || subscription.current_period_end || null;
+  const parsedExpiry = rawExpiry ? new Date(typeof rawExpiry === 'number' && rawExpiry < 1e12 ? rawExpiry * 1000 : rawExpiry) : null;
+  const expiryDate = parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
+    ? parsedExpiry.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  const subscriptionExpired = !subscriptionActive && Boolean(parsedExpiry && !Number.isNaN(parsedExpiry.getTime()) && parsedExpiry.getTime() <= Date.now());
   const recentEvents = state.events.filter(archiveEventKind).sort((a, b) => (Date.parse(b.created_at || '') || 0) - (Date.parse(a.created_at || '') || 0) || (Number(b.id) || 0) - (Number(a.id) || 0)).slice(0, 5);
   const feed = state.loading || state.eventFeedLoading
     ? `<div class="empty-events"><div class="loading-indicator"></div><strong>Загружаем события</strong><p>Основные разделы уже готовы.</p></div>`
@@ -329,7 +336,16 @@ function home() {
       : recentEvents.length
         ? `<div class="events-list home-event-feed">${recentEvents.map(event => archiveEventRow(event)).join('')}</div>`
         : `<div class="empty-events empty-events-with-mascot"><div class="empty-art search-mascot"><img src="./assets/mascot/scout-observing.png" alt="Скаут наблюдает за событиями" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока ничего не вижу'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`;
-  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionActive ? 'Подписка активна' : 'Подписка не активна'}</h1><p>${subscriptionActive ? 'Я в строю, сохраняю все изменения и удаления.' : 'Я не на посту и не сохраняю события. Подключай — вернусь в строй.'}</p><button class="button button-light" data-action="${state.preview ? 'telegram' : 'connect'}"><span class="button-stencil-text">Подключить</span>${icon('chevron', 16)}</button></div>${racer(false, subscriptionActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
+  const subscriptionTitle = subscriptionActive ? 'Подписка активна' : subscriptionExpired ? 'Подписка закончилась' : 'Подписка не активна';
+  const subscriptionDescription = subscriptionActive
+    ? 'Я в строю, сохраняю все изменения и удаления.'
+    : subscriptionExpired
+      ? 'Срок подписки истёк. Продли её, чтобы я продолжил сохранять события.'
+      : 'Я не на посту и не сохраняю события. Подключай — вернусь в строй.';
+  const subscriptionAction = subscriptionActive
+    ? `<div class="home-subscription-status" role="status"><span>${icon('check', 14)} Подключена</span><small>${expiryDate ? `Действует до ${escapeHtml(expiryDate)}` : subscription.test_group_member ? 'На время тестирования' : 'Срок окончания не указан'}</small></div>`
+    : `<button class="button button-light" data-tab="tariffs"><span class="button-stencil-text">${subscriptionExpired ? 'Продлить' : 'Подключить'}</span>${icon('chevron', 16)}</button>`;
+  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionTitle}</h1><p>${subscriptionDescription}</p>${subscriptionAction}</div>${racer(false, subscriptionActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
 
 function services() {
