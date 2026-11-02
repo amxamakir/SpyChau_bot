@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.59" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.60" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -717,7 +717,7 @@ async function handleTributeWebhook(request, env) {
   const eventName = String(event?.name || "");
   const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
   if (eventName === "new_digital_product") {
-    return handleTributeDigitalProduct(payload, rawBody, event.created_at, env);
+    return handleTributeDigitalProduct(payload, rawBody, env);
   }
   if (eventName === "digital_product_refunded") {
     return handleTributeDigitalProductRefund(payload, rawBody, env);
@@ -736,8 +736,6 @@ async function handleTributeWebhook(request, env) {
     return json({ ok: true, handled: "cancellation" });
   }
   if (payload.type && payload.type !== "regular") return json({ ok: true, ignored: true });
-  const paidAt = tributeEventTimestamp(event.created_at);
-  if (!paidAt) return json({ error: "invalid Tribute event created_at" }, 400);
   const planEntry = tributeSubscriptionPlan(payload);
   if (!planEntry) return json({ error: "subscription amount is not a configured tariff" }, 400);
   const [planId, plan] = planEntry;
@@ -754,42 +752,33 @@ async function handleTributeWebhook(request, env) {
         VALUES(?, ?, ?, ?, ?)`)
         .bind(eventKey, ownerId, eventName, subscriptionId, plan.months),
       env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
-        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at, purchased_at
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
       ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime(
-        CASE WHEN julianday((SELECT expires_at FROM subscriptions WHERE owner_id = ?)) > julianday(?)
-          THEN (SELECT expires_at FROM subscriptions WHERE owner_id = ?) ELSE ? END,
+        CASE WHEN julianday((SELECT expires_at FROM subscriptions WHERE owner_id = ?)) > julianday('now')
+          THEN (SELECT expires_at FROM subscriptions WHERE owner_id = ?) ELSE 'now' END,
         printf('+%d months', ?)
-      ), datetime(?) WHERE changes() = 1`)
-        .bind(`subscription:${eventKey}`, eventKey, ownerId, planId, Number(payload.amount), ownerId, paidAt, ownerId, paidAt, plan.months, paidAt),
+      ) WHERE changes() = 1`)
+        .bind(`subscription:${eventKey}`, eventKey, ownerId, planId, Number(payload.amount), ownerId, ownerId, plan.months),
       env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
-        SELECT ?, datetime(?, printf('+%d months', ?)), ?, 1 WHERE changes() = 1
+        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 1 WHERE changes() = 1
         ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
-          CASE WHEN julianday(subscriptions.expires_at) > julianday(?)
-            THEN subscriptions.expires_at ELSE ? END,
+          CASE WHEN julianday(subscriptions.expires_at) > julianday('now')
+            THEN subscriptions.expires_at ELSE 'now' END,
           printf('+%d months', ?)
         ), plan_id = excluded.plan_id, auto_renew = 1`)
-        .bind(ownerId, paidAt, plan.months, planId, paidAt, paidAt, plan.months),
+        .bind(ownerId, plan.months, planId, plan.months),
     ]);
   } catch { return json({ error: "Tribute subscription event processing failed" }, 500); }
   return json({ ok: true, handled: eventName, plan_id: planId });
 }
 
-function tributeEventTimestamp(value) {
-  const timestamp = Date.parse(String(value || ""));
-  if (!Number.isFinite(timestamp)) return null;
-  // Store normalized UTC timestamps in SQLite's format so comparisons and month arithmetic agree.
-  return new Date(timestamp).toISOString().slice(0, 19).replace("T", " ");
-}
-
-async function handleTributeDigitalProduct(payload, rawBody, createdAt, env) {
+async function handleTributeDigitalProduct(payload, rawBody, env) {
   const ownerId = String(payload.telegram_user_id || "");
   const productId = String(payload.product_id || "");
   const purchaseId = String(payload.purchase_id || "");
   if (!/^\d{1,20}$/.test(ownerId) || !/^\d+$/.test(productId) || !/^\d+$/.test(purchaseId)) {
     return json({ error: "invalid Tribute digital product payload" }, 400);
   }
-  const paidAt = tributeEventTimestamp(createdAt);
-  if (!paidAt) return json({ error: "invalid Tribute event created_at" }, 400);
   const actualProduct = await getTributeProduct(productId, env);
   if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
     || String(actualProduct.currency || "").toUpperCase() !== "RUB"
@@ -837,10 +826,10 @@ async function handleTributeDigitalProduct(payload, rawBody, createdAt, env) {
         ) VALUES(?, ?, ?, ?, 'personal_package', ?, ?, 'RUB')`)
           .bind(`tribute:product:${purchaseId}`, purchaseId, ownerId, productId, planId, amount),
         env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
-          purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, credits_granted, purchased_at
-        ) SELECT ?, 'tribute', ?, ?, 'personal_package', ?, ?, 'RUB', ?, datetime(?)
+          purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, credits_granted
+        ) SELECT ?, 'tribute', ?, ?, 'personal_package', ?, ?, 'RUB', ?
         WHERE changes() = 1`)
-          .bind(`tribute:product:${purchaseId}`, `product:${purchaseId}`, ownerId, planId, amount, plan.events, paidAt),
+          .bind(`tribute:product:${purchaseId}`, `product:${purchaseId}`, ownerId, planId, amount, plan.events),
         env.DB.prepare(`INSERT OR IGNORE INTO notification_packages(
           package_id, owner_id, purchase_id, plan_id, credits_total, credits_remaining, activated_after_event_id
         ) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(id) FROM events WHERE owner_id = ?), 0)
@@ -859,23 +848,19 @@ async function handleTributeDigitalProduct(payload, rawBody, createdAt, env) {
       ) VALUES(?, ?, ?, ?, 'personal_unlimited', ?, ?, 'RUB')`)
         .bind(eventKey, purchaseId, ownerId, productId, planId, amount),
       env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
-        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at, purchased_at
-      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime(
-        CASE WHEN julianday((SELECT expires_at FROM subscriptions WHERE owner_id = ?)) > julianday(?)
-          THEN (SELECT expires_at FROM subscriptions WHERE owner_id = ?) ELSE ? END,
-        printf('+%d months', ?)
-      ), datetime(?)
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
+      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime('now', printf('+%d months', ?))
         WHERE changes() = 1`)
-        .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, ownerId, paidAt, ownerId, paidAt, plan.months, paidAt),
+        .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, plan.months),
       env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
-        SELECT ?, datetime(?, printf('+%d months', ?)), ?, 0 WHERE changes() = 1
+        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 0 WHERE changes() = 1
         ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
-          CASE WHEN julianday(subscriptions.expires_at) > julianday(?)
-            THEN subscriptions.expires_at ELSE ? END,
+          CASE WHEN julianday(subscriptions.expires_at) > julianday('now')
+            THEN subscriptions.expires_at ELSE 'now' END,
           printf('+%d months', ?)
         ), plan_id = excluded.plan_id, auto_renew = CASE
-          WHEN julianday(subscriptions.expires_at) > julianday(?) THEN subscriptions.auto_renew ELSE 0 END`)
-        .bind(ownerId, paidAt, plan.months, planId, paidAt, paidAt, plan.months, paidAt),
+          WHEN julianday(subscriptions.expires_at) > julianday('now') THEN subscriptions.auto_renew ELSE 0 END`)
+        .bind(ownerId, plan.months, planId, plan.months),
     ]);
     return json({ ok: true, handled: "new_digital_product", service: serviceKey, plan_id: planId });
 
