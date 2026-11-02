@@ -1404,3 +1404,26 @@ body{background:#101827;color:#f4f6f9}
 .service-card-bottom .group-price-label{font-size:13px}
 @media(max-width:600px){.service-card-bottom .group-price-label{font-size:12px}}
 @media(min-width:740px){.service-card-bottom .group-price-label{font-size:12px}}
+
+/* Structured answers and copyable bot name in the support FAQ. */
+.support-rich-answer{padding:0 26px 16px 0;color:#aab7cd;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.support-rich-answer>p{margin:0 0 10px}
+.support-answer-path{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.support-answer-path b{padding:4px 8px;border-radius:9px;background:rgba(197,206,216,.12);color:#f3f5f9;font-size:12px}
+.support-answer-path>span{display:inline-flex;color:#aab7cd}
+.support-answer-steps,.support-answer-bullets{display:grid;gap:9px;margin:10px 0 12px;padding-left:24px}
+.support-answer-steps li,.support-answer-bullets li{padding-left:3px}
+.support-answer-steps li::marker{color:#d5e0ed;font-weight:900}
+.support-answer-steps li>span{display:block;color:#f3f5f9;font-weight:700}
+.support-answer-steps li>small{display:block;margin-top:2px;color:#aab7cd;font:inherit;font-size:.94em}
+.support-answer-bullets li::marker{color:#87d4a5}
+.support-copy-username{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:10px 0 12px;padding:11px 12px;border:1px solid rgba(197,206,216,.2);border-radius:12px;background:rgba(15,25,40,.65);color:#dce7f2;text-align:left;cursor:pointer}
+.support-copy-username code{color:#fff;font:700 14px ui-monospace,SFMono-Regular,Consolas,monospace}
+.support-copy-username span{margin-left:auto;color:#aab7cd;font-size:12px}
+.support-copy-username:active{transform:scale(.99)}
+.support-answer-note{margin:10px 0 0;color:#d2dce8}
+:root[data-theme="light"] .support-answer-path b{background:#e6ebf1;color:#26364c}
+:root[data-theme="light"] .support-answer-steps li>span,:root[data-theme="light"] .support-copy-username code{color:#26364c}
+:root[data-theme="light"] .support-copy-username{background:#f3f6f9;border-color:rgba(59,75,96,.17);color:#26364c}
+:root[data-theme="light"] .support-copy-username span{color:#68788b}
+@media(max-width:430px){.support-rich-answer{font-size:13px}.support-copy-username{gap:7px}.support-copy-username span{font-size:11px}}
