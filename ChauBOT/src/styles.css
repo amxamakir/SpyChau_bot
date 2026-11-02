@@ -1390,7 +1390,3 @@ body{background:#101827;color:#f4f6f9}
 .home-subscription-status>span{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:800}
 .home-subscription-status>span svg{color:#a7ffd5}
 .home-subscription-status>small{font-size:11px;font-weight:700;color:rgba(255,255,255,.82);line-height:1.35}
-
-.tutorial-breadcrumb b{display:inline-flex;align-items:center;gap:6px}
-.tutorial-automation-icon{width:22px;height:22px;flex:none;display:grid;place-items:center;border-radius:7px;background:linear-gradient(145deg,#e65bff,#9d38e9 72%,#7d35de);color:#fff;box-shadow:0 2px 7px rgba(171,62,233,.32)}
-.tutorial-automation-icon svg{width:17px;height:17px;display:block}
