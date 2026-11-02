@@ -50,7 +50,8 @@
       "name": "spychau-bot-production",
       "vars": {
         "TRIBUTE_PAYMENTS_ENABLED": "false",
-        "TRIBUTE_CHECKOUT_URL": "https://t.me/tribute/app?startapp=s1b9w"
+        "TRIBUTE_CHECKOUT_URL": "https://t.me/tribute/app?startapp=s1b9w",
+        "TRIBUTE_PRODUCTS": "{\"personal_package:pack100\":{\"web_link\":\"https://web.tribute.tg/p/J0r\",\"amount_rub\":189}}"
       },
       "triggers": {
         "crons": ["* * * * *"]
