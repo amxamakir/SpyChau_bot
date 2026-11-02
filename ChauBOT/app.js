@@ -866,6 +866,13 @@ app.addEventListener('submit', async event => {
 app.addEventListener('click', async event => {
   const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-contact-id], [data-notification-toggle], [data-tariff-mode], [data-tariff-option], [data-group-tariff]');
   if (!target) return;
+  try {
+    if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    } else if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  } catch {}
   if (target.dataset.tariffMode) {
     state.tariffMode = target.dataset.tariffMode;
     state.selectedTariff = state.tariffMode === 'unlimited' ? 'month' : 'pack300';
