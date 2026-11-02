@@ -1472,6 +1472,13 @@ body{background:#101827;color:#f4f6f9}
 .payment-method-label{margin:20px 0 9px;color:#aab7d4;font-size:12px}
 .payment-method-card.selected{border-color:#4c82ff;box-shadow:inset 0 0 0 1px #4c82ff}
 .payment-method-card.selected>i{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#4c82ff;color:#fff;font-style:normal;font-size:13px}
+.payment-method-stub{width:100%;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.payment-method-list{display:grid;gap:10px}
+.payment-method-tribute{width:100%;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.payment-method-stars-icon{width:42px;height:42px;flex:none;border-radius:13px;display:grid;place-items:center;background:rgba(255,193,61,.16);font-size:22px}
+.payment-method-tribute>svg{flex:none;color:#92a2c6}
+.payment-method-tribute:disabled{opacity:.56;cursor:not-allowed}
+.payment-method-soon{flex:none;padding:5px 8px;border-radius:999px;background:rgba(144,160,194,.12);color:#9caaca;font-size:10px;font-weight:700}
 .payment-terms-consent{display:flex;align-items:flex-start;gap:9px;margin:17px 0;color:#aab7d4;font-size:11px;line-height:1.5}
 .payment-terms-consent input{width:19px;height:19px;flex:none;margin:0;accent-color:#4c82ff}
 .payment-terms-consent a{color:#70a0ff;text-decoration:underline;text-underline-offset:2px}
@@ -1485,6 +1492,14 @@ body{background:#101827;color:#f4f6f9}
 .payment-progress-bar{display:block;width:min(100%,280px);height:6px;overflow:hidden;margin-top:26px;border-radius:99px;background:#1b2851}
 .payment-progress-bar i{display:block;width:48%;height:100%;border-radius:inherit;background:#4c82ff;animation:payment-progress 1.4s ease-in-out infinite alternate}
 @keyframes payment-progress{from{transform:translateX(-15%)}to{transform:translateX(125%)}}
+.package-balance-card{display:grid;gap:9px;margin:0 0 14px;padding:14px 16px;border:1px solid rgba(116,156,255,.22);border-radius:17px;background:linear-gradient(135deg,rgba(40,70,133,.32),rgba(28,39,70,.82));box-shadow:0 10px 25px rgba(0,0,0,.12)}
+.package-balance-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text);font-size:13px}
+.package-balance-heading b{color:#9fc0ff;font-size:14px;white-space:nowrap}
+.package-balance-track{height:6px;overflow:hidden;border-radius:99px;background:rgba(129,153,203,.2)}
+.package-balance-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b83ff,#8bb3ff);transition:width .2s ease}
+.package-balance-card small{color:var(--muted);font-size:11px;line-height:1.35}
+:root[data-theme="light"] .package-balance-card{border-color:rgba(71,112,198,.2);background:linear-gradient(135deg,#e8efff,#f7f9ff)}
+:root[data-theme="light"] .package-balance-heading b{color:#315fbb}
 :root[data-theme="light"] .payment-sheet{background:#f4f6fb}
 :root[data-theme="light"] .payment-order-card,:root[data-theme="light"] .payment-method-card{background:#e8edf8}
 :root[data-theme="light"] .payment-order-card small,:root[data-theme="light"] .payment-method-card small,:root[data-theme="light"] .payment-terms-consent,:root[data-theme="light"] .payment-method-label{color:#596986}

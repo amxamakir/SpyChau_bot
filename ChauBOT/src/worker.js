@@ -19,14 +19,66 @@ const PERSONAL_SUBSCRIPTION_PLANS = Object.freeze({
   "half-year": { months: 6, rubles: 1190 },
   year: { months: 12, rubles: 1790 },
 });
+const PERSONAL_PACKAGE_PLANS = Object.freeze({
+  pack100: { events: 100, rubles: 189 },
+  pack300: { events: 300, rubles: 499 },
+  pack500: { events: 500, rubles: 699 },
+});
 
-function tributePaymentsReady(env) {
+function tributePaymentsConfigured(env) {
   return env.TRIBUTE_PAYMENTS_ENABLED === "true"
     && typeof env.TRIBUTE_API_KEY === "string" && env.TRIBUTE_API_KEY.trim()
-    && typeof env.TRIBUTE_CHECKOUT_URL === "string" && /^https:\/\/t\.me\/tribute\/app\?startapp=s[\w-]+$/i.test(env.TRIBUTE_CHECKOUT_URL.trim())
     && typeof env.PAYMENTS_TERMS_VERSION === "string" && env.PAYMENTS_TERMS_VERSION.trim()
     && typeof env.PAYMENTS_TERMS_TEXT === "string" && env.PAYMENTS_TERMS_TEXT.trim()
-    && typeof env.PAYMENTS_SUPPORT_URL === "string" && /^https:\/\//i.test(env.PAYMENTS_SUPPORT_URL);
+    && typeof env.PAYMENTS_SUPPORT_URL === "string"
+    && (/^https:\/\/\S+$/i.test(env.PAYMENTS_SUPPORT_URL) || /^mailto:[^\s@]+@[^\s@]+$/i.test(env.PAYMENTS_SUPPORT_URL));
+}
+
+function tributePaymentsReady(env, serviceKey = null, planId = null) {
+  if (!tributePaymentsConfigured(env)) return false;
+  if (serviceKey === "personal_unlimited") {
+    if (planId) return Boolean(tributeProduct(env, serviceKey, planId));
+    return Object.keys(PERSONAL_SUBSCRIPTION_PLANS).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
+  }
+  if (serviceKey === "personal_package") {
+    if (planId) return Boolean(tributeProduct(env, serviceKey, planId));
+    return Object.keys(PERSONAL_PACKAGE_PLANS).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
+  }
+  return serviceKey === null;
+}
+
+function tributeProductMap(env) {
+  try {
+    const value = JSON.parse(String(env.TRIBUTE_PRODUCTS || "{}"));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch { return null; }
+}
+
+function tributeProduct(env, serviceKey, planId) {
+  const products = tributeProductMap(env);
+  const key = `${serviceKey}:${planId}`;
+  const spec = products?.[key];
+  const expected = serviceKey === "personal_package"
+    ? PERSONAL_PACKAGE_PLANS[planId]?.rubles
+    : serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId]?.rubles : null;
+  const rawLink = String(spec?.link || spec?.web_link || "").trim();
+  const webMatch = rawLink.match(/^https:\/\/web\.tribute\.tg\/p\/([\w-]+)$/i);
+  const link = webMatch
+    ? `https://t.me/tribute/app?startapp=p${webMatch[1]}`
+    : rawLink;
+  const webLink = String(spec?.web_link || (webMatch ? rawLink : "")).trim();
+  if (!expected || Number(spec?.amount_rub) !== expected
+    || !/^https:\/\/(?:t\.me|telegram\.me)\/(?:tribute|tribute_bot)\/app\?startapp=p[\w-]+$/i.test(link)) return null;
+  const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId] : PERSONAL_SUBSCRIPTION_PLANS[planId];
+  return { key, link, web_link: webLink, amount_rub: expected, ...plan };
+}
+
+async function getTributeProduct(productId, env) {
+  const response = await fetch(`https://tribute.tg/api/v1/products/${encodeURIComponent(productId)}`, {
+    headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
+  });
+  if (!response.ok) return null;
+  try { return await response.json(); } catch { return null; }
 }
 
 function archiveCursor(url) {
@@ -54,7 +106,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.47" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.49" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -102,29 +154,38 @@ export default {
         if (route === "/api/payments/checkout" && request.method === "POST") {
           if (!tributePaymentsReady(env)) return json({ error: "payments_not_ready" }, 503);
           const body = await readJson(request);
-          const plan = PERSONAL_SUBSCRIPTION_PLANS[String(body.plan_id || "")];
-          if (!plan) return json({ error: "plan_unavailable" }, 400);
           if (body.terms_accepted !== true || body.terms_version !== env.PAYMENTS_TERMS_VERSION) {
             return json({ error: "terms_acceptance_required" }, 400);
           }
+          const serviceKey = String(body.service_key || "personal_unlimited");
+          const planId = String(body.plan_id || "");
+          if (!(["personal_unlimited", "personal_package"].includes(serviceKey))) return json({ error: "plan_unavailable" }, 400);
+          const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId] : PERSONAL_SUBSCRIPTION_PLANS[planId];
+          if (!tributePaymentsReady(env, serviceKey, planId)) return json({ error: "plan_unavailable" }, 503);
+          const product = tributeProduct(env, serviceKey, planId);
+          if (!plan || !product) return json({ error: "plan_unavailable" }, 400);
           const ownerId = String(user.id);
-          await env.DB.prepare(`INSERT INTO payment_consents(consent_id, owner_id, plan_id, terms_version)
-            VALUES(?, ?, ?, ?)`)
-            .bind(crypto.randomUUID(), ownerId, String(body.plan_id), env.PAYMENTS_TERMS_VERSION).run();
-          return json({ checkout_url: env.TRIBUTE_CHECKOUT_URL.trim(), amount: plan.rubles, currency: "RUB" });
+          await env.DB.prepare(`INSERT INTO tribute_product_consents(consent_id, owner_id, plan_id, terms_version, service_key)
+            VALUES(?, ?, ?, ?, ?)`)
+            .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
+          return json({ checkout_url: product.link, amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
         }
 
         if (route === "/api/home/events" && request.method === "GET") {
           const subscription = await getSubscription(env.DB, String(user.id));
-          if (!subscription.active) return json({ events: [] });
+          const packageBalance = await getNotificationPackageBalance(env.DB, String(user.id));
+          if (!subscription.active && !packageBalance.remaining) return json({ events: [], package_balance: packageBalance });
           const preferences = await getNotificationPreferences(env.DB, String(user.id));
-          const rows = await env.DB.prepare(
-            "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 25",
-          ).bind(String(user.id)).all();
+          const rows = await env.DB.prepare(subscription.active
+            ? "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 25"
+            : `SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days')
+              AND id > COALESCE((SELECT MIN(activated_after_event_id) FROM notification_packages
+                WHERE owner_id = ? AND credits_remaining > 0), 0) ORDER BY id DESC LIMIT 25`)
+            .bind(...(subscription.active ? [String(user.id)] : [String(user.id), String(user.id)])).all();
           const events = (await hydrateEventRows(rows.results, env)).filter((event) =>
             isEventEnabledForOwner(event, user.id, preferences.preferences)
           );
-          return json({ events });
+          return json({ events, package_balance: packageBalance });
         }
 
         if (route === "/api/owner/statistics" && request.method === "GET") {
@@ -210,7 +271,7 @@ export default {
           const cursor = archiveCursor(url);
           if (cursor.error) return json({ error: "invalid_cursor" }, 400);
           const subscription = await getSubscription(env.DB, String(user.id));
-          if (!subscription.active) return json({ error: "subscription_required" }, 403);
+          if (!subscription.active || !subscription.capabilities?.personal_archive) return json({ error: "subscription_required" }, 403);
           const preferences = await getNotificationPreferences(env.DB, String(user.id));
           const query = cursor.value
             ? env.DB.prepare("SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') AND id < ? ORDER BY id DESC LIMIT ?").bind(String(user.id), cursor.value, ARCHIVE_PAGE_SIZE + 1)
@@ -534,6 +595,17 @@ async function handleTelegramWebhook(request, env) {
   }
 }
 
+async function hasNotificationPackageCredits(db, ownerId) {
+  try {
+    const row = await db.prepare("SELECT 1 FROM notification_packages WHERE owner_id = ? AND credits_remaining > 0 LIMIT 1")
+      .bind(String(ownerId)).first();
+    return Boolean(row);
+  } catch (error) {
+    if (/no such table: notification_packages/i.test(String(error?.message || error))) return false;
+    throw error;
+  }
+}
+
 async function handleTributeWebhook(request, env) {
   if (!env.TRIBUTE_API_KEY) return json({ error: "Tribute webhook is not configured" }, 503);
   const rawBody = await request.text();
@@ -547,65 +619,198 @@ async function handleTributeWebhook(request, env) {
   try { event = JSON.parse(rawBody); } catch { return json({ error: "invalid JSON" }, 400); }
   const eventName = String(event?.name || "");
   const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  if (eventName === "new_digital_product") {
+    return handleTributeDigitalProduct(payload, rawBody, env);
+  }
+  if (eventName === "digital_product_refunded") {
+    return handleTributeDigitalProductRefund(payload, rawBody, env);
+  }
   if (!["new_subscription", "renewed_subscription", "cancelled_subscription"].includes(eventName)) {
     return json({ ok: true, ignored: true });
   }
 
   const ownerId = String(payload.telegram_user_id || "");
   if (!/^\d{1,20}$/.test(ownerId)) return json({ ok: true, ignored: true });
+  const subscriptionId = String(payload.subscription_id || payload.subscriptionId || "");
+  if (env.TRIBUTE_SUBSCRIPTION_ID && subscriptionId !== String(env.TRIBUTE_SUBSCRIPTION_ID)) return json({ ok: true, ignored: true });
   if (eventName === "cancelled_subscription") {
-    // Keep access until the already-paid period expires; Tribute stops future renewals.
+    await env.DB.prepare("UPDATE subscriptions SET auto_renew = 0, updated_at = CURRENT_TIMESTAMP WHERE owner_id = ?")
+      .bind(ownerId).run();
     return json({ ok: true, handled: "cancellation" });
   }
   if (payload.type && payload.type !== "regular") return json({ ok: true, ignored: true });
-  if (payload.currency && String(payload.currency).toUpperCase() !== "RUB") return json({ ok: true, ignored: true });
-
-  const subscriptionId = String(payload.subscription_id || payload.subscriptionId || "");
-  if (env.TRIBUTE_SUBSCRIPTION_ID && subscriptionId !== String(env.TRIBUTE_SUBSCRIPTION_ID)) {
-    return json({ ok: true, ignored: true });
-  }
-  const months = tributePaidMonths(payload);
-  if (!months) return json({ ok: true, ignored: true });
+  const planEntry = tributeSubscriptionPlan(payload);
+  if (!planEntry) return json({ error: "subscription amount is not a configured tariff" }, 400);
+  const [planId, plan] = planEntry;
   if (eventName === "new_subscription") {
     const consent = await env.DB.prepare(`SELECT 1 AS accepted FROM payment_consents
-      WHERE owner_id = ? AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`).bind(ownerId).first();
+      WHERE owner_id = ? AND plan_id = ? AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`)
+      .bind(ownerId, planId).first();
     if (!consent) return json({ ok: true, ignored: true });
   }
-
   const eventKey = await sha256Hex(rawBody);
   try {
     await env.DB.batch([
       env.DB.prepare(`INSERT OR IGNORE INTO tribute_payment_events(event_key, owner_id, event_name, subscription_id, months)
         VALUES(?, ?, ?, ?, ?)`)
-        .bind(eventKey, ownerId, eventName, subscriptionId || null, months),
-      env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at)
-        SELECT ?, datetime('now', printf('+%d months', ?)) WHERE changes() = 1
+        .bind(eventKey, ownerId, eventName, subscriptionId, plan.months),
+      env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
+      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime('now', printf('+%d months', ?))
+        WHERE changes() = 1`)
+        .bind(`subscription:${eventKey}`, eventKey, ownerId, planId, Number(payload.amount), plan.months),
+      env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
+        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 1 WHERE changes() = 1
         ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
           CASE WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now')
             THEN subscriptions.expires_at ELSE 'now' END,
           printf('+%d months', ?)
-        )`)
-        .bind(ownerId, months, months),
+        ), plan_id = excluded.plan_id, auto_renew = 1`)
+        .bind(ownerId, plan.months, planId, plan.months),
     ]);
-  } catch {
-    return json({ error: "Tribute event processing failed" }, 500);
-  }
-  return json({ ok: true, handled: eventName });
+  } catch { return json({ error: "Tribute subscription event processing failed" }, 500); }
+  return json({ ok: true, handled: eventName, plan_id: planId });
 }
 
-function tributePaidMonths(payload) {
-  const amount = Number(payload.amount);
-  if (Number.isFinite(amount)) {
-    const rubles = amount > 3000 ? amount / 100 : amount;
-    const amountPlan = Object.values(PERSONAL_SUBSCRIPTION_PLANS)
-      .find((plan) => Math.abs(rubles - plan.rubles) < 0.01);
-    if (amountPlan) return amountPlan.months;
+async function handleTributeDigitalProduct(payload, rawBody, env) {
+  const ownerId = String(payload.telegram_user_id || "");
+  const productId = String(payload.product_id || "");
+  const purchaseId = String(payload.purchase_id || "");
+  if (!/^\d{1,20}$/.test(ownerId) || !/^\d+$/.test(productId) || !/^\d+$/.test(purchaseId)) {
+    return json({ error: "invalid Tribute digital product payload" }, 400);
   }
-  const period = String(payload.period || payload.subscription_period || payload.period_name || "").toLowerCase();
-  if (/(12|year|год)/.test(period)) return 12;
-  if (/(6|half|полгода|6\s*мес)/.test(period)) return 6;
-  if (/(1|month|месяц)/.test(period)) return 1;
-  return 0;
+  const actualProduct = await getTributeProduct(productId, env);
+  if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
+    || String(actualProduct.currency || "").toUpperCase() !== "RUB"
+    || actualProduct.starsAmountEnabled !== true) {
+    return json({ error: "Tribute product is missing or not configured for Stars" }, 503);
+  }
+  let serviceKey = null;
+  let planId = null;
+  let expectedProduct = null;
+  for (const key of [
+    ...Object.keys(PERSONAL_PACKAGE_PLANS).map((id) => `personal_package:${id}`),
+    ...Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((id) => `personal_unlimited:${id}`),
+  ]) {
+    const [candidateService, candidatePlan] = key.split(":");
+    const candidate = tributeProduct(env, candidateService, candidatePlan);
+    if (candidate && (candidate.link === String(actualProduct.link || "").trim()
+      || (candidate.web_link && candidate.web_link === String(actualProduct.webLink || "").trim()))) {
+      serviceKey = candidateService;
+      planId = candidatePlan;
+      expectedProduct = candidate;
+      break;
+    }
+  }
+  if (!expectedProduct || String(actualProduct.id) !== productId
+    || Number(actualProduct.amount) !== expectedProduct.amount_rub * 100) {
+    return json({ ok: true, ignored: true, reason: "product_not_mapped" });
+  }
+  const amount = expectedProduct.amount_rub * 100;
+  const consent = await env.DB.prepare(`SELECT 1 AS accepted FROM tribute_product_consents
+    WHERE owner_id = ? AND plan_id = ? AND service_key = ?
+      AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`)
+    .bind(ownerId, planId, serviceKey).first();
+  if (!consent) return json({ ok: true, ignored: true });
+  const refunded = await env.DB.prepare("SELECT 1 FROM tribute_digital_product_refunds WHERE purchase_id = ?")
+    .bind(purchaseId).first();
+  if (refunded) return json({ ok: true, ignored: true, reason: "purchase_already_refunded" });
+
+  try {
+    if (serviceKey === "personal_package") {
+      const plan = PERSONAL_PACKAGE_PLANS[planId];
+      if (!plan) return json({ error: "unknown package plan" }, 400);
+      await env.DB.batch([
+        env.DB.prepare(`INSERT OR IGNORE INTO tribute_digital_product_events(
+          provider_event_id, purchase_id, owner_id, product_id, service_key, plan_id, amount_minor, currency
+        ) VALUES(?, ?, ?, ?, 'personal_package', ?, ?, 'RUB')`)
+          .bind(`tribute:product:${purchaseId}`, purchaseId, ownerId, productId, planId, amount),
+        env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+          purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, credits_granted
+        ) SELECT ?, 'tribute', ?, ?, 'personal_package', ?, ?, 'RUB', ?
+        WHERE changes() = 1`)
+          .bind(`tribute:product:${purchaseId}`, `product:${purchaseId}`, ownerId, planId, amount, plan.events),
+        env.DB.prepare(`INSERT OR IGNORE INTO notification_packages(
+          package_id, owner_id, purchase_id, plan_id, credits_total, credits_remaining, activated_after_event_id
+        ) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(id) FROM events WHERE owner_id = ?), 0)
+        WHERE changes() = 1`)
+          .bind(crypto.randomUUID(), ownerId, `tribute:product:${purchaseId}`, planId, plan.events, plan.events, ownerId),
+      ]);
+      return json({ ok: true, handled: "new_digital_product", service: serviceKey });
+    }
+
+    const plan = PERSONAL_SUBSCRIPTION_PLANS[planId];
+    if (!plan) return json({ error: "unknown subscription plan" }, 400);
+    const eventKey = `tribute:product:${purchaseId}`;
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO tribute_digital_product_events(
+        provider_event_id, purchase_id, owner_id, product_id, service_key, plan_id, amount_minor, currency
+      ) VALUES(?, ?, ?, ?, 'personal_unlimited', ?, ?, 'RUB')`)
+        .bind(eventKey, purchaseId, ownerId, productId, planId, amount),
+      env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
+      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime('now', printf('+%d months', ?))
+        WHERE changes() = 1`)
+        .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, plan.months),
+      env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
+        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 0 WHERE changes() = 1
+        ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
+          CASE WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now')
+            THEN subscriptions.expires_at ELSE 'now' END,
+          printf('+%d months', ?)
+        ), plan_id = excluded.plan_id, auto_renew = CASE
+          WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now') THEN subscriptions.auto_renew ELSE 0 END`)
+        .bind(ownerId, plan.months, planId, plan.months),
+    ]);
+    return json({ ok: true, handled: "new_digital_product", service: serviceKey, plan_id: planId });
+
+    return json({ ok: true, ignored: true });
+  } catch {
+    return json({ error: "Tribute digital product could not be recorded" }, 500);
+  }
+}
+
+async function handleTributeDigitalProductRefund(payload, rawBody, env) {
+  const purchaseId = String(payload.purchase_id || "");
+  if (!/^\d+$/.test(purchaseId)) return json({ error: "invalid Tribute refund payload" }, 400);
+  const eventKey = await sha256Hex(rawBody);
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO tribute_digital_product_refunds(purchase_id, provider_event_id)
+        VALUES(?, ?)`)
+        .bind(purchaseId, eventKey),
+      env.DB.prepare(`UPDATE payment_purchases SET refunded_at = CURRENT_TIMESTAMP
+        WHERE purchase_id = ? AND provider = 'tribute' AND service_key IN ('personal_package', 'personal_unlimited')`)
+        .bind(`tribute:product:${purchaseId}`),
+      env.DB.prepare(`UPDATE notification_packages SET credits_remaining = 0
+        WHERE purchase_id = ?`)
+        .bind(`tribute:product:${purchaseId}`),
+      env.DB.prepare(`UPDATE subscriptions SET
+          expires_at = COALESCE((SELECT MAX(expires_at) FROM payment_purchases
+            WHERE owner_id = subscriptions.owner_id AND service_key = 'personal_unlimited'
+              AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP), CURRENT_TIMESTAMP),
+          plan_id = (SELECT plan_id FROM payment_purchases
+            WHERE owner_id = subscriptions.owner_id AND service_key = 'personal_unlimited'
+              AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+            ORDER BY expires_at DESC LIMIT 1),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE owner_id = (SELECT owner_id FROM payment_purchases WHERE purchase_id = ?)`)
+        .bind(`tribute:product:${purchaseId}`),
+    ]);
+  } catch { return json({ error: "Tribute refund could not be recorded" }, 500); }
+  return json({ ok: true, handled: "digital_product_refunded" });
+}
+
+function tributeSubscriptionPlan(payload) {
+  if (String(payload.currency || "").toUpperCase() !== "RUB") return null;
+  const amount = Number(payload.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const rubles = amount > 3000 ? amount / 100 : amount;
+  const prices = { month: [249, 199.2], "half-year": [1190, 952], year: [1790, 1611] };
+  for (const [planId, plan] of Object.entries(PERSONAL_SUBSCRIPTION_PLANS)) {
+    if (prices[planId].some((price) => Math.round(rubles * 100) === Math.round(price * 100))) return [planId, plan];
+  }
+  return null;
 }
 
 async function validTributeSignature(rawBody, signature, apiKey) {
@@ -887,7 +1092,7 @@ async function ensureTestGroup(db, ownerId) {
 async function getSubscription(db, ownerId) {
   let row;
   try {
-    row = await db.prepare("SELECT expires_at FROM subscriptions WHERE owner_id = ?").bind(ownerId).first();
+    row = await db.prepare("SELECT expires_at, plan_id, auto_renew FROM subscriptions WHERE owner_id = ?").bind(ownerId).first();
   } catch (error) {
     if (!/no such table: subscriptions/i.test(String(error?.message || error))) throw error;
   }
@@ -908,12 +1113,67 @@ async function getSubscription(db, ownerId) {
   } catch (error) {
     if (!/no such table: test_group_members/i.test(String(error?.message || error))) throw error;
   }
+  const personalUnlimited = testGroupMember || (override === null ? paidActive : override);
   return {
-    active: testGroupMember || (override === null ? paidActive : override),
+    active: personalUnlimited,
     expires_at: expiresAt,
+    plan_id: row?.plan_id || null,
+    auto_renew: Number(row?.auto_renew) === 1,
+    plan_name: row?.plan_id === "month" ? "Безлимит · 1 месяц"
+      : row?.plan_id === "half-year" ? "Безлимит · 6 месяцев"
+        : row?.plan_id === "year" ? "Безлимит · 12 месяцев" : null,
+    capabilities: { personal_unlimited: personalUnlimited, personal_archive: personalUnlimited, group_features: false },
     test_override: override,
     test_group_member: testGroupMember,
   };
+}
+
+async function getNotificationPackageBalance(db, ownerId) {
+  try {
+    const row = await db.prepare(`SELECT COALESCE(SUM(p.credits_total), 0) AS purchased,
+      COALESCE(SUM(p.credits_remaining), 0) AS remaining, COUNT(*) AS packages,
+      COALESCE(SUM((SELECT COUNT(*) FROM package_event_usage u WHERE u.package_id = p.package_id)), 0) AS consumed
+      FROM notification_packages p WHERE p.owner_id = ?`).bind(String(ownerId)).first();
+    const purchased = Number(row?.purchased || 0);
+    const remaining = Number(row?.remaining || 0);
+    const consumed = Number(row?.consumed || 0);
+    const refunded = Math.max(0, purchased - remaining - consumed);
+    return { has_purchases: purchased > 0, purchased, remaining, consumed, refunded, packages: Number(row?.packages || 0) };
+  } catch (error) {
+    if (/no such table: notification_packages/i.test(String(error?.message || error))) return { has_purchases: false, purchased: 0, remaining: 0, consumed: 0, refunded: 0, packages: 0 };
+    throw error;
+  }
+}
+
+async function consumeNotificationPackageEvent(db, ownerId, eventId) {
+  try {
+    const existing = await db.prepare("SELECT 1 FROM package_event_usage WHERE event_id = ? AND owner_id = ?")
+      .bind(Number(eventId), String(ownerId)).first();
+    if (existing) return true;
+    const candidates = await db.prepare(`SELECT p.package_id FROM events e
+      JOIN notification_packages p ON p.owner_id = e.owner_id
+      WHERE e.id = ? AND e.owner_id = ? AND e.id > p.activated_after_event_id AND p.credits_remaining > 0
+      ORDER BY p.purchased_at, p.package_id LIMIT 20`)
+      .bind(Number(eventId), String(ownerId)).all();
+    for (const { package_id: packageId } of candidates.results || []) {
+      const updated = await db.prepare(`UPDATE notification_packages SET credits_remaining = credits_remaining - 1
+        WHERE package_id = ? AND credits_remaining > 0
+          AND NOT EXISTS(SELECT 1 FROM package_event_usage WHERE event_id = ?)`)
+        .bind(packageId, Number(eventId)).run();
+      if (Number(updated.meta?.changes || 0) !== 1) continue;
+      const inserted = await db.prepare("INSERT OR IGNORE INTO package_event_usage(event_id, owner_id, package_id) VALUES(?, ?, ?)")
+        .bind(Number(eventId), String(ownerId), packageId).run();
+      if (Number(inserted.meta?.changes || 0) === 1) return true;
+      await db.prepare("UPDATE notification_packages SET credits_remaining = credits_remaining + 1 WHERE package_id = ?")
+        .bind(packageId).run();
+      if (await db.prepare("SELECT 1 FROM package_event_usage WHERE event_id = ? AND owner_id = ?")
+        .bind(Number(eventId), String(ownerId)).first()) return true;
+    }
+    return false;
+  } catch (error) {
+    if (/no such table: package_event_usage|no such table: notification_packages/i.test(String(error?.message || error))) return false;
+    throw error;
+  }
 }
 
 const defaultNotificationPreferences = Object.freeze({
@@ -948,20 +1208,28 @@ async function initializeNotificationPreferences(db, ownerId, requestedPreferenc
 
 async function getUserBootstrap(env, user) {
   const ownerId = String(user.id);
-  const [profile, connections, subscription, notificationSettings] = await Promise.all([
+  const [profile, connections, subscription, packageBalance, notificationSettings] = await Promise.all([
     env.DB.prepare("SELECT receipt_email FROM users WHERE telegram_id = ?").bind(ownerId).first(),
     env.DB.prepare("SELECT connection_id, enabled, updated_at FROM connections WHERE owner_id = ? ORDER BY updated_at DESC")
       .bind(ownerId).all(),
     getSubscription(env.DB, ownerId),
+    getNotificationPackageBalance(env.DB, ownerId),
     getNotificationPreferences(env.DB, ownerId),
   ]);
   return {
     user: { ...user, receipt_email: profile?.receipt_email || null },
     connections: connections.results,
     subscription,
+    package_balance: packageBalance,
     notification_preferences: notificationSettings.preferences,
     can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
-    payments_available: Boolean(tributePaymentsReady(env)),
+    payments_available: Boolean(tributePaymentsReady(env, "personal_unlimited")),
+    package_payments_available: Boolean(tributePaymentsReady(env, "personal_package")),
+    tribute_plan_availability: {
+      personal_unlimited: Object.fromEntries(Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((planId) => [planId, Boolean(tributePaymentsReady(env, "personal_unlimited", planId))])),
+      personal_package: Object.fromEntries(Object.keys(PERSONAL_PACKAGE_PLANS).map((planId) => [planId, Boolean(tributePaymentsReady(env, "personal_package", planId))])),
+    },
+    group_payments_available: false,
   };
 }
 
@@ -1025,7 +1293,8 @@ async function notifySavedEvents(env, ownerId, savedEvents, fallbackUpdateId = n
   if (!resolved.length) return;
 
   const subscription = await getSubscription(env.DB, ownerId);
-  if (!subscription.active) return;
+  const packageBalance = subscription.active ? null : await getNotificationPackageBalance(env.DB, ownerId);
+  if (!subscription.active && !packageBalance?.remaining) return;
   const preferences = await getNotificationPreferences(env.DB, ownerId);
   for (const savedEvent of resolved) {
     const eventRow = await env.DB.prepare("SELECT * FROM events WHERE id = ? AND owner_id = ?")
@@ -1036,6 +1305,7 @@ async function notifySavedEvents(env, ownerId, savedEvents, fallbackUpdateId = n
     const isGroup = chatType === "group" || chatType === "supergroup";
     const shouldNotify = isEventEnabledForOwner(event, ownerId, preferences.preferences);
     if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
+    if (!isGroup && !subscription.active && !await consumeNotificationPackageEvent(env.DB, ownerId, savedEvent.eventId)) continue;
     await sendEventNotification(env, {
       ownerId: String(ownerId),
       updateId: Number(savedEvent.updateId),

@@ -19,6 +19,8 @@ const icon = (name, size = 20) => {
     lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     'eye-off': '<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5 0 9 4 10 7a11.7 11.7 0 0 1-3.1 4.4M6.2 6.2C4.1 7.5 2.6 9.4 2 12c1 3 5 7 10 7 1.2 0 2.3-.2 3.3-.7"/>',
+    refresh: '<path d="M20 7v5h-5"/><path d="M4.8 9A8 8 0 0 1 18.6 6L20 7M4 17v-5h5"/><path d="M19.2 15A8 8 0 0 1 5.4 18L4 17"/>',
+    external: '<path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     close: '<path d="m18 6-12 12M6 6l12 12"/>',
     spark: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
@@ -31,12 +33,12 @@ const icon = (name, size = 20) => {
 };
 
 const state = {
-  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null,
+  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null, groupEntitlement: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
   notificationPreferencesSaving: false,
-  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, tributeCheckoutPending: false, paymentsAvailable: false, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentSelection: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -406,6 +408,8 @@ function archiveGroupsPage() {
 function home() {
   const subscription = state.subscription || {};
   const subscriptionActive = Boolean(subscription.active);
+  const packageActive = !subscriptionActive && Number(state.packageBalance?.remaining || 0) > 0;
+  const accessActive = subscriptionActive || packageActive;
   const rawExpiry = subscription.expires_at || subscription.active_until || subscription.valid_until || subscription.ends_at || subscription.current_period_end || null;
   const parsedExpiry = rawExpiry ? new Date(typeof rawExpiry === 'number' && rawExpiry < 1e12 ? rawExpiry * 1000 : rawExpiry) : null;
   const expiryDate = parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
@@ -420,16 +424,19 @@ function home() {
       : recentEvents.length
         ? `<div class="events-list home-event-feed">${recentEvents.map(event => archiveEventRow(event)).join('')}</div>`
         : `<div class="empty-events empty-events-with-mascot"><div class="empty-art search-mascot"><img src="./assets/mascot/scout-observing.png" alt="Скаут наблюдает за событиями" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока ничего не вижу'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`;
-  const subscriptionTitle = subscriptionActive ? 'Подписка активна' : subscriptionExpired ? 'Подписка закончилась' : 'Подписка не активна';
+  const subscriptionTitle = subscriptionActive ? 'Подписка активна' : packageActive ? 'Пакет активен' : subscriptionExpired ? 'Подписка закончилась' : 'Подписка не активна';
   const subscriptionDescription = subscriptionActive
-    ? 'Я в строю, сохраняю все изменения и удаления.'
+    ? 'Я в строю, сохраняю события и архив.'
+    : packageActive ? 'Сохраняю уведомления из личных чатов и списываю их из пакета.'
     : subscriptionExpired
       ? 'Срок подписки истёк. Продли её, чтобы я продолжил сохранять события.'
       : 'Я не на посту и не сохраняю события. Подключай — вернусь в строй.';
-  const subscriptionAction = subscriptionActive
-    ? `<div class="home-subscription-status" role="status"><strong>Скаут</strong> сохраняет всё до <span class="home-subscription-expiry ${expiryDate ? '' : 'infinite'}">${expiryDate ? escapeHtml(expiryDate) : '∞'}</span></div>`
+  const subscriptionAction = accessActive
+    ? subscriptionActive
+      ? `<div class="home-subscription-status" role="status"><strong>Безлимит</strong> действует до <span class="home-subscription-expiry">${expiryDate ? escapeHtml(expiryDate) : '∞'}</span></div>`
+      : `<div class="home-subscription-status" role="status">Осталось <strong>${new Intl.NumberFormat('ru-RU').format(state.packageBalance.remaining)} событий</strong> из ${new Intl.NumberFormat('ru-RU').format(state.packageBalance.purchased)}</div><button class="subtle-button" data-tab="tariffs">Пополнить пакет ${icon('chevron', 15)}</button>`
     : `<button class="button button-light" data-tab="tariffs"><span class="button-stencil-text">${subscriptionExpired ? 'Продлить' : 'Подключить'}</span>${icon('chevron', 16)}</button>`;
-  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionTitle}</h1><p>${subscriptionDescription}</p>${subscriptionAction}</div>${racer(false, subscriptionActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
+  return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${accessActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionTitle}</h1><p>${subscriptionDescription}</p>${subscriptionAction}</div>${racer(false, accessActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
 
 function services() {
@@ -501,7 +508,18 @@ function tariffsPage() {
   const intro = state.tariffMode === 'package'
     ? 'Платишь только за уведомления, которые пришли. Пакет не сгорает.'
     : 'Слежу за личными чатами и сохраняю изменения и удаления.';
-  return `<section class="page tariffs-page"><div class="tariff-mascot tariff-main-mascot"><img src="./assets/mascot/scout-tablet.png" alt="Скаут со светящимся планшетом" /></div><div class="tariff-intro"><h2>Личные чаты</h2><p>${intro}</p></div><div class="tariff-pricing" data-tariff-pricing>${tariffPricing()}</div></section>`;
+  return `<section class="page tariffs-page"><div class="tariff-mascot tariff-main-mascot"><img src="./assets/mascot/scout-tablet.png" alt="Скаут со светящимся планшетом" /></div><div class="tariff-intro"><h2>Личные чаты</h2><p>${intro}</p></div>${packageBalanceCard()}<div class="tariff-pricing" data-tariff-pricing>${tariffPricing()}</div></section>`;
+}
+
+function packageBalanceCard() {
+  const balance = state.packageBalance;
+  if (!balance?.has_purchases) return '';
+  const purchased = Math.max(0, Number(balance.purchased) || 0);
+  const remaining = Math.min(purchased, Math.max(0, Number(balance.remaining) || 0));
+  const consumed = Math.max(0, Number(balance.consumed) || 0);
+  const refunded = Math.max(0, Number(balance.refunded) || 0);
+  const percent = purchased ? Math.min(100, Math.round((consumed + refunded) / purchased * 100)) : 0;
+  return `<div class="package-balance-card" role="status"><div class="package-balance-heading"><strong>Пакет уведомлений</strong><b>Осталось ${new Intl.NumberFormat('ru-RU').format(remaining)}</b></div><div class="package-balance-track" aria-label="Использовано ${percent}%"><i style="width:${percent}%"></i></div><small>из ${new Intl.NumberFormat('ru-RU').format(purchased)} событий · использовано ${new Intl.NumberFormat('ru-RU').format(consumed)}${refunded ? ` · возвращено ${new Intl.NumberFormat('ru-RU').format(refunded)}` : ''}</small></div>`;
 }
 
 const GROUP_TARIFFS = [
@@ -518,25 +536,48 @@ function groupTariffsPricing() {
 }
 
 function groupTariffsPage() {
-  return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/mascot/scout-groups.png" alt="Скаут среди групповых значков" /></div><div class="tariff-intro"><h2>Группы</h2><p>Сохраняем удалённые и изменённые сообщения в подключённых группах.</p></div><div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
+  return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/mascot/scout-groups.png" alt="Скаут среди групповых значков" /></div><div class="tariff-intro"><h2>Группы</h2><p>Сохраняем удалённые и изменённые сообщения в подключённых группах.</p></div>${groupEntitlementCard()}<div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
+}
+
+function groupEntitlementCard() {
+  const entitlement = state.groupEntitlement;
+  if (!entitlement?.active) return '';
+  const expiry = entitlement.expires_at ? new Date(entitlement.expires_at) : null;
+  const expiryLabel = expiry && !Number.isNaN(expiry.getTime())
+    ? expiry.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'не указан';
+  const limit = Number(entitlement.groups_limit || 0);
+  const activeGroups = Number(entitlement.active_groups || 0);
+  const percent = limit ? Math.min(100, activeGroups / limit * 100) : 0;
+  return `<div class="package-balance-card group-entitlement-card" role="status"><div class="package-balance-heading"><strong>Тариф ${escapeHtml(entitlement.plan_name || 'Группы')}</strong><b>${Number(entitlement.groups_available || 0)} свободно</b></div><div class="package-balance-track" aria-label="Подключено ${activeGroups} из ${limit} групп"><i style="width:${percent}%"></i></div><small>${activeGroups} из ${limit} групп · доступ до ${escapeHtml(expiryLabel)}</small></div>`;
 }
 
 function tariffPaymentDock() {
   if (state.tab === 'tariffs') {
     const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
     const isSubscription = state.tariffMode === 'unlimited';
-    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="${isSubscription ? 'open-payment-sheet' : 'tariff-pay'}" data-sticky-tariff-payment ${state.paymentLoading || (isSubscription && !state.paymentsAvailable) ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : isSubscription ? state.paymentsAvailable ? `Оплатить ${selected.price}` : 'Оплата скоро' : 'Пакеты скоро'}</button><p class="tariff-dock-note">${isSubscription ? state.paymentsAvailable ? 'Подписка Tribute. Автопродление — при привязанной карте; отмена в Tribute.' : 'Подключаем оплату Tribute.' : 'Пакет уведомлений пока не подключён.'}</p></div>`;
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="${isSubscription ? 'open-payment-sheet' : 'open-package-payment-sheet'}" data-sticky-tariff-payment ${state.paymentLoading ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${selected.price}`}</button><p class="tariff-dock-note">${isSubscription ? 'Оплата звёздами разовая. Автопродление подключим для карт и СБП через CloudPayments.' : 'Пакет событий не сгорает. Архив личных чатов в пакет не входит.'}</p></div>`;
   }
   if (state.tab === 'group-tariffs') {
-    const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
-    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-action="group-tariff-pay" data-sticky-tariff-payment>Оплатить ${selected.rubles} в месяц</button><p class="tariff-dock-note">Приём оплаты пока не подключён — деньги не списываются.</p></div>`;
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-sticky-tariff-payment disabled>Оплата скоро</button><p class="tariff-dock-note">Групповой тариф подключим после проверки личных тарифов.</p></div>`;
   }
   return '';
 }
 
+function tributePlanAvailable(serviceKey, planId) {
+  return Boolean(state.tributePlanAvailability?.[serviceKey]?.[planId]);
+}
+
 function paymentSheet() {
-  const selected = tariffPlans('unlimited').find(plan => plan.id === state.selectedTariff) || tariffPlans('unlimited')[0];
-  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet">${icon('close', 19)}</button><h2 id="payment-sheet-title">Оплата</h2><div class="payment-order-card"><span class="payment-order-icon">${icon('card', 22)}</span><span><strong>Личные чаты · ${escapeHtml(selected.title)}</strong><small>Период и сумма будут показаны в Tribute</small></span><b>${escapeHtml(selected.price)}</b></div><p class="payment-method-label">Способ оплаты</p><div class="payment-method-card selected"><span class="payment-method-star">⭐</span><span><strong>Telegram Stars</strong><small>Откроется checkout Tribute с доступными способами оплаты</small></span><i aria-hidden="true">✓</i></div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оплаты</a>. Автопродление и отмена управляются в Tribute.</span></label><button type="button" class="button button-blue payment-continue" data-action="continue-payment" ${state.paymentLoading || !state.paymentTermsAccepted ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : 'Перейти к оплате'}</button><p class="payment-sheet-note">Доступ включится после подтверждения Tribute. Автопродление работает при привязанной карте; отменить подписку можно в профиле Tribute.</p></section></div>`;
+  const selection = state.paymentSelection || { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
+  const isPackage = selection.service_key === 'personal_package';
+  const plans = tariffPlans(isPackage ? 'package' : 'unlimited');
+  const selected = plans.find(plan => plan.id === selection.plan_id) || plans[0];
+  const tributeReady = tributePlanAvailable(selection.service_key, selection.plan_id);
+  const detail = isPackage
+    ? 'Пакет активируется после подтверждения Tribute и не сгорает.'
+    : 'Оплата Stars разовая. Доступ действует выбранный срок; автопродление картой и СБП добавим через CloudPayments.';
+  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet">${icon('close', 19)}</button><h2 id="payment-sheet-title">Оплата</h2><div class="payment-order-card"><span class="payment-order-icon">${icon('card', 22)}</span><span><strong>Личные чаты · ${escapeHtml(selected.title)}</strong><small>${isPackage ? `${selected.quantity} уведомлений, архив не входит` : 'Безлимит на выбранный период'}</small></span><b>${escapeHtml(selected.price)}</b></div><p class="payment-method-label">Выбери способ оплаты</p><div class="payment-method-list"><button type="button" class="payment-method-card payment-method-stub" data-action="cloudpayments-stub" aria-label="СБП и оплата картой — скоро"><span class="payment-method-star">💳</span><span><strong>СБП и оплата картой</strong><small>CloudPayments · подключим позже</small></span><span class="payment-method-soon">Скоро</span></button><button type="button" class="payment-method-card payment-method-tribute" data-action="tribute-stars" ${state.paymentLoading || !tributeReady ? 'disabled' : ''}><span class="payment-method-stars-icon">⭐</span><span><strong>Telegram Stars</strong><small>${state.paymentLoading ? 'Открываем Tribute…' : tributeReady ? 'Перейти в Tribute' : 'Оплата пока настраивается'}</small></span>${icon('chevron', 18)}</button></div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оплаты</a>.</span></label><p class="payment-sheet-note">${detail}</p></section></div>`;
 }
 
 function telegramSettingsDock() {
@@ -561,17 +602,14 @@ function refreshTariffPaymentButton() {
   if (!button) return;
   if (state.tab === 'tariffs') {
     const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
-    const isSubscription = state.tariffMode === 'unlimited';
-    button.textContent = isSubscription && !state.paymentsAvailable ? 'Оплата скоро' : `Оплатить ${selected.price}`;
-    button.disabled = state.paymentLoading || (isSubscription && !state.paymentsAvailable);
-  } else if (state.tab === 'group-tariffs') {
-    const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
-    button.textContent = `Оплатить ${selected.rubles} в месяц`;
+    button.textContent = `Оплатить ${selected.price}`;
+    button.disabled = state.paymentLoading;
   }
 }
 function archive() {
-  if (!state.preview && !state.subscription?.active) {
-    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ СОБЫТИЙ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>Подписка не активна</strong><p>Архив событий и функции подписки будут доступны после подключения подписки.</p><button class="subtle-button" data-action="subscription-info">Как подключить ${icon('chevron', 15)}</button></div></section>`;
+  if (!state.preview && (!state.subscription?.active || !state.subscription?.capabilities?.personal_archive)) {
+    const packageActive = Boolean(state.subscription?.active && !state.subscription?.capabilities?.personal_archive);
+    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ СОБЫТИЙ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>${packageActive ? 'Архив доступен в безлимите' : 'Подписка не активна'}</strong><p>${packageActive ? 'Пакет уведомлений покрывает уведомления о событиях. Личный архив входит в безлимит.' : 'Архив событий и функции безлимита будут доступны после подключения тарифа.'}</p><button class="subtle-button" data-tab="tariffs">Выбрать тариф ${icon('chevron', 15)}</button></div></section>`;
   }
   if (state.archiveMode === 'groups') return archiveGroupsPage();
   const contacts = archiveContacts();
@@ -767,13 +805,14 @@ function deleteDataPage() {
 function subscriptionPage() {
   const subscription = state.subscription || {};
   const active = Boolean(subscription.active);
-  const tariffLabel = subscription.test_group_member ? 'Тестовая группа' : subscription.plan_name || subscription.tariff_name || subscription.plan || subscription.tariff || (subscription.test_override ? 'Хозяйский' : 'Не указан');
+  const packageActive = Number(state.packageBalance?.remaining || 0) > 0;
+  const tariffLabel = subscription.test_group_member ? 'Тестовая группа' : subscription.capabilities?.personal_archive ? subscription.plan_name || 'Безлимит' : state.packageBalance?.has_purchases ? `Пакет · осталось ${state.packageBalance.remaining}` : subscription.plan_name || subscription.tariff_name || subscription.plan || subscription.tariff || (subscription.test_override ? 'Хозяйский' : 'Не указан');
   const rawExpiry = subscription.expires_at || subscription.active_until || subscription.valid_until || subscription.ends_at || subscription.current_period_end || null;
   const parsedExpiry = rawExpiry ? new Date(typeof rawExpiry === 'number' && rawExpiry < 1e12 ? rawExpiry * 1000 : rawExpiry) : null;
-  const expiryLabel = parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
+  const expiryLabel = !subscription.capabilities?.personal_archive && state.packageBalance?.has_purchases ? 'Без срока действия' : parsedExpiry && !Number.isNaN(parsedExpiry.getTime())
     ? parsedExpiry.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     : subscription.test_group_member ? 'На время тестирования' : 'Срок окончания не указан';
-  return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус подписки для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row subscription-row"><span class="service-icon ${active ? 'green' : 'red'}">${icon('lock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Моя подписка</strong></span><span class="subscription-status"><i class="${active ? 'active' : 'inactive'}"></i>${active ? 'Активна' : 'Не активна'}</span></div><div class="profile-row subscription-row"><span class="service-icon purple">${icon('spark', 19)}</span><span class="row-copy subscription-row-copy"><strong>Тариф</strong></span><span class="subscription-row-value">${escapeHtml(tariffLabel)}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Действует до</strong></span><span class="subscription-row-value">${escapeHtml(expiryLabel)}</span></div></div></section>`;
+  return `<section class="page profile-page subscription-page">${profileDetailHeader('МОЙ АККАУНТ', 'Моя подписка', 'Статус доступа и остатки пакета для этого Telegram-аккаунта.')}<div class="profile-card"><div class="profile-row subscription-row"><span class="service-icon ${active || packageActive ? 'green' : 'red'}">${icon('lock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Личные чаты</strong></span><span class="subscription-status"><i class="${active || packageActive ? 'active' : 'inactive'}"></i>${active ? 'Активны' : packageActive ? 'Пакет активен' : 'Не активны'}</span></div><div class="profile-row subscription-row"><span class="service-icon purple">${icon('spark', 19)}</span><span class="row-copy subscription-row-copy"><strong>Тариф</strong></span><span class="subscription-row-value">${escapeHtml(tariffLabel)}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('clock', 19)}</span><span class="row-copy subscription-row-copy"><strong>Действует до</strong></span><span class="subscription-row-value">${escapeHtml(expiryLabel)}</span></div>${active ? `<div class="profile-row subscription-row"><span class="service-icon green">${icon('refresh', 19)}</span><span class="row-copy subscription-row-copy"><strong>Автопродление</strong></span><span class="subscription-row-value">${subscription.auto_renew ? 'Включено' : 'Выключено'}</span></div><div class="profile-row subscription-row"><span class="service-icon blue">${icon('external', 19)}</span><span class="row-copy subscription-row-copy"><strong>Управлять подпиской</strong></span><a class="subscription-row-value" href="https://t.me/tribute" target="_blank" rel="noopener">Открыть Tribute</a></div>` : ''}</div>${packageBalanceCard()}${groupEntitlementCard()}</section>`;
 }
 
 function nav() {
@@ -855,72 +894,75 @@ async function api(path, options = {}) {
 
 const PAYMENT_TERMS_VERSION = '2026-11-02';
 
-async function purchaseSelectedSubscription() {
-  if (state.tariffMode !== 'unlimited') {
-    toast('Пакеты уведомлений подключим отдельно.');
-    return;
-  }
-  if (!state.authenticated || !state.telegram?.openTelegramLink) {
-    toast('Оплата доступна в приложении Telegram.');
-    return;
-  }
-  if (!state.paymentTermsAccepted) {
-    toast('Сначала прочитай и прими условия оплаты.');
-    return;
-  }
+async function purchaseSelectedPlan() {
+  const selection = state.paymentSelection || { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
+  if (!state.authenticated || !state.telegram?.openTelegramLink) { toast('Открой приложение через Telegram.'); return; }
+  if (!state.paymentTermsAccepted) { toast('Сначала прими условия оплаты.'); return; }
   if (state.paymentLoading) return;
-  const selected = tariffPlans('unlimited').find(plan => plan.id === state.selectedTariff) || tariffPlans('unlimited')[0];
+  const previous = `${state.subscription?.expires_at || ''}|${state.packageBalance?.remaining ?? ''}`;
   state.paymentLoading = true;
   render();
   try {
-    const result = await api('/api/payments/checkout', {
-      method: 'POST',
-      body: JSON.stringify({ plan_id: selected.id, terms_accepted: true, terms_version: PAYMENT_TERMS_VERSION }),
-    });
+    const result = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({
+      service_key: selection.service_key, plan_id: selection.plan_id, terms_accepted: true, terms_version: PAYMENT_TERMS_VERSION
+    }) });
+    state.paymentLoading = false;
     state.paymentSheetOpen = false;
     state.tributeCheckoutPending = true;
-    state.paymentLoading = false;
+    state.tributeCheckoutPreviousEntitlements = previous;
     render();
     state.telegram.openTelegramLink(result.checkout_url);
-    toast('Открыл Tribute. После оплаты вернись сюда — SpySkaut проверит доступ.');
   } catch (error) {
     state.paymentLoading = false;
     state.paymentSheetOpen = true;
     render();
-    const messages = {
-      payments_not_ready: 'Покупки пока выключены: настраиваем условия и поддержку.',
-      plan_unavailable: 'Этот тариф пока недоступен для оплаты.',
-      terms_acceptance_required: 'Прочитай условия оплаты и подтверди согласие.',
-    };
-    toast(messages[error.message] || error.message || 'Не удалось подготовить счёт.');
+    toast(error.message === 'payments_not_ready' ? 'Платёжные продукты Tribute ещё не настроены.' : error.message || 'Не удалось открыть оплату.');
   }
 }
 
 let tributeRefreshRunning = false;
 async function refreshAfterTributeCheckout() {
-  if (!state.tributeCheckoutPending || tributeRefreshRunning || document.visibilityState === 'hidden') return;
-  tributeRefreshRunning = true;
-  const previousExpiry = state.subscription?.expires_at || null;
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  if (tributeRefreshRunning || document.visibilityState === 'hidden') return;
+  if (!state.tributeCheckoutPending) {
+    if (!state.authenticated) return;
+    tributeRefreshRunning = true;
     try {
       const latest = await api('/api/me');
       state.subscription = { ...(latest.subscription || {}), can_test_override: Boolean(latest.can_test_override) };
-      state.paymentsAvailable = Boolean(latest.payments_available);
+      state.packageBalance = latest.package_balance || null;
+      state.groupEntitlement = latest.group_entitlement || null;
       render();
-      if (state.subscription.expires_at !== previousExpiry) {
+    } catch {}
+    tributeRefreshRunning = false;
+    return;
+  }
+  tributeRefreshRunning = true;
+  const previous = state.tributeCheckoutPreviousEntitlements;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      const latest = await api('/api/me');
+      state.subscription = { ...(latest.subscription || {}), can_test_override: Boolean(latest.can_test_override) };
+      state.packageBalance = latest.package_balance || null;
+      state.paymentsAvailable = Boolean(latest.payments_available);
+      state.packagePaymentsAvailable = Boolean(latest.package_payments_available);
+      state.tributePlanAvailability = latest.tribute_plan_availability || {};
+      const current = `${state.subscription?.expires_at || ''}|${state.packageBalance?.remaining ?? ''}`;
+      render();
+      if (current !== previous) {
         state.tributeCheckoutPending = false;
-        toast('Tribute подтвердил оплату, подписка активирована.');
+        state.tributeCheckoutPreviousEntitlements = '';
+        toast('Оплата подтверждена, доступ обновлён.');
         tributeRefreshRunning = false;
         return;
       }
     } catch {}
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
   }
   state.tributeCheckoutPending = false;
+  state.tributeCheckoutPreviousEntitlements = '';
   tributeRefreshRunning = false;
-  toast('Если оплата прошла, Tribute скоро пришлёт подтверждение. Обнови приложение чуть позже.');
+  toast('Tribute ещё не подтвердил оплату. Обнови приложение позже.');
 }
-
 document.addEventListener('visibilitychange', refreshAfterTributeCheckout);
 window.addEventListener('focus', refreshAfterTributeCheckout);
 
@@ -939,7 +981,12 @@ async function loadMe() {
     state.user = result.user;
     state.connections = result.connections || [];
     state.subscription = { ...(result.subscription || {}), can_test_override: Boolean(result.can_test_override) };
+    state.packageBalance = result.package_balance || null;
+    state.groupEntitlement = result.group_entitlement || null;
     state.paymentsAvailable = Boolean(result.payments_available);
+    state.packagePaymentsAvailable = Boolean(result.package_payments_available);
+    state.groupPaymentsAvailable = Boolean(result.group_payments_available);
+    state.tributePlanAvailability = result.tribute_plan_availability || {};
     state.notificationPreferences = result.notification_preferences || state.notificationPreferences;
     state.events = [];
     state.authenticated = true;
@@ -965,6 +1012,7 @@ async function loadHomeEvents() {
   try {
     const result = await api('/api/home/events');
     state.events = result.events || [];
+    if (result.package_balance) state.packageBalance = result.package_balance;
   } catch (error) {
     state.eventFeedError = error.message || 'Не удалось загрузить события';
   } finally {
@@ -1100,8 +1148,6 @@ app.addEventListener('submit', async event => {
 app.addEventListener('change', event => {
   if (!event.target.matches('[data-terms-consent]')) return;
   state.paymentTermsAccepted = event.target.checked;
-  const button = app.querySelector('[data-action="continue-payment"]');
-  if (button) button.disabled = !state.paymentTermsAccepted || state.paymentLoading;
 });
 
 app.addEventListener('click', async event => {
@@ -1135,21 +1181,37 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.action === 'open-payment-sheet') {
-    if (!state.authenticated) { toast('Открой приложение через Telegram, чтобы оплатить подписку.'); return; }
-    if (state.tariffMode !== 'unlimited') { toast('Пакеты уведомлений подключим отдельно.'); return; }
-    if (!state.paymentsAvailable) { toast('Оплата Tribute пока настраивается.'); return; }
+    if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
+    state.paymentSelection = { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
     state.paymentSheetOpen = true;
     render();
+    return;
+  }
+  if (target.dataset.action === 'open-package-payment-sheet') {
+    if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
+    state.paymentTermsAccepted = false;
+    state.paymentSelection = { service_key: 'personal_package', plan_id: state.selectedTariff };
+    state.paymentSheetOpen = true;
+    render();
+    return;
+  }
+  if (target.dataset.action === 'open-group-payment-sheet') {
+    toast('Оплата групповых тарифов в Telegram Stars ещё подключается. Списаний не будет.');
     return;
   }
   if (target.dataset.action === 'close-payment-sheet') {
     if (target.classList.contains('payment-sheet-backdrop') && event.target !== target) return;
     state.paymentSheetOpen = false;
+    state.paymentSelection = null;
     render();
     return;
   }
-  if (target.dataset.action === 'continue-payment') { await purchaseSelectedSubscription(); return; }
+  if (target.dataset.action === 'tribute-stars') { await purchaseSelectedPlan(); return; }
+  if (target.dataset.action === 'cloudpayments-stub') {
+    toast('Оплата картой и через СБП появится после подключения CloudPayments. Сейчас списаний не будет.');
+    return;
+  }
   if (target.dataset.contactId) {
     pushNavigation();
     state.archiveContactId = target.dataset.contactId;
@@ -1309,7 +1371,7 @@ app.addEventListener('click', async event => {
     return;
   }
   const action = target.dataset.action;
-  if (action === 'tariff-pay') { await purchaseSelectedSubscription(); return; }
+  if (action === 'tariff-pay') { await purchaseSelectedPlan(); return; }
   if (action === 'group-tariff-pay') { toast('Оплата групп пока не подключена — деньги не списаны.'); return; }
   if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
@@ -1339,7 +1401,7 @@ app.addEventListener('click', async event => {
     if (!window.confirm('Удалить профиль, архивные сообщения и медиа, а также настройки аккаунта? Уже отправленные ботом сообщения в Telegram останутся в чате. Это действие нельзя отменить.')) return;
     try {
       await api('/api/me/data', { method: 'DELETE' });
-      state.user = null; state.connections = []; state.events = []; state.subscription = null; state.authenticated = false;
+      state.user = null; state.connections = []; state.events = []; state.subscription = null; state.packageBalance = null; state.groupEntitlement = null; state.authenticated = false;
       state.ownerStatistics = null; state.ownerTestGroup = []; state.navigationStack = []; state.archiveContactId = null; state.archiveGroupId = null; state.archiveTopicId = null; state.archiveGroups = []; state.archiveTopics = []; state.groupArchiveEvents = []; state.archiveMode = 'contacts'; state.query = '';
       try { localStorage.removeItem('spychau-notification-preferences'); } catch {}
       state.notificationPreferences = loadNotificationPreferences();
