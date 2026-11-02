@@ -20,7 +20,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.17" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.18" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -304,27 +304,36 @@ async function handleTelegramWebhook(request, env) {
     const incomingMessage = update.message;
     const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
     const startMatch = commandText.match(/^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{1,64}))?$/i);
-    if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && startMatch) {
+    const helpMatch = commandText.match(/^\/(?:help)(?:@\w+)?$/i);
+    if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && (startMatch || helpMatch)) {
       if (!env.TELEGRAM_BOT_TOKEN) return json({ error: "bot token is not configured" }, 500);
-      if (startMatch[1] === "connect") {
+      if (startMatch?.[1] === "connect") {
         const sent = await sendConnectInstructions(env, incomingMessage.chat.id);
         if (!sent) return json({ error: "Telegram could not send the connection instructions" }, 502);
         return json({ ok: true, handled: "connect_start" });
       }
 
+      const isHelp = Boolean(helpMatch);
       const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: incomingMessage.chat.id,
-          text: "Привет! Я SpySkaut.\n\nЧтобы подключить меня, открой в Telegram:\nПрофиль → Изм. → Автоматизация чатов.\n\nВыбери SpySkaut и нужные чаты. После подключения новые события начнут появляться в приложении.",
+          text: isHelp
+            ? "Я SpySkaut — архив изменений в подключённых чатах Telegram.\n\n/start — открыть приложение и начать\n/connect — получить инструкцию по подключению личных чатов\n/help — показать эту справку\n\nЯ сохраняю только новые события, которые Telegram присылает после подключения выбранного чата. Историю сообщений до подключения восстановить нельзя."
+            : "Привет! Я Скаут, помощник SpySkaut 🕵️\n\nЯ сохраняю в архиве новые события в выбранных тобой чатах Telegram: например, изменения и удаления сообщений, которые Telegram передаёт боту.\n\nЧтобы начать, подключи SpySkaut в настройках Telegram Business и выбери нужные чаты. Затем открывай приложение — события появятся в разделе истории.\n\nЯ не получаю сообщения из чатов до подключения. Групповые беседы пока работают в тестовом режиме.",
           reply_markup: {
-            inline_keyboard: [[{ text: "Открыть SpySkaut", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]],
+            inline_keyboard: isHelp
+              ? [[{ text: "Открыть SpySkaut", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]]
+              : [
+                  [{ text: "Подключить личные чаты", url: "https://t.me/SpySkaut_bot?start=connect" }],
+                  [{ text: "Открыть приложение", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }],
+                ],
           },
         }),
       });
       if (!response.ok) return json({ error: "Telegram could not send the start message" }, 502);
-      return json({ ok: true, handled: "start" });
+      return json({ ok: true, handled: isHelp ? "help" : "start" });
     }
 
     if (update.my_chat_member?.chat && ["group", "supergroup"].includes(update.my_chat_member.chat.type)) {
