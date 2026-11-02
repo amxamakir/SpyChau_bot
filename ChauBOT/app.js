@@ -958,6 +958,71 @@ async function purchaseSelectedPlan() {
 }
 
 let tributeRefreshRunning = false;
+let subscriptionExpiryTimer = null;
+
+function clearPersonalArchiveCache() {
+  state.events = [];
+  state.archiveCursor = null;
+  state.archiveHasMore = false;
+  state.archiveLoadingMore = false;
+  state.archiveGroups = [];
+  state.archiveTopics = [];
+  state.groupArchiveEvents = [];
+  state.groupArchiveCursor = null;
+  state.groupArchiveHasMore = false;
+  state.groupArchiveLoadingMore = false;
+  state.groupArchiveEventCounts = {};
+  state.groupArchiveTopicEventCounts = {};
+  state.archiveContactId = null;
+  state.archiveGroupId = null;
+  state.archiveTopicId = null;
+  state.archiveGroupsAvailable = false;
+}
+
+function scheduleSubscriptionExpiryCheck() {
+  if (subscriptionExpiryTimer) clearTimeout(subscriptionExpiryTimer);
+  subscriptionExpiryTimer = null;
+  const subscription = state.subscription || {};
+  if (!state.authenticated || !subscription.active || subscription.test_override || subscription.test_group_member) return;
+  const expiry = Date.parse(String(subscription.expires_at || ''));
+  if (!Number.isFinite(expiry)) return;
+  const remaining = expiry - Date.now();
+  const delay = Math.min(Math.max(remaining > 0 ? remaining + 1000 : 30_000, 1000), 2_147_000_000);
+  subscriptionExpiryTimer = setTimeout(async () => {
+    if (!state.authenticated || !state.subscription?.active) return;
+    const currentExpiry = Date.parse(String(state.subscription?.expires_at || ''));
+    if (Number.isFinite(currentExpiry) && currentExpiry > Date.now()) {
+      scheduleSubscriptionExpiryCheck();
+      return;
+    }
+    // Close the currently rendered archive at the deadline; the server remains authoritative.
+    state.subscription = {
+      ...state.subscription,
+      active: false,
+      capabilities: { ...(state.subscription?.capabilities || {}), personal_unlimited: false, personal_archive: false },
+    };
+    clearPersonalArchiveCache();
+    render();
+    try {
+      const latest = await api('/api/me');
+      applyLatestPaymentState(latest);
+      if (state.subscription?.active) {
+        render();
+        if (['home', 'services'].includes(state.tab)) void loadHomeEvents();
+        else if (state.tab === 'archive') void loadArchive();
+        return;
+      }
+      if (Number(state.packageBalance?.remaining || 0) > 0) {
+        const feed = await api('/api/home/events');
+        state.events = feed.events || [];
+        state.packageBalance = feed.package_balance || state.packageBalance;
+      }
+    } catch {}
+    render();
+    if (!state.subscription?.active) toast('Срок подписки истёк. Доступ к архиву закрыт.');
+  }, delay);
+}
+
 function applyLatestPaymentState(latest) {
   const previous = JSON.stringify([
     state.subscription, state.packageBalance, state.groupEntitlement,
@@ -971,6 +1036,7 @@ function applyLatestPaymentState(latest) {
   state.packagePaymentsAvailable = Boolean(latest.package_payments_available);
   state.groupPaymentsAvailable = Boolean(latest.group_payments_available);
   state.tributePlanAvailability = latest.tribute_plan_availability || {};
+  scheduleSubscriptionExpiryCheck();
   return previous !== JSON.stringify([
     state.subscription, state.packageBalance, state.groupEntitlement,
     state.paymentsAvailable, state.packagePaymentsAvailable, state.groupPaymentsAvailable,
@@ -1041,6 +1107,7 @@ async function loadMe() {
     state.notificationPreferences = result.notification_preferences || state.notificationPreferences;
     state.events = [];
     state.authenticated = true;
+    scheduleSubscriptionExpiryCheck();
     try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(state.notificationPreferences)); } catch {}
     loadInitialArchive = state.tab === 'archive' && new URLSearchParams(window.location.search).get('open') === 'archive';
     loadInitialHomeFeed = !loadInitialArchive && ['home', 'services'].includes(state.tab);
@@ -1062,6 +1129,10 @@ async function loadHomeEvents() {
   render();
   try {
     const result = await api('/api/home/events');
+    if (!state.subscription?.active && !Number(result.package_balance?.remaining || 0)) {
+      state.events = [];
+      return;
+    }
     state.events = result.events || [];
     if (result.package_balance) state.packageBalance = result.package_balance;
   } catch (error) {
@@ -1091,6 +1162,10 @@ async function loadArchive({ append = false } = {}) {
   try {
     const cursor = append ? state.archiveCursor : null;
     const result = await api(`/api/archive${cursor ? `?before_id=${encodeURIComponent(cursor)}` : ''}`);
+    if (!state.subscription?.active) {
+      clearPersonalArchiveCache();
+      return;
+    }
     state.events = append ? [...state.events, ...(result.events || [])] : (result.events || []);
     state.archiveCursor = result.next_cursor || null;
     state.archiveHasMore = Boolean(result.has_more && result.next_cursor);
@@ -1130,6 +1205,10 @@ async function loadGroupArchive({ append = false } = {}) {
   try {
     const cursor = append ? state.groupArchiveCursor : null;
     const result = await api(`/api/archive/groups${cursor ? `?before_id=${encodeURIComponent(cursor)}` : ''}`);
+    if (!state.subscription?.active) {
+      clearPersonalArchiveCache();
+      return;
+    }
     state.archiveGroupsAvailable = Boolean(result.available);
     if (!append) {
       state.archiveGroups = result.groups || [];
@@ -1452,6 +1531,8 @@ app.addEventListener('click', async event => {
     if (!window.confirm('Удалить профиль, архивные сообщения и медиа, а также настройки аккаунта? Уже отправленные ботом сообщения в Telegram останутся в чате. Это действие нельзя отменить.')) return;
     try {
       await api('/api/me/data', { method: 'DELETE' });
+      if (subscriptionExpiryTimer) clearTimeout(subscriptionExpiryTimer);
+      subscriptionExpiryTimer = null;
       state.user = null; state.connections = []; state.events = []; state.subscription = null; state.packageBalance = null; state.groupEntitlement = null; state.authenticated = false;
       state.ownerStatistics = null; state.ownerTestGroup = []; state.navigationStack = []; state.archiveContactId = null; state.archiveGroupId = null; state.archiveTopicId = null; state.archiveGroups = []; state.archiveTopics = []; state.groupArchiveEvents = []; state.archiveMode = 'contacts'; state.query = '';
       try { localStorage.removeItem('spychau-notification-preferences'); } catch {}

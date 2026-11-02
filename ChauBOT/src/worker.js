@@ -143,16 +143,26 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.58" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.59" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
     if (avatarMatch && request.method === "GET") {
+      const event = await env.DB.prepare("SELECT owner_id FROM events WHERE id = ?")
+        .bind(avatarMatch[1]).first();
+      if (!event || !(await hasPersonalDataAccess(env.DB, String(event.owner_id)))) {
+        return new Response("Not found", { status: 404 });
+      }
       return serveContactAvatar(request, env, avatarMatch[1]);
     }
 
     const mediaMatch = route.match(/^\/api\/media\/(\d+)$/);
     if (mediaMatch && request.method === "GET") {
+      const event = await env.DB.prepare("SELECT owner_id FROM events WHERE id = ?")
+        .bind(mediaMatch[1]).first();
+      if (!event || !(await hasPersonalDataAccess(env.DB, String(event.owner_id)))) {
+        return new Response("Not found", { status: 404 });
+      }
       return serveArchivedMedia(request, env, mediaMatch[1]);
     }
 
@@ -586,6 +596,14 @@ async function handleTelegramWebhook(request, env) {
     ).bind(connectionId).first();
     if (!connectionRow) return json({ ok: true, ignored: true });
 
+    const [subscription, packageBalance] = await Promise.all([
+      getSubscription(env.DB, String(connectionRow.owner_id)),
+      getNotificationPackageBalance(env.DB, String(connectionRow.owner_id)),
+    ]);
+    if (!subscription.active && !packageBalance.remaining) {
+      return json({ ok: true, ignored: "personal_access_expired" });
+    }
+
     const updateId = Number.isInteger(update.update_id) ? update.update_id : null;
     const savedEvents = [];
     if (deleted) {
@@ -699,7 +717,7 @@ async function handleTributeWebhook(request, env) {
   const eventName = String(event?.name || "");
   const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
   if (eventName === "new_digital_product") {
-    return handleTributeDigitalProduct(payload, rawBody, env);
+    return handleTributeDigitalProduct(payload, rawBody, event.created_at, env);
   }
   if (eventName === "digital_product_refunded") {
     return handleTributeDigitalProductRefund(payload, rawBody, env);
@@ -718,6 +736,8 @@ async function handleTributeWebhook(request, env) {
     return json({ ok: true, handled: "cancellation" });
   }
   if (payload.type && payload.type !== "regular") return json({ ok: true, ignored: true });
+  const paidAt = tributeEventTimestamp(event.created_at);
+  if (!paidAt) return json({ error: "invalid Tribute event created_at" }, 400);
   const planEntry = tributeSubscriptionPlan(payload);
   if (!planEntry) return json({ error: "subscription amount is not a configured tariff" }, 400);
   const [planId, plan] = planEntry;
@@ -734,30 +754,42 @@ async function handleTributeWebhook(request, env) {
         VALUES(?, ?, ?, ?, ?)`)
         .bind(eventKey, ownerId, eventName, subscriptionId, plan.months),
       env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
-        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
-      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime('now', printf('+%d months', ?))
-        WHERE changes() = 1`)
-        .bind(`subscription:${eventKey}`, eventKey, ownerId, planId, Number(payload.amount), plan.months),
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at, purchased_at
+      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime(
+        CASE WHEN julianday((SELECT expires_at FROM subscriptions WHERE owner_id = ?)) > julianday(?)
+          THEN (SELECT expires_at FROM subscriptions WHERE owner_id = ?) ELSE ? END,
+        printf('+%d months', ?)
+      ), datetime(?) WHERE changes() = 1`)
+        .bind(`subscription:${eventKey}`, eventKey, ownerId, planId, Number(payload.amount), ownerId, paidAt, ownerId, paidAt, plan.months, paidAt),
       env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
-        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 1 WHERE changes() = 1
+        SELECT ?, datetime(?, printf('+%d months', ?)), ?, 1 WHERE changes() = 1
         ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
-          CASE WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now')
-            THEN subscriptions.expires_at ELSE 'now' END,
+          CASE WHEN julianday(subscriptions.expires_at) > julianday(?)
+            THEN subscriptions.expires_at ELSE ? END,
           printf('+%d months', ?)
         ), plan_id = excluded.plan_id, auto_renew = 1`)
-        .bind(ownerId, plan.months, planId, plan.months),
+        .bind(ownerId, paidAt, plan.months, planId, paidAt, paidAt, plan.months),
     ]);
   } catch { return json({ error: "Tribute subscription event processing failed" }, 500); }
   return json({ ok: true, handled: eventName, plan_id: planId });
 }
 
-async function handleTributeDigitalProduct(payload, rawBody, env) {
+function tributeEventTimestamp(value) {
+  const timestamp = Date.parse(String(value || ""));
+  if (!Number.isFinite(timestamp)) return null;
+  // Store normalized UTC timestamps in SQLite's format so comparisons and month arithmetic agree.
+  return new Date(timestamp).toISOString().slice(0, 19).replace("T", " ");
+}
+
+async function handleTributeDigitalProduct(payload, rawBody, createdAt, env) {
   const ownerId = String(payload.telegram_user_id || "");
   const productId = String(payload.product_id || "");
   const purchaseId = String(payload.purchase_id || "");
   if (!/^\d{1,20}$/.test(ownerId) || !/^\d+$/.test(productId) || !/^\d+$/.test(purchaseId)) {
     return json({ error: "invalid Tribute digital product payload" }, 400);
   }
+  const paidAt = tributeEventTimestamp(createdAt);
+  if (!paidAt) return json({ error: "invalid Tribute event created_at" }, 400);
   const actualProduct = await getTributeProduct(productId, env);
   if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
     || String(actualProduct.currency || "").toUpperCase() !== "RUB"
@@ -805,10 +837,10 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
         ) VALUES(?, ?, ?, ?, 'personal_package', ?, ?, 'RUB')`)
           .bind(`tribute:product:${purchaseId}`, purchaseId, ownerId, productId, planId, amount),
         env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
-          purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, credits_granted
-        ) SELECT ?, 'tribute', ?, ?, 'personal_package', ?, ?, 'RUB', ?
+          purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, credits_granted, purchased_at
+        ) SELECT ?, 'tribute', ?, ?, 'personal_package', ?, ?, 'RUB', ?, datetime(?)
         WHERE changes() = 1`)
-          .bind(`tribute:product:${purchaseId}`, `product:${purchaseId}`, ownerId, planId, amount, plan.events),
+          .bind(`tribute:product:${purchaseId}`, `product:${purchaseId}`, ownerId, planId, amount, plan.events, paidAt),
         env.DB.prepare(`INSERT OR IGNORE INTO notification_packages(
           package_id, owner_id, purchase_id, plan_id, credits_total, credits_remaining, activated_after_event_id
         ) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(id) FROM events WHERE owner_id = ?), 0)
@@ -827,19 +859,23 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
       ) VALUES(?, ?, ?, ?, 'personal_unlimited', ?, ?, 'RUB')`)
         .bind(eventKey, purchaseId, ownerId, productId, planId, amount),
       env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
-        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
-      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime('now', printf('+%d months', ?))
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at, purchased_at
+      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime(
+        CASE WHEN julianday((SELECT expires_at FROM subscriptions WHERE owner_id = ?)) > julianday(?)
+          THEN (SELECT expires_at FROM subscriptions WHERE owner_id = ?) ELSE ? END,
+        printf('+%d months', ?)
+      ), datetime(?)
         WHERE changes() = 1`)
-        .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, plan.months),
+        .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, ownerId, paidAt, ownerId, paidAt, plan.months, paidAt),
       env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
-        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 0 WHERE changes() = 1
+        SELECT ?, datetime(?, printf('+%d months', ?)), ?, 0 WHERE changes() = 1
         ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
-          CASE WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now')
-            THEN subscriptions.expires_at ELSE 'now' END,
+          CASE WHEN julianday(subscriptions.expires_at) > julianday(?)
+            THEN subscriptions.expires_at ELSE ? END,
           printf('+%d months', ?)
         ), plan_id = excluded.plan_id, auto_renew = CASE
-          WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now') THEN subscriptions.auto_renew ELSE 0 END`)
-        .bind(ownerId, plan.months, planId, plan.months),
+          WHEN julianday(subscriptions.expires_at) > julianday(?) THEN subscriptions.auto_renew ELSE 0 END`)
+        .bind(ownerId, paidAt, plan.months, planId, paidAt, paidAt, plan.months, paidAt),
     ]);
     return json({ ok: true, handled: "new_digital_product", service: serviceKey, plan_id: planId });
 
@@ -1171,13 +1207,14 @@ async function ensureTestGroup(db, ownerId) {
 async function getSubscription(db, ownerId) {
   let row;
   try {
-    row = await db.prepare("SELECT expires_at, plan_id, auto_renew FROM subscriptions WHERE owner_id = ?").bind(ownerId).first();
+    row = await db.prepare(`SELECT expires_at, plan_id, auto_renew,
+      CASE WHEN expires_at IS NOT NULL AND julianday(expires_at) > julianday('now') THEN 1 ELSE 0 END AS paid_active
+      FROM subscriptions WHERE owner_id = ?`).bind(ownerId).first();
   } catch (error) {
     if (!/no such table: subscriptions/i.test(String(error?.message || error))) throw error;
   }
-  const expiresAt = row?.expires_at || null;
-  const expiresTime = expiresAt ? Date.parse(expiresAt) : NaN;
-  const paidActive = Number.isFinite(expiresTime) && expiresTime > Date.now();
+  const expiresAt = isoUtcTimestamp(row?.expires_at);
+  const paidActive = Number(row?.paid_active) === 1;
   let override = null;
   try {
     const test = await db.prepare("SELECT active FROM subscription_test_overrides WHERE owner_id = ?").bind(ownerId).first();
@@ -1205,6 +1242,19 @@ async function getSubscription(db, ownerId) {
     test_override: override,
     test_group_member: testGroupMember,
   };
+}
+
+function isoUtcTimestamp(value) {
+  if (!value) return null;
+  const raw = String(value);
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw.replace(" ", "T")}Z`;
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+async function hasPersonalDataAccess(db, ownerId) {
+  if ((await getSubscription(db, ownerId)).active) return true;
+  return Number((await getNotificationPackageBalance(db, ownerId)).remaining || 0) > 0;
 }
 
 async function getNotificationPackageBalance(db, ownerId) {
