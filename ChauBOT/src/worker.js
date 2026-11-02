@@ -495,6 +495,15 @@ async function handleGroupMessageUpdate(update, telegramMessage, edited, env) {
   `).bind(chatId).first();
   if (!group) return json({ ok: true, ignored: true });
 
+  const latestTitle = String(chat.title || "").trim();
+  if (latestTitle) {
+    await env.DB.prepare(`
+      UPDATE group_chats
+      SET title = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE chat_id = ? AND title <> ?
+    `).bind(latestTitle, chatId, latestTitle).run();
+  }
+
   await rememberGroupTopic(env.DB, group.owner_id, chatId, telegramMessage);
   if (telegramMessage.forum_topic_created || telegramMessage.forum_topic_edited) {
     return json({ ok: true, handled: "group_topic" });
@@ -547,15 +556,17 @@ async function rememberGroupTopic(db, ownerId, chatId, message) {
   const topic = message.forum_topic_created || message.forum_topic_edited;
   const threadId = String(message.message_thread_id || (topic ? message.message_id : ""));
   if (!threadId && !message.is_topic_message && message.chat?.type !== "supergroup") return;
-  const name = String(topic?.name || (threadId ? `Тема ${threadId}` : "Общие"));
-  if (message.forum_topic_edited) {
+  const actualName = typeof topic?.name === "string" ? topic.name.trim() : "";
+  const fallbackName = threadId ? `Тема ${threadId}` : "Общие";
+
+  if (actualName) {
     await db.prepare(`
       INSERT INTO group_topics(owner_id, chat_id, thread_id, name, updated_at) VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(owner_id, chat_id, thread_id) DO UPDATE SET name = excluded.name, updated_at = CURRENT_TIMESTAMP
-    `).bind(String(ownerId), String(chatId), threadId, name).run();
+    `).bind(String(ownerId), String(chatId), threadId, actualName).run();
   } else {
     await db.prepare("INSERT OR IGNORE INTO group_topics(owner_id, chat_id, thread_id, name) VALUES(?, ?, ?, ?)")
-      .bind(String(ownerId), String(chatId), threadId, name).run();
+      .bind(String(ownerId), String(chatId), threadId, fallbackName).run();
   }
 }
 
