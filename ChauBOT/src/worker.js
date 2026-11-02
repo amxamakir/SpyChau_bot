@@ -704,10 +704,10 @@ async function sendConnectInstructions(env, chatId) {
   if (!env.TELEGRAM_BOT_TOKEN) return false;
   return callTelegramJson(env, "sendMessage", {
     chat_id: chatId,
-    text: "⚙️ Жми — откроется редактирование профиля. Дальше: <b>Автоматизация чатов</b> → добавь бота и выбери нужные чаты.\n\nЕсли меню выглядит иначе: <b>Настройки</b> → <b>Telegram Business</b> → <b>Чат-боты</b> → «Подключить бота».\n\n<code>@SpySkaut_bot</code> — нажми, чтобы скопировать.",
+    text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n<code>@SpySkaut_bot</code> — нажми, чтобы скопировать.",
     parse_mode: "HTML",
     reply_markup: {
-      inline_keyboard: [[{ text: "⚙️ Открыть редактирование профиля", url: "tg://settings/edit" }]],
+      inline_keyboard: [[{ text: "⚙️ Открыть настройки", url: "tg://settings/edit" }]],
     },
   });
 }
