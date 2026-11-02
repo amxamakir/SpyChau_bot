@@ -190,6 +190,10 @@ html,body{touch-action:pan-x pan-y}
 .archive-page .search-field,.archive-page .archive-list{width:100%;min-width:0;max-width:100%}
 .archive-page .search-field{padding-inline:10px}
 .archive-page .search-field input{min-width:0}
+.archive-search-hint{margin:-5px 3px 10px;color:var(--muted);font-size:11px;line-height:1.45}
+.archive-load-more{display:grid;justify-items:center;gap:7px;margin:14px 0 18px}
+.archive-load-more p{margin:0;color:var(--muted);font-size:11px;text-align:center}
+.archive-load-more .subtle-button{min-width:180px}
 .archive-filters{width:100%;max-width:100%;overscroll-behavior-x:contain}
 .contact-list{width:100%;max-width:680px;overflow:hidden;border:1px solid rgba(255,192,91,.13);border-radius:19px;background:rgba(36,19,20,.94)}
 .contact-row{width:100%;min-height:68px;display:flex;align-items:center;gap:10px;padding:11px 13px;background:transparent;border:0;color:#fff8ee;text-align:left;cursor:pointer}

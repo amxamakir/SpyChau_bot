@@ -13,6 +13,26 @@ import {
 } from "./journal.js";
 
 const MAX_INIT_DATA_AGE_SECONDS = 60 * 60 * 24;
+const ARCHIVE_PAGE_SIZE = 100;
+
+function archiveCursor(url) {
+  const value = url.searchParams.get("before_id");
+  if (value === null) return { value: null, error: false };
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) {
+    return { value: null, error: true };
+  }
+  return { value, error: false };
+}
+
+function archivePage(rows) {
+  const hasMore = rows.length > ARCHIVE_PAGE_SIZE;
+  const events = rows.slice(0, ARCHIVE_PAGE_SIZE);
+  return {
+    rows: events,
+    has_more: hasMore,
+    next_cursor: hasMore && events.length ? String(events[events.length - 1].id) : null,
+  };
+}
 
 export default {
   async fetch(request, env) {
@@ -20,7 +40,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.23" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.24" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -158,20 +178,25 @@ export default {
         }
 
         if (route === "/api/archive" && request.method === "GET") {
+          const cursor = archiveCursor(url);
+          if (cursor.error) return json({ error: "invalid_cursor" }, 400);
           const subscription = await getSubscription(env.DB, String(user.id));
           if (!subscription.active) return json({ error: "subscription_required" }, 403);
           const preferences = await getNotificationPreferences(env.DB, String(user.id));
-          const rows = await env.DB.prepare(
-            "SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 5000",
-          ).bind(String(user.id)).all();
-          const hydrated = await hydrateEventRows(rows.results, env);
+          const query = cursor.value
+            ? env.DB.prepare("SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') AND id < ? ORDER BY id DESC LIMIT ?").bind(String(user.id), cursor.value, ARCHIVE_PAGE_SIZE + 1)
+            : env.DB.prepare("SELECT * FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT ?").bind(String(user.id), ARCHIVE_PAGE_SIZE + 1);
+          const page = archivePage((await query.all()).results || []);
+          const hydrated = await hydrateEventRows(page.rows, env);
           const events = hydrated.filter((event) =>
             isEventEnabledForOwner(event, user.id, preferences.preferences)
           );
-          return json({ events });
+          return json({ events, has_more: page.has_more, next_cursor: page.next_cursor });
         }
 
         if (route === "/api/archive/groups" && request.method === "GET") {
+          const cursor = archiveCursor(url);
+          if (cursor.error) return json({ error: "invalid_cursor" }, 400);
           const subscription = await getSubscription(env.DB, String(user.id));
           if (!subscription.active) return json({ error: "subscription_required" }, 403);
           const ownerId = String(user.id);
@@ -187,14 +212,18 @@ export default {
             FROM group_topics t JOIN group_chats g ON g.owner_id = t.owner_id AND g.chat_id = t.chat_id
             WHERE t.owner_id = ? AND g.active = 1 ORDER BY t.updated_at DESC
           `).bind(ownerId).all();
-          const rows = await env.DB.prepare(`
-            SELECT * FROM events
-            WHERE owner_id = ? AND event_type = 'edited' AND created_at >= datetime('now', '-7 days')
-              AND chat_id IN (SELECT chat_id FROM group_chats WHERE owner_id = ? AND active = 1)
-            ORDER BY id DESC LIMIT 5000
-          `).bind(ownerId, ownerId).all();
-          const events = await hydrateEventRows(rows.results, env);
-          return json({ available: true, groups: groups.results, topics: topics.results, events });
+          const query = cursor.value
+            ? env.DB.prepare(`SELECT * FROM events WHERE owner_id = ? AND event_type = 'edited' AND created_at >= datetime('now', '-7 days') AND chat_id IN (SELECT chat_id FROM group_chats WHERE owner_id = ? AND active = 1) AND id < ? ORDER BY id DESC LIMIT ?`).bind(ownerId, ownerId, cursor.value, ARCHIVE_PAGE_SIZE + 1)
+            : env.DB.prepare(`SELECT * FROM events WHERE owner_id = ? AND event_type = 'edited' AND created_at >= datetime('now', '-7 days') AND chat_id IN (SELECT chat_id FROM group_chats WHERE owner_id = ? AND active = 1) ORDER BY id DESC LIMIT ?`).bind(ownerId, ownerId, ARCHIVE_PAGE_SIZE + 1);
+          const page = archivePage((await query.all()).results || []);
+          const events = await hydrateEventRows(page.rows, env);
+          const [eventCounts, topicEventCounts] = cursor.value
+            ? [{ results: [] }, { results: [] }]
+            : await Promise.all([
+              env.DB.prepare(`SELECT chat_id, COUNT(*) AS count FROM events WHERE owner_id = ? AND event_type = 'edited' AND created_at >= datetime('now', '-7 days') AND chat_id IN (SELECT chat_id FROM group_chats WHERE owner_id = ? AND active = 1) GROUP BY chat_id`).bind(ownerId, ownerId).all(),
+              env.DB.prepare(`SELECT chat_id, message_thread_id, COUNT(*) AS count FROM events WHERE owner_id = ? AND event_type = 'edited' AND created_at >= datetime('now', '-7 days') AND chat_id IN (SELECT chat_id FROM group_chats WHERE owner_id = ? AND active = 1) GROUP BY chat_id, message_thread_id`).bind(ownerId, ownerId).all(),
+            ]);
+          return json({ available: true, groups: groups.results, topics: topics.results, events, has_more: page.has_more, next_cursor: page.next_cursor, event_counts: eventCounts.results || [], topic_event_counts: topicEventCounts.results || [] });
         }
 
         if (route === "/api/me/data" && request.method === "DELETE") {

@@ -31,7 +31,7 @@ const icon = (name, size = 20) => {
 };
 
 const state = {
-  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
@@ -344,10 +344,19 @@ function archivePageHeading(title, subtitle) {
   return `<div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ СОБЫТИЙ</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div>${archiveModeTabs()}`;
 }
 
+function archiveLoadMoreControl(groupMode = false) {
+  const hasMore = groupMode ? state.groupArchiveHasMore : state.archiveHasMore;
+  const loading = groupMode ? state.groupArchiveLoadingMore : state.archiveLoadingMore;
+  const error = groupMode ? state.groupArchiveLoadMoreError : state.archiveLoadMoreError;
+  if (!hasMore && !error) return '';
+  const action = groupMode ? 'load-more-group-archive' : 'load-more-archive';
+  return `<div class="archive-load-more">${error ? `<p>${escapeHtml(error)}</p>` : ''}<button type="button" class="subtle-button" data-action="${action}" ${loading ? 'disabled' : ''}>${loading ? 'Загружаем…' : error ? 'Повторить загрузку' : 'Загрузить ещё'}</button></div>`;
+}
+
 function archiveGroupCard(group) {
   const id = String(group.chat_id);
   const topics = state.archiveTopics.filter(topic => String(topic.chat_id) === id);
-  const events = state.groupArchiveEvents.filter(event => String(event.chat_id) === id);
+  const events = Number(state.groupArchiveEventCounts[id] || 0);
   const botStatus = group.bot_status === 'administrator'
     ? 'Бот подключён как администратор'
     : 'Назначь бота администратором, чтобы он видел сообщения';
@@ -356,8 +365,8 @@ function archiveGroupCard(group) {
 
 function archiveTopicCard(groupId, topic) {
   const id = String(topic.thread_id || '');
-  const events = state.groupArchiveEvents.filter(event => String(event.chat_id) === String(groupId) && String(event.message_thread_id || '') === id);
-  return `<button type="button" class="archive-group-card archive-topic-card" data-archive-topic="${escapeHtml(id)}"><span class="archive-topic-icon">${icon('chat', 19)}</span><span class="archive-group-copy"><strong>${escapeHtml(topic.name || (id ? `Тема ${id}` : 'Общие'))}</strong><small>${events.length ? `${events.length} ${plural(events.length, 'изменение', 'изменения', 'изменений')}` : 'Пока нет изменений'}</small></span><span class="archive-group-count">${events.length}</span>${icon('chevron', 16)}</button>`;
+  const events = Number(state.groupArchiveTopicEventCounts[`${groupId}:${id}`] || 0);
+  return `<button type="button" class="archive-group-card archive-topic-card" data-archive-topic="${escapeHtml(id)}"><span class="archive-topic-icon">${icon('chat', 19)}</span><span class="archive-group-copy"><strong>${escapeHtml(topic.name || (id ? `Тема ${id}` : 'Общие'))}</strong><small>${events ? `${events} ${plural(events, 'изменение', 'изменения', 'изменений')}` : 'Пока нет изменений'}</small></span><span class="archive-group-count">${events}</span>${icon('chevron', 16)}</button>`;
 }
 
 function archiveGroupsPage() {
@@ -391,7 +400,7 @@ function archiveGroupsPage() {
   }
   const filters = [['all', 'Все'], ['edited', 'Изменено']];
   const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
-  return `<section class="page archive-page">${heading}<button type="button" class="archive-back" data-action="archive-topic-back">${icon('chevron', 16)} ${escapeHtml(group.title || 'Беседа')}</button><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'изменение', 'изменения', 'изменений')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>Пока нет изменений</strong><p>Когда сообщение в этой теме отредактируют, изменение появится здесь. Удаления добавим позже.</p></div>`}</section>`;
+  return `<section class="page archive-page">${heading}<button type="button" class="archive-back" data-action="archive-topic-back">${icon('chevron', 16)} ${escapeHtml(group.title || 'Беседа')}</button><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${state.groupArchiveHasMore ? '<p class="archive-search-hint">Поиск выполняется по загруженным изменениям. Загрузи ещё, чтобы расширить поиск.</p>' : ''}${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'изменение', 'изменения', 'изменений')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>Пока нет изменений</strong><p>Когда сообщение в этой теме отредактируют, изменение появится здесь. Удаления добавим позже.</p></div>`}${archiveLoadMoreControl(true)}</section>`;
 }
 
 function home() {
@@ -572,7 +581,7 @@ function archive() {
     const selectedEvents = selectedContact.events.filter(event => state.archiveFilter === 'all' || archiveEventKind(event) === state.archiveFilter);
     const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
     const identity = eventContactIdentity(selectedContact);
-    return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading">${contactAvatar(selectedContact)}<div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}</div></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
+    return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading">${contactAvatar(selectedContact)}<div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}</div></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${archiveLoadMoreControl()}${disclaimer}</section>`;
   }
 
   const matchingContacts = contacts.filter(contact => {
@@ -581,7 +590,7 @@ function archive() {
     return content.includes(query);
   });
   const contactRows = matchingContacts.map(archiveContactCard).join('');
-  return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск контакта или события" autocomplete="off"></label>${contacts.length ? `<div class="archive-summary"><span>${matchingContacts.length} ${plural(matchingContacts.length, 'контакт', 'контакта', 'контактов')} с событиями</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div>${contactRows ? `<div class="archive-contact-list">${contactRows}</div>` : emptyState}` : emptyState}${disclaimer}</section>`;
+  return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск контакта или события" autocomplete="off"></label>${state.archiveHasMore ? '<p class="archive-search-hint">Поиск выполняется по загруженным событиям. Загрузи ещё, чтобы расширить поиск.</p>' : ''}${contacts.length ? `<div class="archive-summary"><span>${matchingContacts.length} ${plural(matchingContacts.length, 'контакт', 'контакта', 'контактов')} с событиями</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div>${contactRows ? `<div class="archive-contact-list">${contactRows}</div>` : emptyState}` : emptyState}${archiveLoadMoreControl()}${disclaimer}</section>`;
 }
 
 function plural(number, one, few, many) {
@@ -884,41 +893,75 @@ async function loadHomeEvents() {
   }
 }
 
-async function loadArchive() {
+async function loadArchive({ append = false } = {}) {
   state.tab = 'archive';
   if (state.archiveMode === 'groups') return loadGroupArchive();
   if (state.preview) { render(); return; }
-  state.archiveLoading = true;
-  state.apiError = '';
+  if (append && (state.archiveLoadingMore || !state.archiveHasMore || !state.archiveCursor)) return;
+  if (append) {
+    state.archiveLoadingMore = true;
+    state.archiveLoadMoreError = '';
+  } else {
+    state.archiveLoading = true;
+    state.apiError = '';
+    state.archiveCursor = null;
+    state.archiveHasMore = false;
+    state.archiveLoadMoreError = '';
+  }
   render();
   try {
-    const result = await api('/api/archive');
-    state.events = result.events || [];
+    const cursor = append ? state.archiveCursor : null;
+    const result = await api(`/api/archive${cursor ? `?before_id=${encodeURIComponent(cursor)}` : ''}`);
+    state.events = append ? [...state.events, ...(result.events || [])] : (result.events || []);
+    state.archiveCursor = result.next_cursor || null;
+    state.archiveHasMore = Boolean(result.has_more && result.next_cursor);
   } catch (error) {
     if (error.message === 'subscription_required') {
       state.subscription = { ...state.subscription, active: false };
       state.events = [];
+      state.archiveCursor = null;
+      state.archiveHasMore = false;
+    } else if (append) {
+      state.archiveLoadMoreError = error.message || 'Не удалось загрузить следующую страницу';
     } else {
       state.apiError = error.message || 'Не удалось загрузить архив';
     }
   } finally {
-    state.archiveLoading = false;
+    if (append) state.archiveLoadingMore = false;
+    else state.archiveLoading = false;
     render();
   }
 }
 
-async function loadGroupArchive() {
+async function loadGroupArchive({ append = false } = {}) {
   state.tab = 'archive';
   if (state.preview) { render(); return; }
-  state.groupArchiveLoading = true;
-  state.groupArchiveError = '';
+  if (append && (state.groupArchiveLoadingMore || !state.groupArchiveHasMore || !state.groupArchiveCursor)) return;
+  if (append) {
+    state.groupArchiveLoadingMore = true;
+    state.groupArchiveLoadMoreError = '';
+  } else {
+    state.groupArchiveLoading = true;
+    state.groupArchiveError = '';
+    state.groupArchiveCursor = null;
+    state.groupArchiveHasMore = false;
+    state.groupArchiveLoadMoreError = '';
+  }
   render();
   try {
-    const result = await api('/api/archive/groups');
+    const cursor = append ? state.groupArchiveCursor : null;
+    const result = await api(`/api/archive/groups${cursor ? `?before_id=${encodeURIComponent(cursor)}` : ''}`);
     state.archiveGroupsAvailable = Boolean(result.available);
-    state.archiveGroups = result.groups || [];
-    state.archiveTopics = result.topics || [];
-    state.groupArchiveEvents = (result.events || []).map(event => ({ ...event, group_event: true }));
+    if (!append) {
+      state.archiveGroups = result.groups || [];
+      state.archiveTopics = result.topics || [];
+      state.groupArchiveEventCounts = Object.fromEntries((result.event_counts || []).map(item => [String(item.chat_id), Number(item.count || 0)]));
+      state.groupArchiveTopicEventCounts = Object.fromEntries((result.topic_event_counts || []).map(item => [`${item.chat_id}:${item.message_thread_id || ''}`, Number(item.count || 0)]));
+    }
+    const events = (result.events || []).map(event => ({ ...event, group_event: true }));
+    state.groupArchiveEvents = append ? [...state.groupArchiveEvents, ...events] : events;
+    state.groupArchiveCursor = result.next_cursor || null;
+    state.groupArchiveHasMore = Boolean(result.has_more && result.next_cursor);
     if (!state.archiveGroups.some(group => String(group.chat_id) === String(state.archiveGroupId))) {
       state.archiveGroupId = null;
       state.archiveTopicId = null;
@@ -930,11 +973,15 @@ async function loadGroupArchive() {
       state.archiveGroupsAvailable = false;
       state.archiveTopics = [];
       state.groupArchiveEvents = [];
+      state.groupArchiveCursor = null;
+      state.groupArchiveHasMore = false;
     } else {
-      state.groupArchiveError = error.message || 'Не удалось получить данные';
+      if (append) state.groupArchiveLoadMoreError = error.message || 'Не удалось загрузить следующую страницу';
+      else state.groupArchiveError = error.message || 'Не удалось получить данные';
     }
   } finally {
-    state.groupArchiveLoading = false;
+    if (append) state.groupArchiveLoadingMore = false;
+    else state.groupArchiveLoading = false;
     render();
   }
 }
@@ -1069,6 +1116,8 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.action === 'refresh-group-archive') { await loadGroupArchive(); return; }
+  if (target.dataset.action === 'load-more-archive') { await loadArchive({ append: true }); return; }
+  if (target.dataset.action === 'load-more-group-archive') { await loadGroupArchive({ append: true }); return; }
   if (target.dataset.action === 'add-group-bot') {
     const link = 'https://t.me/SpySkaut_bot?startgroup=true';
     if (state.telegram?.openTelegramLink) state.telegram.openTelegramLink(link);
