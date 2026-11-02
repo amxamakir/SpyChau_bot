@@ -35,6 +35,7 @@ const state = {
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
+  notificationPreferencesSaving: false,
   loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
@@ -678,7 +679,7 @@ async function removeOwnerTestGroupMember(telegramId) {
 
 function notificationsPage() {
   const preferences = state.notificationPreferences;
-  const switchRow = (key, title, description, iconName, color, disabled = false) => `<button type="button" class="profile-row notification-switch-row" role="switch" aria-checked="${Boolean(preferences[key])}" aria-label="${escapeHtml(title)}" data-notification-toggle="${key}" ${disabled || !state.authenticated ? 'disabled' : ''}><span class="service-icon ${color}">${icon(iconName, 19)}</span><span class="row-copy"><strong>${escapeHtml(title)}</strong>${description ? `<small>${escapeHtml(description)}</small>` : ''}</span><span class="test-switch ${preferences[key] ? 'on' : ''}" aria-hidden="true"><i></i></span></button>`;
+  const switchRow = (key, title, description, iconName, color, disabled = false) => `<button type="button" class="profile-row notification-switch-row" role="switch" aria-checked="${Boolean(preferences[key])}" aria-label="${escapeHtml(title)}" data-notification-toggle="${key}" ${disabled || !state.authenticated || state.notificationPreferencesSaving ? 'disabled' : ''}><span class="service-icon ${color}">${icon(iconName, 19)}</span><span class="row-copy"><strong>${escapeHtml(title)}</strong>${description ? `<small>${escapeHtml(description)}</small>` : ''}</span><span class="test-switch ${preferences[key] ? 'on' : ''}" aria-hidden="true"><i></i></span></button>`;
   return `<section class="page profile-page notifications-page"><div class="notifications-heading-with-mascot">${profileDetailHeader('МОЙ АККАУНТ', 'Уведомления', 'Выбирай, о чём я пишу тебе в чат с ботом.')}<img class="notifications-header-mascot" src="./assets/mascot/scout-notifications.png" alt="Скаут с колокольчиком" /></div><span class="list-label">СООБЩЕНИЯ СОБЕСЕДНИКОВ</span><div class="profile-card">${switchRow('deleted_messages', 'Удалённые сообщения', '', 'trash', 'red')}${switchRow('edited_messages', 'Изменённые сообщения', '', 'edit', 'yellow')}${switchRow('one_time_messages', 'Одноразовые сообщения', '', 'clock', 'purple')}${switchRow('group_messages', 'Сообщения в группах', '', 'people', 'purple', true)}</div><span class="list-label">МОИ ДЕЙСТВИЯ</span><div class="profile-card">${switchRow('deleted_by_owner', 'Удалённые мной', 'Уведомлять об удалениях моих сообщений', 'trash', 'red')}${switchRow('edited_by_owner', 'Изменённые мной', 'Уведомлять об изменениях моих сообщений', 'edit', 'yellow')}</div><div class="notification-note">${state.preview ? 'Открой приложение через Telegram, чтобы синхронизировать настройки.' : 'Уведомления от бота приходят в этот личный чат. Настройки синхронизируются с Telegram-аккаунтом.'} Telegram может не передать боту исходное вложение в ответе.</div></section>`;
 }
 
@@ -1134,21 +1135,25 @@ app.addEventListener('click', async event => {
     const key = target.dataset.notificationToggle;
     if (!['deleted_messages', 'edited_messages', 'one_time_messages', 'deleted_by_owner', 'edited_by_owner'].includes(key)) return;
     if (!state.authenticated) { toast('Открой приложение через Telegram, чтобы изменить настройки.'); return; }
+    if (state.notificationPreferencesSaving) return;
     const previous = state.notificationPreferences;
     const next = { ...state.notificationPreferences, [key]: !state.notificationPreferences[key] };
+    state.notificationPreferencesSaving = true;
     state.notificationPreferences = next;
     render();
+    let feedback = 'Настройки уведомлений сохранены.';
     try {
       const result = await api('/api/me/notification-preferences', { method: 'PUT', body: JSON.stringify({ preferences: next }) });
       state.notificationPreferences = result.preferences;
       try { localStorage.setItem('spychau-notification-preferences', JSON.stringify(result.preferences)); } catch {}
-      render();
-      toast('Настройки уведомлений сохранены.');
     } catch (error) {
       state.notificationPreferences = previous;
+      feedback = error.message || 'Не удалось сохранить настройки уведомлений.';
+    } finally {
+      state.notificationPreferencesSaving = false;
       render();
-      toast(error.message || 'Не удалось сохранить настройки уведомлений.');
     }
+    toast(feedback);
     return;
   }
   const action = target.dataset.action;
