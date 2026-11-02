@@ -343,7 +343,7 @@ function home() {
       ? 'Срок подписки истёк. Продли её, чтобы я продолжил сохранять события.'
       : 'Я не на посту и не сохраняю события. Подключай — вернусь в строй.';
   const subscriptionAction = subscriptionActive
-    ? `<div class="home-subscription-status" role="status"><span>${icon('check', 14)} Подключена</span><small>${expiryDate ? `Действует до ${escapeHtml(expiryDate)}` : subscription.test_group_member ? 'На время тестирования' : 'Срок окончания не указан'}</small></div>`
+    ? `<div class="home-subscription-status" role="status">Скаут сохраняет всё до ${expiryDate ? escapeHtml(expiryDate) : '∞'}</div>`
     : `<button class="button button-light" data-tab="tariffs"><span class="button-stencil-text">${subscriptionExpired ? 'Продлить' : 'Подключить'}</span>${icon('chevron', 16)}</button>`;
   return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${subscriptionActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionTitle}</h1><p>${subscriptionDescription}</p>${subscriptionAction}</div>${racer(false, subscriptionActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
