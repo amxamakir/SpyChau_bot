@@ -897,7 +897,11 @@ async function api(path, options = {}) {
     headers: { ...(options.body ? { 'content-type': 'application/json' } : {}), Authorization: `tma ${state.telegram.initData}`, ...options.headers }
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || `Ошибка API (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(result.error || `Ошибка API (${response.status})`);
+    error.details = result.details || null;
+    throw error;
+  }
   return result;
 }
 
@@ -937,7 +941,17 @@ async function purchaseSelectedPlan() {
     const message = error.message === 'payments_not_ready'
       ? 'Платёжные продукты Tribute ещё не настроены.'
       : error.message === 'tribute_product_price_mismatch'
-        ? 'Цена товара в Tribute не совпадает с тарифом. Оплата не открыта.'
+        ? error.details?.issue === 'wrong_amount' && Number.isFinite(Number(error.details.reported_rub))
+          ? `В Tribute указана цена ${error.details.reported_rub} ₽, а в приложении — ${error.details.expected_rub} ₽. Исправь цену связанного товара; оплата не открыта.`
+          : error.details?.issue === 'product_not_found'
+            ? 'Не нашёл связанный товар в Tribute. Проверь ссылку на товар; оплата не открыта.'
+            : error.details?.issue === 'product_not_approved'
+              ? 'Товар в Tribute ещё не одобрен. Оплата не открыта.'
+              : error.details?.issue === 'stars_not_enabled'
+                ? 'У товара Tribute выключена оплата Stars. Включи её в настройках товара.'
+                : error.details?.issue === 'api_unavailable'
+                  ? 'Не удалось проверить товар в Tribute. Попробуй ещё раз позже.'
+                  : 'Не удалось подтвердить цену и настройки товара в Tribute. Оплата не открыта.'
         : error.message || 'Не удалось открыть оплату.';
     toast(message);
   }

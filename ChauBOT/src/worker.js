@@ -82,17 +82,40 @@ async function getTributeProduct(productId, env) {
 }
 
 async function getTributeProductByWebLink(webLink, env) {
-  const query = new URLSearchParams({ page: "1", size: "100", type: "digital" });
-  const response = await fetch(`https://tribute.tg/api/v1/products?${query}`, {
-    headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
-  });
-  if (!response.ok) return null;
-  try {
-    const result = await response.json();
-    const target = String(webLink || "").trim().replace(/\/$/, "");
-    const products = Array.isArray(result?.rows) ? result.rows : [];
-    return products.find((product) => String(product?.webLink || "").trim().replace(/\/$/, "") === target) || null;
-  } catch { return null; }
+  const productSlug = (value) => {
+    try {
+      const url = new URL(String(value || ""));
+      const webPath = url.pathname.match(/\/p\/([^/]+)\/?$/i)?.[1];
+      if (webPath) return decodeURIComponent(webPath).toLowerCase();
+      const startApp = url.searchParams.get("startapp") || "";
+      return startApp.match(/^p([\w-]+)$/i)?.[1]?.toLowerCase() || "";
+    } catch { return ""; }
+  };
+  const target = productSlug(webLink);
+  if (!target) return { product: null, issue: "invalid_link" };
+
+  for (let page = 1; page <= 10; page += 1) {
+    const query = new URLSearchParams({ page: String(page), size: "100", type: "digital", desc: "true" });
+    let response;
+    try {
+      response = await fetch(`https://tribute.tg/api/v1/products?${query}`, {
+        headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
+      });
+    } catch {
+      return { product: null, issue: "api_unavailable" };
+    }
+    if (!response.ok) return { product: null, issue: "api_unavailable" };
+
+    let result;
+    try { result = await response.json(); } catch { return { product: null, issue: "invalid_response" }; }
+    const rows = Array.isArray(result?.rows) ? result.rows
+      : Array.isArray(result?.data?.rows) ? result.data.rows
+        : Array.isArray(result) ? result : [];
+    const product = rows.find((row) => productSlug(row?.webLink || row?.web_link || row?.link) === target);
+    if (product) return { product, issue: null };
+    if (rows.length < 100) break;
+  }
+  return { product: null, issue: "product_not_found" };
 }
 
 function archiveCursor(url) {
@@ -120,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.56" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.57" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -188,12 +211,38 @@ export default {
           }
           const product = tributeProduct(env, serviceKey, planId);
           if (!product) return json({ error: "plan_unavailable" }, 400);
-          const actualProduct = await getTributeProductByWebLink(product.web_link, env);
-          if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
-            || String(actualProduct.currency || "").toUpperCase() !== "RUB"
-            || Number(actualProduct.amount) !== product.amount_rub * 100
-            || actualProduct.starsAmountEnabled !== true) {
-            return json({ error: "tribute_product_price_mismatch" }, 409);
+          const lookup = await getTributeProductByWebLink(product.web_link, env);
+          const actualProduct = lookup.product;
+          const actualType = String(actualProduct?.type || "").toLowerCase();
+          const actualStatus = String(actualProduct?.status || "").toLowerCase();
+          const actualCurrency = String(actualProduct?.currency || "").toUpperCase();
+          const actualAmount = Number(actualProduct?.amount);
+          const starsEnabled = actualProduct?.starsAmountEnabled === true || actualProduct?.starsAmountEnabled === "true";
+          let productIssue = lookup.issue;
+          if (actualProduct) {
+            if (actualType !== "digital") productIssue = "wrong_product_type";
+            else if (actualStatus !== "approved") productIssue = "product_not_approved";
+            else if (actualCurrency !== "RUB") productIssue = "wrong_currency";
+            else if (actualAmount !== product.amount_rub * 100) productIssue = "wrong_amount";
+            else if (!starsEnabled) productIssue = "stars_not_enabled";
+            else productIssue = null;
+          }
+          if (productIssue) {
+            const reportedAmount = Number.isFinite(actualAmount) && actualAmount >= 0 && actualAmount % 100 === 0
+              ? actualAmount / 100 : null;
+            console.warn("Tribute checkout blocked: product validation failed", JSON.stringify({
+              plan_id: planId,
+              issue: productIssue,
+              expected_rub: product.amount_rub,
+              reported_rub: reportedAmount,
+              status: actualStatus || null,
+              currency: actualCurrency || null,
+            }));
+            return json({ error: "tribute_product_price_mismatch", details: {
+              issue: productIssue,
+              expected_rub: product.amount_rub,
+              reported_rub: reportedAmount,
+            } }, 409);
           }
           await env.DB.prepare(`INSERT INTO tribute_product_consents(consent_id, owner_id, plan_id, terms_version, service_key)
             VALUES(?, ?, ?, ?, ?)`)
