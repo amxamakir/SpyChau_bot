@@ -884,8 +884,9 @@ async function loadHomeEvents() {
 }
 
 async function loadArchive() {
+  state.tab = 'archive';
   if (state.archiveMode === 'groups') return loadGroupArchive();
-  if (state.preview) { state.tab = 'archive'; render(); return; }
+  if (state.preview) { render(); return; }
   state.archiveLoading = true;
   state.apiError = '';
   render();
@@ -901,13 +902,13 @@ async function loadArchive() {
     }
   } finally {
     state.archiveLoading = false;
-    state.tab = 'archive';
     render();
   }
 }
 
 async function loadGroupArchive() {
-  if (state.preview) { state.tab = 'archive'; render(); return; }
+  state.tab = 'archive';
+  if (state.preview) { render(); return; }
   state.groupArchiveLoading = true;
   state.groupArchiveError = '';
   render();
@@ -933,7 +934,6 @@ async function loadGroupArchive() {
     }
   } finally {
     state.groupArchiveLoading = false;
-    state.tab = 'archive';
     render();
   }
 }
