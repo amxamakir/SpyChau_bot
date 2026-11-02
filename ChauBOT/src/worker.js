@@ -37,8 +37,8 @@ function tributePaymentsConfigured(env) {
 function tributePaymentsReady(env, serviceKey = null, planId = null) {
   if (!tributePaymentsConfigured(env)) return false;
   if (serviceKey === "personal_unlimited") {
-    if (planId) return Boolean(tributeProduct(env, serviceKey, planId));
-    return Object.keys(PERSONAL_SUBSCRIPTION_PLANS).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
+    return /^https:\/\/(?:t\.me|telegram\.me)\/(?:tribute|tribute_bot)\/app\?startapp=s[\w-]+$/i
+      .test(String(env.TRIBUTE_CHECKOUT_URL || "").trim());
   }
   if (serviceKey === "personal_package") {
     if (planId) return Boolean(tributeProduct(env, serviceKey, planId));
@@ -106,7 +106,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.49" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.51" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -161,10 +161,19 @@ export default {
           const planId = String(body.plan_id || "");
           if (!(["personal_unlimited", "personal_package"].includes(serviceKey))) return json({ error: "plan_unavailable" }, 400);
           const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId] : PERSONAL_SUBSCRIPTION_PLANS[planId];
-          if (!tributePaymentsReady(env, serviceKey, planId)) return json({ error: "plan_unavailable" }, 503);
-          const product = tributeProduct(env, serviceKey, planId);
-          if (!plan || !product) return json({ error: "plan_unavailable" }, 400);
           const ownerId = String(user.id);
+          if (!plan) return json({ error: "plan_unavailable" }, 400);
+          if (!tributePaymentsReady(env, serviceKey, planId)) return json({ error: "plan_unavailable" }, 503);
+          if (serviceKey === "personal_unlimited") {
+            await env.DB.batch(Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((subscriptionPlanId) =>
+              env.DB.prepare(`INSERT INTO payment_consents(consent_id, owner_id, plan_id, terms_version)
+                VALUES(?, ?, ?, ?)`)
+                .bind(crypto.randomUUID(), ownerId, subscriptionPlanId, env.PAYMENTS_TERMS_VERSION)
+            ));
+            return json({ checkout_url: env.TRIBUTE_CHECKOUT_URL.trim(), amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
+          }
+          const product = tributeProduct(env, serviceKey, planId);
+          if (!product) return json({ error: "plan_unavailable" }, 400);
           await env.DB.prepare(`INSERT INTO tribute_product_consents(consent_id, owner_id, plan_id, terms_version, service_key)
             VALUES(?, ?, ?, ?, ?)`)
             .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
