@@ -1378,6 +1378,10 @@ body{background:#101827;color:#f4f6f9}
 
 /* Scout is the subscription hero mascot; keep the supplied transparent art inside the card. */
 .home-page .hero-card>.scout-mascot:not(.racer-small){width:190px;height:157px;right:2px;bottom:1px;transform:none;filter:drop-shadow(0 10px 14px rgba(3,8,17,.26))}
+
+/* Highlight the destination in the personal-chat connection path. */
+.tutorial-breadcrumb b{background:linear-gradient(135deg,rgba(97,148,222,.34),rgba(81,110,165,.27));border:1px solid rgba(147,183,239,.44);color:#e5eeff;box-shadow:0 0 14px rgba(88,136,205,.13)}
+:root[data-theme="light"] .tutorial-breadcrumb b{background:linear-gradient(135deg,#dce9fa,#cbdcf3);border-color:rgba(92,128,181,.32);color:#2e4c72;box-shadow:0 4px 12px rgba(57,94,150,.12)}
 @media(max-width:600px){.home-page .hero-card>.scout-mascot:not(.racer-small){width:174px;height:144px;right:1px;bottom:1px}}
 @media(max-width:380px){.home-page .hero-card>.scout-mascot:not(.racer-small){width:158px;height:131px;right:1px;bottom:1px}}
 @media(max-width:340px){.home-page .hero-card>.scout-mascot:not(.racer-small){width:142px;height:118px;right:0;bottom:1px}}
