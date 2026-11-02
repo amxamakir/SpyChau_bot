@@ -152,7 +152,12 @@ export async function serveContactAvatar(request, env, eventId) {
 export async function maintainJournal(env) {
   if (!env.JOURNAL || !env.JOURNAL_ENCRYPTION_KEY) throw new Error("encrypted event journal is not configured");
   await migrateLegacyRows(env, 250);
-  const owners = await env.DB.prepare("SELECT DISTINCT owner_id FROM events ORDER BY owner_id").all();
+  const owners = await env.DB.prepare(`
+    SELECT DISTINCT owner_id FROM events
+    WHERE created_at < datetime('now', '-7 days')
+       OR (pending_expires_at_ms IS NOT NULL AND pending_expires_at_ms <= ?)
+    ORDER BY owner_id
+  `).bind(Date.now()).all();
   for (const { owner_id: ownerId } of owners.results) await enforceRetentionAndLimit(env, String(ownerId));
 }
 
@@ -393,7 +398,14 @@ async function persistRecord(env, input) {
     const index = records.findIndex((item) => Number(item.id) === rowId);
     await env.DB.prepare(`UPDATE events SET journal_key = ?, journal_index = ?, message_json = '{}', stored_at = CURRENT_TIMESTAMP WHERE id = ?`)
       .bind(chunkKey, index, rowId).run();
-    await pruneOwnerUnderLock(env, ownerId, 500);
+    // Only check the hard cap when a chunk fills. The chunk count is a small,
+    // indexed summary; scanning the event history on every new event was the
+    // source of excessive D1 row reads.
+    if (createdRow && records.length === JOURNAL_CHUNK_SIZE) {
+      const total = await env.DB.prepare("SELECT COALESCE(SUM(record_count), 0) AS count FROM journal_chunks WHERE owner_id = ?")
+        .bind(ownerId).first();
+      if (Number(total?.count || 0) > MESSAGE_LIMIT) await pruneOwnerUnderLock(env, ownerId);
+    }
     return rowId;
   } catch (error) {
     if (!wroteChunk) {
@@ -634,12 +646,18 @@ async function enforceRetentionAndLimit(env, ownerId) {
 async function pruneOwnerUnderLock(env, ownerId) {
     const removeResult = await env.DB.prepare(`
       SELECT id, journal_key FROM events
-      WHERE owner_id = ? AND (
-        created_at < datetime('now', '-7 days')
-        OR (pending_expires_at_ms IS NOT NULL AND pending_expires_at_ms <= ?)
-        OR id NOT IN (SELECT id FROM events WHERE owner_id = ? AND created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT ?)
-      ) ORDER BY id LIMIT 500
-    `).bind(ownerId, Date.now(), ownerId, MESSAGE_LIMIT).all();
+      WHERE owner_id = ? AND created_at < datetime('now', '-7 days')
+      UNION ALL
+      SELECT id, journal_key FROM events
+      WHERE owner_id = ? AND pending_expires_at_ms IS NOT NULL AND pending_expires_at_ms <= ?
+      UNION ALL
+      SELECT id, journal_key FROM (
+        SELECT id, journal_key FROM events
+        WHERE owner_id = ? AND created_at >= datetime('now', '-7 days')
+        ORDER BY id DESC LIMIT -1 OFFSET ?
+      )
+      ORDER BY id LIMIT 500
+    `).bind(ownerId, ownerId, Date.now(), ownerId, MESSAGE_LIMIT).all();
     if (!removeResult.results.length) return;
     const removedIds = new Set(removeResult.results.map((row) => Number(row.id)));
     const chunkKeys = [...new Set(removeResult.results.map((row) => row.journal_key).filter(Boolean))];
