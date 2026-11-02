@@ -1399,3 +1399,8 @@ body{background:#101827;color:#f4f6f9}
 
 .group-price-label{color:#42d795;font-weight:800}
 @media(max-width:430px){.service-card-bottom .group-price-label{font-size:10px}}
+
+/* Match group price label size to desktop and mobile layouts. */
+.service-card-bottom .group-price-label{font-size:13px}
+@media(max-width:600px){.service-card-bottom .group-price-label{font-size:12px}}
+@media(min-width:740px){.service-card-bottom .group-price-label{font-size:12px}}
