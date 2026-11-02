@@ -13,6 +13,50 @@ export async function storeBusinessEvent(env, input) {
   return persistRecord(env, { ...input, ownerId, messageId, message: input.message || {} });
 }
 
+export async function storeGroupMessageSnapshot(env, input) {
+  const ownerId = String(input.ownerId || "");
+  const chatId = String(input.chatId || "");
+  const messageId = String(input.messageId || "");
+  if (!/^\d+$/.test(ownerId) || !/^-\d+$/.test(chatId) || !/^\d+$/.test(messageId)) {
+    throw new Error("invalid group snapshot identity");
+  }
+  if (!env.JOURNAL_ENCRYPTION_KEY) throw new Error("encrypted event journal is not configured");
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const context = `group-message:${chatId}:${messageId}`;
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: aad(ownerId, context) },
+    await userKey(env, ownerId),
+    textEncoder.encode(JSON.stringify(input.message || {})),
+  );
+  await env.DB.prepare(`
+    INSERT INTO group_message_snapshots(owner_id, chat_id, message_id, thread_id, nonce, ciphertext, updated_at)
+    VALUES(?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(owner_id, chat_id, message_id) DO UPDATE SET
+      thread_id = excluded.thread_id,
+      nonce = excluded.nonce,
+      ciphertext = excluded.ciphertext,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(ownerId, chatId, messageId, String(input.threadId || ""), bytesToBase64Url(nonce), bytesToBase64Url(new Uint8Array(ciphertext))).run();
+}
+
+export async function getGroupMessageSnapshot(env, ownerId, chatId, messageId) {
+  const owner = String(ownerId);
+  const chat = String(chatId);
+  const message = String(messageId);
+  const row = await env.DB.prepare(`
+    SELECT thread_id, nonce, ciphertext FROM group_message_snapshots
+    WHERE owner_id = ? AND chat_id = ? AND message_id = ?
+  `).bind(owner, chat, message).first();
+  if (!row) return null;
+  const context = `group-message:${chat}:${message}`;
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: fromBase64Url(row.nonce), additionalData: aad(owner, context) },
+    await userKey(env, owner),
+    fromBase64Url(row.ciphertext),
+  );
+  return { threadId: String(row.thread_id || ""), message: JSON.parse(new TextDecoder().decode(plain)) };
+}
+
 export async function hydrateEventRows(rows, env) {
   if (!rows.length) return [];
   const snapshotIds = [...new Set(rows.map((row) => Number(row.snapshot_event_id)).filter(Number.isInteger))];
@@ -34,7 +78,7 @@ export async function hydrateEventRows(rows, env) {
     const ownMessage = record?.message || {};
     const sourceMessage = sourceRecord?.message || {};
     const message = row.event_type === "deleted" && sourceRow ? sourceMessage : ownMessage;
-    const priorMessage = row.event_type === "edited" ? sourceMessage : null;
+    const priorMessage = row.event_type === "edited" ? (record?.previous_message || sourceMessage) : null;
     const media = row.event_type === "deleted" ? (sourceRecord?.media || []) : (record?.media || []);
     const mediaSourceRow = row.event_type === "deleted" && sourceRow ? sourceRow : row;
     const hydratedMedia = await Promise.all(media.map(async (asset, index) => ({
@@ -152,6 +196,7 @@ export async function serveContactAvatar(request, env, eventId) {
 export async function maintainJournal(env) {
   if (!env.JOURNAL || !env.JOURNAL_ENCRYPTION_KEY) throw new Error("encrypted event journal is not configured");
   await migrateLegacyRows(env, 250);
+  await env.DB.prepare("DELETE FROM group_message_snapshots WHERE updated_at < datetime('now', '-7 days')").run();
   const owners = await env.DB.prepare(`
     SELECT DISTINCT owner_id FROM events
     WHERE created_at < datetime('now', '-7 days')
@@ -316,8 +361,8 @@ async function persistRecord(env, input) {
       const inserted = await env.DB.prepare(`
         INSERT OR IGNORE INTO events(
           update_id, owner_id, connection_id, chat_id, message_id, event_type, message_json, snapshot_event_id,
-          pending_target_message_id, pending_expires_at_ms
-        ) VALUES(?, ?, ?, ?, ?, ?, '{}', ?, ?, ?)
+          pending_target_message_id, pending_expires_at_ms, message_thread_id
+        ) VALUES(?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?)
       `).bind(
         updateId,
         ownerId,
@@ -328,6 +373,7 @@ async function persistRecord(env, input) {
         input.snapshotEventId || null,
         input.pending?.targetMessageId == null ? null : String(input.pending.targetMessageId),
         input.pending?.expiresAtMs == null ? null : Number(input.pending.expiresAtMs),
+        String(input.messageThreadId || ""),
       ).run();
       rowId = Number(inserted.meta?.last_row_id || 0);
       row = updateId == null
@@ -375,12 +421,13 @@ async function persistRecord(env, input) {
       if (row.journal_key && row.journal_key !== chunkKey) throw new Error("pending journal row points to an unavailable chunk");
       await env.DB.prepare("UPDATE events SET journal_key = ?, journal_index = ? WHERE id = ?")
         .bind(chunkKey, records.length, rowId).run();
-      const media = eventType === "deleted" ? [] : await cacheMessageMedia(env, ownerId, rowId, input.message || {});
+      const media = eventType === "deleted" || input.cacheMedia === false ? [] : await cacheMessageMedia(env, ownerId, rowId, input.message || {});
       mediaKeys.push(...media.map((asset) => asset.object_key));
       record = {
         id: rowId,
         event_type: eventType,
         message: input.message || {},
+        ...(input.previousMessage ? { previous_message: input.previousMessage } : {}),
         media,
       };
       records.push(record);

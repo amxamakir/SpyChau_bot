@@ -2,12 +2,14 @@ import {
   confirmPendingReplyEvents,
   deleteOwnerJournal,
   expirePendingReplyEvents,
+  getGroupMessageSnapshot,
   hydrateEventRows,
   maintainJournal,
   readArchivedMedia,
   serveArchivedMedia,
   serveContactAvatar,
   storeBusinessEvent,
+  storeGroupMessageSnapshot,
 } from "./journal.js";
 
 const MAX_INIT_DATA_AGE_SECONDS = 60 * 60 * 24;
@@ -169,6 +171,32 @@ export default {
           return json({ events });
         }
 
+        if (route === "/api/archive/groups" && request.method === "GET") {
+          const subscription = await getSubscription(env.DB, String(user.id));
+          if (!subscription.active) return json({ error: "subscription_required" }, 403);
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
+            return json({ available: false, groups: [], topics: [], events: [] });
+          }
+          const groups = await env.DB.prepare(`
+            SELECT chat_id, chat_type, title, username, bot_status, connected_at, updated_at
+            FROM group_chats WHERE owner_id = ? AND active = 1 ORDER BY updated_at DESC
+          `).bind(ownerId).all();
+          const topics = await env.DB.prepare(`
+            SELECT t.chat_id, t.thread_id, t.name, t.updated_at
+            FROM group_topics t JOIN group_chats g ON g.owner_id = t.owner_id AND g.chat_id = t.chat_id
+            WHERE t.owner_id = ? AND g.active = 1 ORDER BY t.updated_at DESC
+          `).bind(ownerId).all();
+          const rows = await env.DB.prepare(`
+            SELECT * FROM events
+            WHERE owner_id = ? AND event_type = 'edited' AND created_at >= datetime('now', '-7 days')
+              AND chat_id IN (SELECT chat_id FROM group_chats WHERE owner_id = ? AND active = 1)
+            ORDER BY id DESC LIMIT 5000
+          `).bind(ownerId, ownerId).all();
+          const events = await hydrateEventRows(rows.results, env);
+          return json({ available: true, groups: groups.results, topics: topics.results, events });
+        }
+
         if (route === "/api/me/data" && request.method === "DELETE") {
           const ownerId = String(user.id);
           if (!env.JOURNAL) return json({ error: "Хранилище архива временно недоступно. Данные не удалены." }, 503);
@@ -185,6 +213,9 @@ export default {
             ["notification_deliveries", "owner_id"],
             ["notification_preferences", "owner_id"],
             ["events", "owner_id"],
+            ["group_topics", "owner_id"],
+            ["group_message_snapshots", "owner_id"],
+            ["group_chats", "owner_id"],
             ["connections", "owner_id"],
             ["payments", "owner_id"],
             ["subscriptions", "owner_id"],
@@ -273,7 +304,7 @@ async function handleTelegramWebhook(request, env) {
     const incomingMessage = update.message;
     const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
     const startMatch = commandText.match(/^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{1,64}))?$/i);
-    if (incomingMessage?.chat?.id && startMatch) {
+    if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && startMatch) {
       if (!env.TELEGRAM_BOT_TOKEN) return json({ error: "bot token is not configured" }, 500);
       if (startMatch[1] === "connect") {
         const sent = await sendConnectInstructions(env, incomingMessage.chat.id);
@@ -294,6 +325,15 @@ async function handleTelegramWebhook(request, env) {
       });
       if (!response.ok) return json({ error: "Telegram could not send the start message" }, 502);
       return json({ ok: true, handled: "start" });
+    }
+
+    if (update.my_chat_member?.chat && ["group", "supergroup"].includes(update.my_chat_member.chat.type)) {
+      return await handleGroupMembershipUpdate(update.my_chat_member, env);
+    }
+
+    const groupMessage = update.message || update.edited_message;
+    if (groupMessage?.chat && ["group", "supergroup"].includes(groupMessage.chat.type)) {
+      return await handleGroupMessageUpdate(update, groupMessage, Boolean(update.edited_message), env);
     }
 
     const connection = update.business_connection;
@@ -409,6 +449,142 @@ async function handleTelegramWebhook(request, env) {
   } catch {
     return json({ error: "webhook processing failed" }, 500);
   }
+}
+
+async function handleGroupMembershipUpdate(change, env) {
+  const chat = change.chat;
+  const chatId = String(chat.id);
+  const botMember = change.new_chat_member || {};
+  const active = ["member", "administrator"].includes(botMember.status)
+    || (botMember.status === "restricted" && Boolean(botMember.is_member));
+  if (!active) {
+    await env.DB.prepare("UPDATE group_chats SET active = 0, bot_status = ?, updated_at = CURRENT_TIMESTAMP WHERE chat_id = ?")
+      .bind(String(botMember.status || "left"), chatId).run();
+    await env.DB.prepare("DELETE FROM group_message_snapshots WHERE chat_id = ?").bind(chatId).run();
+    return json({ ok: true, handled: "group_disconnected" });
+  }
+
+  const addedBy = change.from;
+  if (!addedBy?.id || addedBy.is_bot) return json({ ok: true, ignored: true });
+  const ownerId = String(addedBy.id);
+  if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
+    return json({ ok: true, ignored: true });
+  }
+  await saveUser(env.DB, addedBy);
+  await env.DB.prepare("UPDATE group_chats SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE chat_id = ?").bind(chatId).run();
+  await env.DB.prepare("DELETE FROM group_message_snapshots WHERE chat_id = ?").bind(chatId).run();
+  await env.DB.prepare(`
+    INSERT INTO group_chats(owner_id, chat_id, chat_type, title, username, bot_status, active, updated_at)
+    VALUES(?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+    ON CONFLICT(owner_id, chat_id) DO UPDATE SET
+      chat_type = excluded.chat_type,
+      title = excluded.title,
+      username = excluded.username,
+      bot_status = excluded.bot_status,
+      active = 1,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(ownerId, chatId, chat.type, String(chat.title || "Беседа"), chat.username || null, String(botMember.status || "member")).run();
+  return json({ ok: true, handled: "group_connected" });
+}
+
+async function handleGroupMessageUpdate(update, telegramMessage, edited, env) {
+  const chat = telegramMessage.chat;
+  const chatId = String(chat.id);
+  const group = await env.DB.prepare(`
+    SELECT owner_id FROM group_chats WHERE chat_id = ? AND active = 1 LIMIT 1
+  `).bind(chatId).first();
+  if (!group) return json({ ok: true, ignored: true });
+
+  await rememberGroupTopic(env.DB, group.owner_id, chatId, telegramMessage);
+  if (telegramMessage.forum_topic_created || telegramMessage.forum_topic_edited) {
+    return json({ ok: true, handled: "group_topic" });
+  }
+
+  const messageId = String(telegramMessage.message_id || "");
+  if (!/^\d+$/.test(messageId) || (!telegramMessage.from && !telegramMessage.sender_chat)) {
+    return json({ ok: true, ignored: true });
+  }
+  if (telegramMessage.from?.is_bot && !edited) return json({ ok: true, ignored: true });
+
+  const threadId = String(telegramMessage.message_thread_id || "");
+  const currentSnapshot = groupMessageSnapshot(telegramMessage);
+  const updateId = Number.isInteger(update.update_id) ? update.update_id : null;
+  if (!edited) {
+    await storeGroupMessageSnapshot(env, {
+      ownerId: group.owner_id,
+      chatId,
+      messageId,
+      threadId,
+      message: currentSnapshot,
+    });
+    return json({ ok: true, handled: "group_message_snapshot" });
+  }
+
+  const prior = await getGroupMessageSnapshot(env, group.owner_id, chatId, messageId);
+  const eventId = await storeBusinessEvent(env, {
+    updateId,
+    ownerId: group.owner_id,
+    chatId,
+    messageId,
+    messageThreadId: threadId,
+    eventType: "edited",
+    message: currentSnapshot,
+    previousMessage: prior?.message || null,
+    cacheMedia: false,
+  });
+  await storeGroupMessageSnapshot(env, {
+    ownerId: group.owner_id,
+    chatId,
+    messageId,
+    threadId,
+    message: currentSnapshot,
+  });
+  await notifySavedEvents(env, group.owner_id, [{ eventId, messageId, eventType: "edited" }], updateId);
+  return json({ ok: true, handled: "group_message_edited" });
+}
+
+async function rememberGroupTopic(db, ownerId, chatId, message) {
+  const topic = message.forum_topic_created || message.forum_topic_edited;
+  const threadId = String(message.message_thread_id || (topic ? message.message_id : ""));
+  if (!threadId && !message.is_topic_message && message.chat?.type !== "supergroup") return;
+  const name = String(topic?.name || (threadId ? `Тема ${threadId}` : "Общие"));
+  if (message.forum_topic_edited) {
+    await db.prepare(`
+      INSERT INTO group_topics(owner_id, chat_id, thread_id, name, updated_at) VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(owner_id, chat_id, thread_id) DO UPDATE SET name = excluded.name, updated_at = CURRENT_TIMESTAMP
+    `).bind(String(ownerId), String(chatId), threadId, name).run();
+  } else {
+    await db.prepare("INSERT OR IGNORE INTO group_topics(owner_id, chat_id, thread_id, name) VALUES(?, ?, ?, ?)")
+      .bind(String(ownerId), String(chatId), threadId, name).run();
+  }
+}
+
+function groupMessageSnapshot(message) {
+  const chat = message.chat || {};
+  const snapshot = {
+    message_id: message.message_id,
+    date: message.date,
+    chat: { id: chat.id, type: chat.type, title: chat.title, username: chat.username },
+    ...(message.from ? { from: {
+      id: message.from.id,
+      is_bot: Boolean(message.from.is_bot),
+      first_name: message.from.first_name,
+      last_name: message.from.last_name,
+      username: message.from.username,
+    } } : {}),
+    ...(message.sender_chat ? { sender_chat: {
+      id: message.sender_chat.id,
+      title: message.sender_chat.title,
+      username: message.sender_chat.username,
+    } } : {}),
+    ...(message.message_thread_id != null ? { message_thread_id: message.message_thread_id, is_topic_message: true } : {}),
+    ...(typeof message.text === "string" ? { text: message.text } : {}),
+    ...(typeof message.caption === "string" ? { caption: message.caption } : {}),
+  };
+  for (const field of ["photo", "video", "voice", "video_note", "document", "audio", "animation", "sticker"]) {
+    if (message[field] != null) snapshot[field] = true;
+  }
+  return snapshot;
 }
 
 function logBusinessMediaDiagnostic(update) {

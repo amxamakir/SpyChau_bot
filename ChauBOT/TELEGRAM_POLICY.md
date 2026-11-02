@@ -11,6 +11,8 @@ This note records official Telegram rules and API constraints relevant to SpySka
 - Access and permissions can be changed or revoked by the account owner in Telegram Business settings. The app must reflect disconnects and permission changes promptly.
 - Secret Chats are end-to-end encrypted and are not supported by the official Bot API. We must not claim they can be monitored.
 - A group-chat mode is separate: the bot only sees group messages when added with appropriate access/admin configuration. This should be an explicit product feature, not implied by Business access.
+- In forum supergroups, `message_thread_id` identifies the topic for new/edit updates. The bot cannot backfill earlier messages or discover topic names that were created before it joined unless Telegram sends the corresponding topic service update while the bot is present; unknown names may be shown by ID.
+- Ordinary group edits arrive as `edited_message` when enabled in webhook updates. The Bot API does not provide ordinary group-message deletion updates, so group deletions are not promised or displayed.
 
 ## Product promises and ephemeral media
 
@@ -30,6 +32,7 @@ This note records official Telegram rules and API constraints relevant to SpySka
 
 - Store only data essential to the service and clearly explain its purpose to users before collection.
 - Keep the latest 5,000 event records per user for no more than 7 days from receipt. A scheduled cleanup runs every 30 minutes; an event can remain until the next cleanup after its 7-day deadline.
+- Group-mode source-message snapshots are encrypted per user in D1 and expire after 7 days. They are used only to compare a later edit, are not listed as ordinary archive events, and do not include downloaded media.
 - Store message contents in separate per-user journal objects in a private Cloudflare R2 bucket. Each event and media object is encrypted with AES-256-GCM using a key derived for that user from the separately configured `JOURNAL_ENCRYPTION_KEY`. D1 stores the event index and references needed to find the encrypted record; it does not store the message body after the journal write succeeds.
 - Supported media (including photos, voice messages, video messages, and documents) is downloaded when Telegram delivers it and is under the Bot API's 20 MB file-download limit. Media that Telegram does not deliver, or files above the limit, cannot be retained.
 - Deleting an account removes its journal objects and indexed events. Expired or excess records and their media are removed by scheduled cleanup.

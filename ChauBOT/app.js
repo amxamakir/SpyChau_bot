@@ -31,11 +31,11 @@ const icon = (name, size = 20) => {
 };
 
 const state = {
-  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveContactId: null, archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
+  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', user: null, connections: [], events: [], subscription: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
-  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -43,6 +43,9 @@ function pushNavigation() {
   const snapshot = {
     tab: state.tab,
     archiveContactId: state.archiveContactId,
+    archiveMode: state.archiveMode,
+    archiveGroupId: state.archiveGroupId,
+    archiveTopicId: state.archiveTopicId,
     archiveFilter: state.archiveFilter,
     query: state.query,
     tutorialType: state.tutorialType,
@@ -57,7 +60,11 @@ function pushNavigation() {
 function goBack() {
   const previous = state.navigationStack.pop();
   if (previous) Object.assign(state, previous);
-  else if (state.tab === 'archive' && state.archiveContactId) state.archiveContactId = null;
+  else if (state.tab === 'archive' && (state.archiveContactId != null || state.archiveTopicId != null || state.archiveGroupId != null)) {
+    if (state.archiveTopicId != null) state.archiveTopicId = null;
+    else if (state.archiveGroupId != null) state.archiveGroupId = null;
+    else state.archiveContactId = null;
+  }
   else if (state.tab === 'connection-tutorial') state.tab = state.tutorialReturnTab || 'home';
   else state.tab = 'home';
   state.modal = null;
@@ -133,10 +140,16 @@ function connectionTutorialPage() {
   const personal = state.tutorialType !== 'groups';
   const header = `<button type="button" class="profile-detail-back" data-action="tutorial-back">${icon('chevron', 16)} Назад</button>`;
   if (personal) return `<section class="page connection-tutorial-page"><div class="tutorial-intro">${header}<div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи меня<br>к личным чатам</h1><p>Три шага, одна минута — и я начну сохранять новые изменения и события.</p></div><div class="tutorial-mascot-space" aria-hidden="true"></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Скопируй моё имя</h2><div class="tutorial-copy-row"><strong>@SpySkaut_bot</strong><button type="button" class="tutorial-copy-button" data-action="copy-bot-name">${icon('archive', 16)} Копировать</button></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Открой «Автоматизацию чатов»</h2><p>В настройках открой свой профиль, нажми «Изм.» и выбери автоматизацию чатов.</p><div class="tutorial-breadcrumb"><span>Настройки</span>${icon('chevron', 13)}<span>Изм.</span>${icon('chevron', 13)}<b>Автоматизация чатов</b></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Вставь имя и сохрани</h2><p>Дай доступ ко всем личным чатам — или только к нужным.</p></div></article></div><div class="tutorial-loop" role="img" aria-label="Зацикленная демонстрация подключения SpySkaut_bot в Telegram"><div class="tutorial-loop-head"><span></span><b>Как подключить SpySkaut_bot</b><small>Анимация шагов</small></div><div class="tutorial-loop-scenes"><div class="tutorial-loop-scene scene-settings"><div class="telegram-mock-top"><span>‹</span><b>Настройки</b></div><div class="telegram-mock-row">Уведомления и звуки <i>›</i></div><div class="telegram-mock-row">Конфиденциальность <i>›</i></div><div class="telegram-mock-row focus">Профиль <i>›</i></div><div class="telegram-mock-caption">Открой свой профиль в настройках</div></div><div class="tutorial-loop-scene scene-business"><div class="telegram-mock-top"><span>‹</span><b>Изменить профиль</b></div><div class="telegram-mock-row">Имя</div><div class="telegram-mock-row">Имя пользователя</div><div class="telegram-mock-row focus">Автоматизация чатов <i>›</i></div><div class="telegram-mock-caption">Нажми «Изм.» и открой автоматизацию чатов</div></div><div class="tutorial-loop-scene scene-bot"><div class="telegram-mock-top"><span>‹</span><b>Автоматизация чатов</b></div><div class="telegram-mock-bot"><span>SK</span><b>SpySkaut_bot<small>@SpySkaut_bot</small></b></div><div class="telegram-mock-action">Подключить бота</div><div class="telegram-mock-caption">Выбери нашего бота</div></div><div class="tutorial-loop-scene scene-chats"><div class="telegram-mock-top"><span>‹</span><b>Доступ к чатам</b></div><div class="telegram-mock-row">Личные чаты</div><div class="telegram-mock-row">Максим <i class="mock-check">✓</i></div><div class="telegram-mock-row">Аня <i class="mock-check">✓</i></div><div class="telegram-mock-action">Сохранить</div><div class="telegram-mock-caption">Дай доступ ко всем личным чатам или выбери нужные</div></div></div><div class="tutorial-loop-progress"><i></i><i></i><i></i><i></i></div></div><div class="tutorial-footer"><button type="button" class="button tutorial-open-settings" data-action="open-telegram-business-settings">Открыть настройки Telegram ${icon('arrow', 19)}</button><button type="button" class="tutorial-help-link" data-action="tutorial-help">${icon('help', 15)} Не получается? Помогу</button></div></section>`;
-  return `<section class="page connection-tutorial-page">${header}<div class="service-card connection-tutorial-card"><div class="service-card-top"><div class="service-icon purple large">${icon('people', 24)}</div><div><h2>Групповой режим готовится</h2><p>Сейчас SpySkaut не сохраняет события из групп.</p></div></div><div class="tutorial-note tutorial-note-pending">Добавление бота в группу пока не включит архивирование сообщений. Не выдавай боту права администратора ради этой функции. Когда групповой режим будет реализован, здесь появятся точные шаги и необходимые разрешения.</div></div></section>`;
+  return `<section class="page connection-tutorial-page">${header}<div class="tutorial-intro"><div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи SpySkaut<br>к беседе</h1><p>Добавь бота в группу и назначь его администратором, чтобы Telegram передавал изменения сообщений.</p></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Добавь бота в беседу</h2><p>Выбери нужную группу и пригласи в неё @SpySkaut_bot.</p></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Назначь администратора</h2><p>Это нужно, чтобы бот видел сообщения и их изменения. Дополнительные права не выдавай.</p></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Открой архив событий</h2><p>Беседа появится здесь после подключения. Для уведомлений включи «Сообщения в группах» в настройках профиля.</p></div></article></div><div class="tutorial-note tutorial-note-pending">Сейчас сохраняются изменения сообщений в темах и обычных групповых чатах. Обычные удаления Telegram боту не передаёт; эту часть добавим позже. Оплата группового тарифа пока не подключена.</div><div class="tutorial-footer"><button type="button" class="button button-blue tutorial-open-settings" data-action="add-group-bot">Добавить SpySkaut в беседу ${icon('arrow', 19)}</button></div></section>`;
 }
 
 function archiveEventKind(event) {
+  if (event?.group_event) {
+    if (event.event_type === 'edited') return 'edited';
+    if (event.event_type === 'deleted') return 'deleted';
+    if (event.event_type === 'new' && (event.message?.__spychau_one_time_saved || Number(event.message?.ttl_period) > 0)) return 'one-time';
+    return null;
+  }
   if (!isEventVisibleByNotificationPreferences(event)) return null;
   if (event.event_type === 'deleted') return 'deleted';
   if (event.event_type === 'edited') return 'edited';
@@ -145,6 +158,7 @@ function archiveEventKind(event) {
 }
 
 function isEventVisibleByNotificationPreferences(event) {
+  if (event?.group_event) return true;
   const preferences = state.notificationPreferences || {};
   const message = event?.message || {};
   const chat = message.chat || event?.previous_message?.chat || {};
@@ -302,6 +316,8 @@ function archiveEventRow(event, showEditedDiff = false) {
   const currentText = eventDescription(event);
   const editedDiff = showEditedDiff && previous && previousText !== currentText
     ? `<div class="edited-message-diff"><div class="edited-message-version edited-message-before"><strong>Было:</strong><span>${escapeHtml(previousText)}</span></div><div class="edited-message-version edited-message-after"><strong>Стало:</strong><span>${escapeHtml(currentText)}</span></div></div>`
+    : showEditedDiff && event.group_event && event.event_type === 'edited' && !previous
+      ? `<div class="edited-message-diff"><div class="edited-message-version edited-message-after"><strong>Изменено:</strong><span>${escapeHtml(currentText)}</span></div><small class="archive-disclaimer">Исходная версия не сохранилась: бот подключили позже.</small></div>`
     : `<span>${escapeHtml(archiveEventText(event))}</span>`;
   const imageUrl = event.media_url || original?.media_url;
   const mediaItems = Array.isArray(event.media) ? event.media : [];
@@ -317,6 +333,64 @@ function archiveEventRow(event, showEditedDiff = false) {
     return `<a class="event-file-link" href="${src}" target="_blank" rel="noopener" download>${escapeHtml(asset.file_name || 'Открыть сохранённый файл')}</a>`;
   }).join('');
   return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div>${editedDiff}${media || fallbackPhoto}</div></article>`;
+}
+
+function archiveModeTabs() {
+  return `<div class="archive-mode-tabs" role="tablist" aria-label="История событий"><button type="button" role="tab" aria-selected="${state.archiveMode === 'contacts'}" class="${state.archiveMode === 'contacts' ? 'active' : ''}" data-archive-mode="contacts">Контакты</button><button type="button" role="tab" aria-selected="${state.archiveMode === 'groups'}" class="${state.archiveMode === 'groups' ? 'active' : ''}" data-archive-mode="groups">Группы</button></div>`;
+}
+
+function archivePageHeading(title, subtitle) {
+  return `<div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ СОБЫТИЙ</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div>${archiveModeTabs()}`;
+}
+
+function archiveGroupCard(group) {
+  const id = String(group.chat_id);
+  const topics = state.archiveTopics.filter(topic => String(topic.chat_id) === id);
+  const events = state.groupArchiveEvents.filter(event => String(event.chat_id) === id);
+  const botStatus = group.bot_status === 'administrator'
+    ? 'Бот подключён как администратор'
+    : 'Назначь бота администратором, чтобы он видел сообщения';
+  return `<button type="button" class="archive-group-card" data-archive-group="${escapeHtml(id)}"><span class="archive-group-icon">${icon('people', 20)}</span><span class="archive-group-copy"><strong>${escapeHtml(group.title || 'Беседа')}</strong><small>${escapeHtml(botStatus)}</small></span><span class="archive-group-count">${events.length}</span>${icon('chevron', 16)}</button>`;
+}
+
+function archiveTopicCard(groupId, topic) {
+  const id = String(topic.thread_id || '');
+  const events = state.groupArchiveEvents.filter(event => String(event.chat_id) === String(groupId) && String(event.message_thread_id || '') === id);
+  return `<button type="button" class="archive-group-card archive-topic-card" data-archive-topic="${escapeHtml(id)}"><span class="archive-topic-icon">${icon('chat', 19)}</span><span class="archive-group-copy"><strong>${escapeHtml(topic.name || (id ? `Тема ${id}` : 'Общие'))}</strong><small>${events.length ? `${events.length} ${plural(events.length, 'изменение', 'изменения', 'изменений')}` : 'Пока нет изменений'}</small></span><span class="archive-group-count">${events.length}</span>${icon('chevron', 16)}</button>`;
+}
+
+function archiveGroupsPage() {
+  const query = state.query.trim().toLocaleLowerCase('ru');
+  const group = state.archiveGroups.find(item => String(item.chat_id) === String(state.archiveGroupId));
+  const savedTopics = state.archiveTopics.filter(item => String(item.chat_id) === String(state.archiveGroupId));
+  const topics = group && !savedTopics.length ? [{ chat_id: group.chat_id, thread_id: '', name: 'Общие' }] : savedTopics;
+  const topic = state.archiveTopicId == null ? null : topics.find(item => String(item.thread_id || '') === String(state.archiveTopicId));
+  const selectedEvents = state.groupArchiveEvents.filter(event =>
+    String(event.chat_id) === String(state.archiveGroupId)
+    && (state.archiveTopicId == null || String(event.message_thread_id || '') === String(state.archiveTopicId))
+    && (state.archiveFilter === 'all' || event.event_type === state.archiveFilter)
+    && (!query || `${eventDescription(event)} ${eventTitle(event)}`.toLocaleLowerCase('ru').includes(query))
+  );
+  const heading = archivePageHeading(group ? (topic ? topic.name || 'Общие' : group.title || 'Беседа') : 'Группы', group ? (topic ? `Изменения в теме беседы «${group.title || 'Беседа'}».` : 'Темы и чаты внутри подключённой беседы.') : 'Беседы, в которых SpySkaut получил изменения сообщений.');
+  if (state.groupArchiveLoading) return `<section class="page archive-page">${heading}<div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем группы…</strong></div></section>`;
+  if (state.groupArchiveError) return `<section class="page archive-page">${heading}<div class="archive-state"><strong>Не удалось загрузить группы</strong><p>${escapeHtml(state.groupArchiveError)}</p><button class="subtle-button" data-action="refresh-group-archive">Повторить</button></div></section>`;
+  if (!group) {
+    const groups = state.archiveGroups.filter(item => !query || `${item.title || ''} ${item.username || ''}`.toLocaleLowerCase('ru').includes(query));
+    const content = !state.archiveGroupsAvailable
+      ? `<div class="archive-state">${icon('lock', 24)}<strong>Группы пока в тестовом режиме</strong><p>Сохранение изменений уже подготовлено. Подключение и оплата группового тарифа появятся после завершения этой части.</p></div>`
+      : groups.length
+      ? groups.map(archiveGroupCard).join('')
+      : `<div class="archive-state">${icon('people', 24)}<strong>${query ? 'Беседа не найдена' : 'Пока нет подключённых бесед'}</strong><p>${query ? 'Попробуй изменить запрос.' : 'Добавь SpySkaut в групповую беседу как администратора. Новые изменения будут появляться здесь; обычные удаления пока не поддерживаются Telegram Bot API.'}</p>${!query ? `<button type="button" class="button button-blue" data-tutorial="groups">Как подключить ${icon('chevron', 15)}</button>` : ''}</div>`;
+    return `<section class="page archive-page">${heading}<label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск беседы" autocomplete="off"></label><div class="archive-summary"><span>${state.archiveGroups.length} ${plural(state.archiveGroups.length, 'беседа', 'беседы', 'бесед')}</span><button class="text-button" data-action="refresh-group-archive">Обновить ${icon('arrow', 15)}</button></div><div class="archive-group-list">${content}</div><div class="archive-disclaimer">${icon('shield', 16)}<span>В этой версии сохраняются изменения. Отслеживание удалений добавим отдельно.</span></div></section>`;
+  }
+  if (!topic) {
+    const topicList = topics.length ? topics : [{ chat_id: group.chat_id, thread_id: '', name: 'Общие' }];
+    const matching = topicList.filter(item => !query || `${item.name || ''}`.toLocaleLowerCase('ru').includes(query));
+    return `<section class="page archive-page">${heading}<button type="button" class="archive-back" data-action="archive-group-back">${icon('chevron', 16)} Все группы</button><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск чата или темы" autocomplete="off"></label><div class="archive-summary"><span>${matching.length} ${plural(matching.length, 'чат', 'чата', 'чатов')}</span></div><div class="archive-group-list">${matching.length ? matching.map(item => archiveTopicCard(group.chat_id, item)).join('') : `<div class="archive-state"><strong>Чаты не найдены</strong><p>Попробуй изменить запрос.</p></div>`}</div></section>`;
+  }
+  const filters = [['all', 'Все'], ['edited', 'Изменено']];
+  const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
+  return `<section class="page archive-page">${heading}<button type="button" class="archive-back" data-action="archive-topic-back">${icon('chevron', 16)} ${escapeHtml(group.title || 'Беседа')}</button><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'изменение', 'изменения', 'изменений')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>Пока нет изменений</strong><p>Когда сообщение в этой теме отредактируют, изменение появится здесь. Удаления добавим позже.</p></div>`}</section>`;
 }
 
 function home() {
@@ -479,8 +553,9 @@ function refreshTariffPaymentButton() {
 }
 function archive() {
   if (!state.preview && !state.subscription?.active) {
-    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ПОДКЛЮЧЁННЫХ ЧАТОВ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>Подписка не активна</strong><p>Архив событий и функции подписки будут доступны после подключения подписки.</p><button class="subtle-button" data-action="subscription-info">Как подключить ${icon('chevron', 15)}</button></div></section>`;
+    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ СОБЫТИЙ</span><h1>Архив</h1><p>События из подключённых чатов.</p></div><div class="archive-state">${icon('lock', 24)}<strong>Подписка не активна</strong><p>Архив событий и функции подписки будут доступны после подключения подписки.</p><button class="subtle-button" data-action="subscription-info">Как подключить ${icon('chevron', 15)}</button></div></section>`;
   }
+  if (state.archiveMode === 'groups') return archiveGroupsPage();
   const contacts = archiveContacts();
   const query = state.query.trim().toLocaleLowerCase('ru');
   const selectedContact = contacts.find(contact => contact.id === state.archiveContactId);
@@ -489,14 +564,14 @@ function archive() {
   const emptyState = `<div class="archive-state">${icon(state.preview ? 'lock' : 'archive', 24)}<strong>${query ? 'Ничего не найдено' : state.preview ? 'Открой приложение в Telegram' : 'Пока нет событий'}</strong><p>${query ? 'Попробуй поискать по имени контакта или тексту события.' : state.preview ? 'Личный архив доступен после входа через Telegram Mini App.' : state.apiError ? 'Не удалось получить данные. Попробуй обновить страницу.' : 'Контакты появятся здесь, когда в личном чате будет удаление, изменение или одноразовое сообщение.'}</p>${state.apiError && !state.preview ? `<button class="subtle-button" data-action="refresh-archive">Повторить</button>` : ''}</div>`;
 
   if (state.archiveLoading) {
-    return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ЛИЧНЫХ ЧАТОВ</span><h1>Контакты</h1><p>Диалоги, в которых были события.</p></div><div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем архив…</strong></div></section>`;
+    return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<div class="archive-state"><div class="loading-indicator"></div><strong>Загружаем архив…</strong></div></section>`;
   }
 
   if (selectedContact) {
     const selectedEvents = selectedContact.events.filter(event => state.archiveFilter === 'all' || archiveEventKind(event) === state.archiveFilter);
     const filterButtons = filters.map(([id, label]) => `<button type="button" class="archive-filter ${state.archiveFilter === id ? 'active' : ''}" data-archive-filter="${id}" aria-pressed="${state.archiveFilter === id}">${label}</button>`).join('');
     const identity = eventContactIdentity(selectedContact);
-    return `<section class="page archive-page"><button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading">${contactAvatar(selectedContact)}<div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}</div></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
+    return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<button type="button" class="archive-back" data-action="archive-back">${icon('chevron', 16)} Все контакты</button><div class="contact-detail-heading">${contactAvatar(selectedContact)}<div class="contact-detail-copy"><h1>${escapeHtml(selectedContact.name)}</h1>${identity ? `<p class="contact-identity-line">${escapeHtml(identity)}</p>` : ''}</div></div><div class="archive-filters" role="group" aria-label="Категории событий">${filterButtons}</div>${selectedEvents.length ? `<div class="archive-summary"><span>${selectedEvents.length} ${plural(selectedEvents.length, 'событие', 'события', 'событий')}</span></div><div class="events-list archive-list">${selectedEvents.map(event => archiveEventRow(event, true)).join('')}</div>` : `<div class="archive-state"><strong>В этой категории пока пусто</strong><p>Выбери другую категорию событий.</p></div>`}${disclaimer}</section>`;
   }
 
   const matchingContacts = contacts.filter(contact => {
@@ -505,7 +580,7 @@ function archive() {
     return content.includes(query);
   });
   const contactRows = matchingContacts.map(archiveContactCard).join('');
-  return `<section class="page archive-page"><div class="page-title archive-title"><span class="eyebrow">ИСТОРИЯ ЛИЧНЫХ ЧАТОВ</span><h1>Контакты</h1><p>Диалоги, в которых были события.</p></div><label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск контакта или события" autocomplete="off"></label>${contacts.length ? `<div class="archive-summary"><span>${matchingContacts.length} ${plural(matchingContacts.length, 'контакт', 'контакта', 'контактов')} с событиями</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div>${contactRows ? `<div class="archive-contact-list">${contactRows}</div>` : emptyState}` : emptyState}${disclaimer}</section>`;
+  return `<section class="page archive-page">${archivePageHeading('Контакты', 'Диалоги, в которых были события.')}<label class="search-field">${icon('search', 17)}<input id="archive-search" value="${escapeHtml(state.query)}" placeholder="Поиск контакта или события" autocomplete="off"></label>${contacts.length ? `<div class="archive-summary"><span>${matchingContacts.length} ${plural(matchingContacts.length, 'контакт', 'контакта', 'контактов')} с событиями</span><button class="text-button" data-action="refresh-archive">Обновить ${icon('arrow', 15)}</button></div>${contactRows ? `<div class="archive-contact-list">${contactRows}</div>` : emptyState}` : emptyState}${disclaimer}</section>`;
 }
 
 function plural(number, one, few, many) {
@@ -809,6 +884,7 @@ async function loadHomeEvents() {
 }
 
 async function loadArchive() {
+  if (state.archiveMode === 'groups') return loadGroupArchive();
   if (state.preview) { state.tab = 'archive'; render(); return; }
   state.archiveLoading = true;
   state.apiError = '';
@@ -825,6 +901,38 @@ async function loadArchive() {
     }
   } finally {
     state.archiveLoading = false;
+    state.tab = 'archive';
+    render();
+  }
+}
+
+async function loadGroupArchive() {
+  if (state.preview) { state.tab = 'archive'; render(); return; }
+  state.groupArchiveLoading = true;
+  state.groupArchiveError = '';
+  render();
+  try {
+    const result = await api('/api/archive/groups');
+    state.archiveGroupsAvailable = Boolean(result.available);
+    state.archiveGroups = result.groups || [];
+    state.archiveTopics = result.topics || [];
+    state.groupArchiveEvents = (result.events || []).map(event => ({ ...event, group_event: true }));
+    if (!state.archiveGroups.some(group => String(group.chat_id) === String(state.archiveGroupId))) {
+      state.archiveGroupId = null;
+      state.archiveTopicId = null;
+    }
+  } catch (error) {
+    if (error.message === 'subscription_required') {
+      state.subscription = { ...state.subscription, active: false };
+      state.archiveGroups = [];
+      state.archiveGroupsAvailable = false;
+      state.archiveTopics = [];
+      state.groupArchiveEvents = [];
+    } else {
+      state.groupArchiveError = error.message || 'Не удалось получить данные';
+    }
+  } finally {
+    state.groupArchiveLoading = false;
     state.tab = 'archive';
     render();
   }
@@ -862,7 +970,7 @@ app.addEventListener('submit', async event => {
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-contact-id], [data-notification-toggle], [data-tariff-mode], [data-tariff-option], [data-group-tariff]');
+  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-archive-mode], [data-archive-group], [data-archive-topic], [data-contact-id], [data-notification-toggle], [data-tariff-mode], [data-tariff-option], [data-group-tariff]');
   if (!target) return;
   try {
     if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
@@ -899,6 +1007,23 @@ app.addEventListener('click', async event => {
     render();
     return;
   }
+  if (target.dataset.archiveGroup !== undefined) {
+    pushNavigation();
+    state.archiveGroupId = target.dataset.archiveGroup;
+    state.archiveTopicId = null;
+    state.archiveFilter = 'all';
+    state.query = '';
+    render();
+    return;
+  }
+  if (target.dataset.archiveTopic !== undefined) {
+    pushNavigation();
+    state.archiveTopicId = target.dataset.archiveTopic;
+    state.archiveFilter = 'all';
+    state.query = '';
+    render();
+    return;
+  }
   if (target.dataset.action === 'archive-back') {
     goBack();
     return;
@@ -929,6 +1054,26 @@ app.addEventListener('click', async event => {
     toast('Настройки → Изм. → Автоматизация чатов. Там выбери @SpySkaut_bot и нужные чаты.');
     return;
   }
+  if (target.dataset.action === 'archive-group-back') {
+    state.archiveGroupId = null;
+    state.archiveTopicId = null;
+    state.query = '';
+    render();
+    return;
+  }
+  if (target.dataset.action === 'archive-topic-back') {
+    state.archiveTopicId = null;
+    state.query = '';
+    render();
+    return;
+  }
+  if (target.dataset.action === 'refresh-group-archive') { await loadGroupArchive(); return; }
+  if (target.dataset.action === 'add-group-bot') {
+    const link = 'https://t.me/SpySkaut_bot?startgroup=true';
+    if (state.telegram?.openTelegramLink) state.telegram.openTelegramLink(link);
+    else window.location.href = link;
+    return;
+  }
   if (target.dataset.action === 'support-unavailable') {
     toast('Чат поддержки в Telegram скоро появится.');
     return;
@@ -956,7 +1101,8 @@ app.addEventListener('click', async event => {
       state.archiveContactId = null;
       state.archiveFilter = 'all';
       state.query = '';
-      await loadArchive();
+      if (state.archiveMode === 'groups') await loadGroupArchive();
+      else await loadArchive();
       return;
     }
     if (target.dataset.tab !== state.tab) pushNavigation();
@@ -969,6 +1115,19 @@ app.addEventListener('click', async event => {
   if (target.dataset.archiveFilter) {
     state.archiveFilter = target.dataset.archiveFilter;
     render();
+    return;
+  }
+  if (target.dataset.archiveMode) {
+    if (target.dataset.archiveMode === state.archiveMode) return;
+    pushNavigation();
+    state.archiveMode = target.dataset.archiveMode;
+    state.archiveContactId = null;
+    state.archiveGroupId = null;
+    state.archiveTopicId = null;
+    state.archiveFilter = 'all';
+    state.query = '';
+    if (state.archiveMode === 'groups') await loadGroupArchive();
+    else render();
     return;
   }
   if (target.dataset.notificationToggle) {
@@ -1024,7 +1183,7 @@ app.addEventListener('click', async event => {
     try {
       await api('/api/me/data', { method: 'DELETE' });
       state.user = null; state.connections = []; state.events = []; state.subscription = null; state.authenticated = false;
-      state.ownerStatistics = null; state.ownerTestGroup = []; state.navigationStack = []; state.archiveContactId = null; state.query = '';
+      state.ownerStatistics = null; state.ownerTestGroup = []; state.navigationStack = []; state.archiveContactId = null; state.archiveGroupId = null; state.archiveTopicId = null; state.archiveGroups = []; state.archiveTopics = []; state.groupArchiveEvents = []; state.archiveMode = 'contacts'; state.query = '';
       try { localStorage.removeItem('spychau-notification-preferences'); } catch {}
       state.notificationPreferences = loadNotificationPreferences();
       state.tab = 'profile';

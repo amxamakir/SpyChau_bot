@@ -99,6 +99,8 @@ business_message
 edited_business_message
 deleted_business_messages
 message
+edited_message
+my_chat_member
 ```
 
 Test with a Telegram Business connection that you control before inviting users. Confirm the consent screen, archive behavior, revocation behavior, deletion, and privacy text before enabling real use.
