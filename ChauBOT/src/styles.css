@@ -1396,3 +1396,6 @@ body{background:#101827;color:#f4f6f9}
 .home-subscription-status strong{font-weight:900}
 .home-subscription-expiry.infinite{color:#7ee2ae}
 @media(max-width:600px){.home-subscription-status{margin-top:32px}}
+
+.group-price-label{color:#42d795;font-weight:800}
+@media(max-width:430px){.service-card-bottom .group-price-label{font-size:10px}}
