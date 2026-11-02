@@ -1427,3 +1427,9 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .support-copy-username{background:#f3f6f9;border-color:rgba(59,75,96,.17);color:#26364c}
 :root[data-theme="light"] .support-copy-username span{color:#68788b}
 @media(max-width:430px){.support-rich-answer{font-size:13px}.support-copy-username{gap:7px}.support-copy-username span{font-size:11px}}
+
+/* Keep support contact after the FAQ in the page flow, above the nav spacer. */
+.support-page .support-dock{position:static;inset:auto;display:grid;width:100%;justify-items:center;gap:7px;padding:20px 0 24px;background:none}
+.support-page .support-dock::before{display:none}
+.support-page .support-contact-button{width:min(100%,450px)}
+.support-page .support-dock-note{width:min(100%,450px)}
