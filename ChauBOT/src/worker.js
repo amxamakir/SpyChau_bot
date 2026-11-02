@@ -20,7 +20,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.18" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.19" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -305,9 +305,10 @@ async function handleTelegramWebhook(request, env) {
     const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
     const startMatch = commandText.match(/^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{1,64}))?$/i);
     const helpMatch = commandText.match(/^\/(?:help)(?:@\w+)?$/i);
-    if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && (startMatch || helpMatch)) {
+    const connectMatch = commandText.match(/^\/connect(?:@\w+)?$/i);
+    if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && (startMatch || helpMatch || connectMatch)) {
       if (!env.TELEGRAM_BOT_TOKEN) return json({ error: "bot token is not configured" }, 500);
-      if (startMatch?.[1] === "connect") {
+      if (startMatch?.[1] === "connect" || connectMatch) {
         const sent = await sendConnectInstructions(env, incomingMessage.chat.id);
         if (!sent) return json({ error: "Telegram could not send the connection instructions" }, 502);
         return json({ ok: true, handled: "connect_start" });
