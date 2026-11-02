@@ -128,7 +128,7 @@ Keep the existing Worker `spychau-bot`, its URL, production D1 database, private
 2. After deploying the Tribute webhook route, set the API key as a Worker secret. Run Wrangler from the project folder; it will prompt for the value so it does not enter shell history:
 
    ```powershell
-   npx wrangler secret put TRIBUTE_API_KEY --env production
+   npx wrangler secret put TRIBUTE_API_KEY --name spychau-bot
    ```
 
 3. In Tribute Creator Dashboard → Settings → API Keys, set the webhook URL to `https://spychau-bot.senba11.workers.dev/webhooks/tribute`, save it, and use **Send test request** to check delivery.
