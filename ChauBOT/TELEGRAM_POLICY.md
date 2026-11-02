@@ -2,7 +2,7 @@
 
 Research date: 2026-10-22
 
-This note records official Telegram rules and API constraints relevant to SpyChau_bot. It is a product and engineering reference, not legal advice.
+This note records official Telegram rules and API constraints relevant to SpySkaut. It is a product and engineering reference, not legal advice.
 
 ## Supported access model
 

@@ -103,6 +103,19 @@ message
 
 Test with a Telegram Business connection that you control before inviting users. Confirm the consent screen, archive behavior, revocation behavior, deletion, and privacy text before enabling real use.
 
+## Move production to `@SpySkaut_bot`
+
+Keep the existing Worker `spychau-bot`, its URL, production D1 database, private R2 bucket, and `JOURNAL_ENCRYPTION_KEY`. They contain the live application and encrypted archive. Do not create replacement databases or change the encryption key as part of a bot migration.
+
+1. In BotFather, select `@SpySkaut_bot`, enable Business Mode (Secretary Mode), configure its Main Mini App to open the current Worker URL, and set its menu button to the same URL.
+2. Replace only the production `TELEGRAM_BOT_TOKEN` Worker secret with the new bot's token. Use Cloudflare's secret editor or Wrangler's prompt; do not place the token in source code, a command argument, or Git.
+3. Set a `TELEGRAM_WEBHOOK_SECRET` for production and register the new bot webhook at `https://spychau-bot.senba11.workers.dev/webhooks/telegram` with that exact `secret_token` and the update types listed above. Keep pending updates during the cutover.
+4. Open `@SpySkaut_bot`, send `/start`, launch the Mini App, and verify that Telegram authentication, the user's existing profile/archive/subscription, bot replies, and a test Business event work.
+5. Reconnect each Telegram Business account to `@SpySkaut_bot` and grant the same chats and rights. Connections belong to the bot, so Telegram does not transfer them automatically. A short gap before reconnection cannot be backfilled from Telegram history.
+6. After the new bot is confirmed, disconnect the old bot from Business settings and remove or revoke its webhook/token so it cannot keep sending updates to production.
+
+Do not change the D1/R2 bindings or `JOURNAL_ENCRYPTION_KEY`: user IDs stay the same between bots, so existing archive rows, subscriptions, and encrypted journal objects remain available after the user opens the app through the new bot.
+
 ## Release and data handling
 
 Follow [RELEASES.md](./RELEASES.md) for version numbers, descriptive GitHub commits, Cloudflare version labels, and rollback. Cloudflare Workers Builds publishes each push to `main` and records deployments tied to commits. The configured Deploy command uses the commit title as the Cloudflare version title and tag. Telegram keeps opening the app at the same Worker URL, so BotFather does not need changes for normal releases. Apply every new D1 migration to the target environment before deploying code that depends on it. Configure D1 backup/retention separately; a Worker deployment is not a backup of user data.
