@@ -707,7 +707,7 @@ async function sendConnectInstructions(env, chatId) {
     text: "⚙️ Жми — откроются настройки. Дальше: <b>Аккаунт</b> → <b>Изм.</b> → <b>Автоматизация чатов</b> → вставь имя и нажми «Добавить».\n\n<code>@SpySkaut_bot</code> — нажми, чтобы скопировать.",
     parse_mode: "HTML",
     reply_markup: {
-      inline_keyboard: [[{ text: "⚙️Открыть настройки", url: "tg://settings/edit_profile" }]],
+      inline_keyboard: [[{ text: "⚙️ Открыть настройки Telegram", url: "tg://settings" }]],
     },
   });
 }
