@@ -116,6 +116,25 @@ Keep the existing Worker `spychau-bot`, its URL, production D1 database, private
 5. Reconnect each Telegram Business account to `@SpySkaut_bot` and grant the same chats and rights. Connections belong to the bot, so Telegram does not transfer them automatically. A short gap before reconnection cannot be backfilled from Telegram history.
 6. After the new bot is confirmed, disconnect the old bot from Business settings and remove or revoke its webhook/token so it cannot keep sending updates to production.
 
+## Prepare Tribute payments
+
+1. Apply the payment migration to the intended database before deploying the Worker:
+
+   ```powershell
+   npx wrangler d1 migrations apply spychau-bot-dev --remote
+   npx wrangler d1 migrations apply spychau-bot-production --remote --env production
+   ```
+
+2. After deploying the Tribute webhook route, set the API key as a Worker secret. Run Wrangler from the project folder; it will prompt for the value so it does not enter shell history:
+
+   ```powershell
+   npx wrangler secret put TRIBUTE_API_KEY --env production
+   ```
+
+3. In Tribute Creator Dashboard → Settings → API Keys, set the webhook URL to `https://spychau-bot.senba11.workers.dev/webhooks/tribute`, save it, and use **Send test request** to check delivery.
+
+4. Keep `TRIBUTE_PAYMENTS_ENABLED` set to `false` until the signed webhook has been verified, payment terms and support contact are configured, and the checkout behavior has been confirmed. Then enable the flag for production.
+
 Do not change the D1/R2 bindings or `JOURNAL_ENCRYPTION_KEY`: user IDs stay the same between bots, so existing archive rows, subscriptions, and encrypted journal objects remain available after the user opens the app through the new bot.
 
 ## Release and data handling

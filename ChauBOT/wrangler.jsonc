@@ -3,6 +3,10 @@
   "name": "spychau-bot",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-22",
+  "vars": {
+    "TRIBUTE_PAYMENTS_ENABLED": "false",
+    "TRIBUTE_CHECKOUT_URL": "https://t.me/tribute/app?startapp=s1b9w"
+  },
   "triggers": {
     "crons": ["* * * * *"]
   },
@@ -44,6 +48,10 @@
   "env": {
     "production": {
       "name": "spychau-bot-production",
+      "vars": {
+        "TRIBUTE_PAYMENTS_ENABLED": "false",
+        "TRIBUTE_CHECKOUT_URL": "https://t.me/tribute/app?startapp=s1b9w"
+      },
       "triggers": {
         "crons": ["* * * * *"]
       },

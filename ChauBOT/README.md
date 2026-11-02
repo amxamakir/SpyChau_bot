@@ -11,6 +11,7 @@ Telegram Mini App and Cloudflare Worker for an opt-in archive of Telegram Busine
 - Telegram authentication and webhook handling require secrets configured in Cloudflare.
 - Incoming Telegram Business messages are retained in an encrypted, per-user journal for up to 7 days, capped at 5,000 newest records per user. Photos, voice notes, video messages, and other supported media up to Telegram's 20 MB bot-download limit are encrypted separately in private R2 storage.
 - Replacing the bot token does not move or delete the D1 database or R2 journal. Users must connect the new `@SpySkaut_bot` through Telegram Business again; their prior archive and subscription rows remain associated with the same Telegram user ID.
+- Tribute checkout and signed subscription webhooks are prepared, but payment buttons remain disabled until the production key, terms, and support configuration are set.
 
 ## Local preview
 

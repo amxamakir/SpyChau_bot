@@ -14,6 +14,20 @@ import {
 
 const MAX_INIT_DATA_AGE_SECONDS = 60 * 60 * 24;
 const ARCHIVE_PAGE_SIZE = 100;
+const PERSONAL_SUBSCRIPTION_PLANS = Object.freeze({
+  month: { months: 1, rubles: 249 },
+  "half-year": { months: 6, rubles: 1190 },
+  year: { months: 12, rubles: 1790 },
+});
+
+function tributePaymentsReady(env) {
+  return env.TRIBUTE_PAYMENTS_ENABLED === "true"
+    && typeof env.TRIBUTE_API_KEY === "string" && env.TRIBUTE_API_KEY.trim()
+    && typeof env.TRIBUTE_CHECKOUT_URL === "string" && /^https:\/\/t\.me\/tribute\/app\?startapp=s[\w-]+$/i.test(env.TRIBUTE_CHECKOUT_URL.trim())
+    && typeof env.PAYMENTS_TERMS_VERSION === "string" && env.PAYMENTS_TERMS_VERSION.trim()
+    && typeof env.PAYMENTS_TERMS_TEXT === "string" && env.PAYMENTS_TERMS_TEXT.trim()
+    && typeof env.PAYMENTS_SUPPORT_URL === "string" && /^https:\/\//i.test(env.PAYMENTS_SUPPORT_URL);
+}
 
 function archiveCursor(url) {
   const value = url.searchParams.get("before_id");
@@ -40,7 +54,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.24" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.47" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -83,6 +97,21 @@ export default {
 
         if (route === "/api/me" && request.method === "GET") {
           return json(await getUserBootstrap(env, user));
+        }
+
+        if (route === "/api/payments/checkout" && request.method === "POST") {
+          if (!tributePaymentsReady(env)) return json({ error: "payments_not_ready" }, 503);
+          const body = await readJson(request);
+          const plan = PERSONAL_SUBSCRIPTION_PLANS[String(body.plan_id || "")];
+          if (!plan) return json({ error: "plan_unavailable" }, 400);
+          if (body.terms_accepted !== true || body.terms_version !== env.PAYMENTS_TERMS_VERSION) {
+            return json({ error: "terms_acceptance_required" }, 400);
+          }
+          const ownerId = String(user.id);
+          await env.DB.prepare(`INSERT INTO payment_consents(consent_id, owner_id, plan_id, terms_version)
+            VALUES(?, ?, ?, ?)`)
+            .bind(crypto.randomUUID(), ownerId, String(body.plan_id), env.PAYMENTS_TERMS_VERSION).run();
+          return json({ checkout_url: env.TRIBUTE_CHECKOUT_URL.trim(), amount: plan.rubles, currency: "RUB" });
         }
 
         if (route === "/api/home/events" && request.method === "GET") {
@@ -275,7 +304,11 @@ export default {
     }
 
     if (route === "/webhooks/telegram/payments" && request.method === "POST") {
-      return json({ error: "payments are not configured" }, 501);
+      return json({ error: "Telegram invoice payments are not enabled" }, 501);
+    }
+
+    if (route === "/webhooks/tribute" && request.method === "POST") {
+      return handleTributeWebhook(request, env);
     }
 
     const assetResponse = await env.ASSETS.fetch(request);
@@ -335,6 +368,16 @@ async function handleTelegramWebhook(request, env) {
     const startMatch = commandText.match(/^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{1,64}))?$/i);
     const helpMatch = commandText.match(/^\/(?:help)(?:@\w+)?$/i);
     const connectMatch = commandText.match(/^\/connect(?:@\w+)?$/i);
+    const termsMatch = commandText.match(/^\/terms(?:@\w+)?$/i) || startMatch?.[1] === "terms";
+    const paymentSupportMatch = commandText.match(/^\/(?:paysupport|support)(?:@\w+)?$/i) || startMatch?.[1] === "paysupport";
+    if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && (termsMatch || paymentSupportMatch)) {
+      const isTerms = Boolean(termsMatch);
+      const message = isTerms
+        ? (tributePaymentsReady(env) ? env.PAYMENTS_TERMS_TEXT.trim().slice(0, 4000) : "Условия оплаты пока готовятся. Покупки временно отключены.")
+        : (tributePaymentsReady(env) ? `По вопросам оплаты напиши в поддержку: ${env.PAYMENTS_SUPPORT_URL}` : "Поддержка по оплате будет доступна после запуска покупок. Списаний сейчас нет.");
+      const sent = await callTelegramJson(env, "sendMessage", { chat_id: incomingMessage.chat.id, text: message });
+      return sent ? json({ ok: true, handled: isTerms ? "terms" : "payment_support" }) : json({ error: "Telegram could not send the message" }, 502);
+    }
     if (incomingMessage?.chat?.id && incomingMessage.chat.type === "private" && (startMatch || helpMatch || connectMatch)) {
       if (!env.TELEGRAM_BOT_TOKEN) return json({ error: "bot token is not configured" }, 500);
       if (startMatch?.[1] === "connect" || connectMatch) {
@@ -350,7 +393,7 @@ async function handleTelegramWebhook(request, env) {
         body: JSON.stringify({
           chat_id: incomingMessage.chat.id,
           text: isHelp
-            ? "Я SpySkaut — архив изменений в подключённых чатах Telegram.\n\n/start — открыть приложение и начать\n/connect — получить инструкцию по подключению личных чатов\n/help — показать эту справку\n\nЯ сохраняю только новые события, которые Telegram присылает после подключения выбранного чата. Историю сообщений до подключения восстановить нельзя."
+            ? "Я SpySkaut — архив изменений в подключённых чатах Telegram.\n\n/start — открыть приложение и начать\n/connect — получить инструкцию по подключению личных чатов\n/terms — условия оплаты\n/paysupport — помощь по платежам\n/help — показать эту справку\n\nЯ сохраняю только новые события, которые Telegram присылает после подключения выбранного чата. Историю сообщений до подключения восстановить нельзя."
             : "Привет! Я Скаут, помощник SpySkaut 🕵️\n\n✏️ Показывает изменения сообщений и сохранённый исходный текст.\n🗑️ Фиксирует удаления, о которых Telegram сообщил боту.\n🔔 Присылает уведомления о событиях — их можно настроить в приложении.\n📎 Сохраняет доступные фото, видео, голосовые и документы.\n🗂️ Хранит архив до 7 дней.\n\n<b>Как начать:</b>\n1. Подключи SpySkaut через настройки Telegram.\n2. В «Автоматизации чатов» добавь @SpySkaut_bot и выбери нужные чаты.\n3. Открой приложение и смотри историю событий.\n\nСохраняются события, которые Telegram присылает после подключения выбранных чатов. Исчезающие медиа могут быть недоступны.",
           parse_mode: isHelp ? undefined : "HTML",
           reply_markup: {
@@ -489,6 +532,94 @@ async function handleTelegramWebhook(request, env) {
   } catch {
     return json({ error: "webhook processing failed" }, 500);
   }
+}
+
+async function handleTributeWebhook(request, env) {
+  if (!env.TRIBUTE_API_KEY) return json({ error: "Tribute webhook is not configured" }, 503);
+  const rawBody = await request.text();
+  if (rawBody.length > 128_000) return json({ error: "payload too large" }, 413);
+  const supplied = request.headers.get("trbt-signature") || "";
+  if (!await validTributeSignature(rawBody, supplied, env.TRIBUTE_API_KEY)) {
+    return json({ error: "invalid Tribute signature" }, 401);
+  }
+
+  let event;
+  try { event = JSON.parse(rawBody); } catch { return json({ error: "invalid JSON" }, 400); }
+  const eventName = String(event?.name || "");
+  const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  if (!["new_subscription", "renewed_subscription", "cancelled_subscription"].includes(eventName)) {
+    return json({ ok: true, ignored: true });
+  }
+
+  const ownerId = String(payload.telegram_user_id || "");
+  if (!/^\d{1,20}$/.test(ownerId)) return json({ ok: true, ignored: true });
+  if (eventName === "cancelled_subscription") {
+    // Keep access until the already-paid period expires; Tribute stops future renewals.
+    return json({ ok: true, handled: "cancellation" });
+  }
+  if (payload.type && payload.type !== "regular") return json({ ok: true, ignored: true });
+  if (payload.currency && String(payload.currency).toUpperCase() !== "RUB") return json({ ok: true, ignored: true });
+
+  const subscriptionId = String(payload.subscription_id || payload.subscriptionId || "");
+  if (env.TRIBUTE_SUBSCRIPTION_ID && subscriptionId !== String(env.TRIBUTE_SUBSCRIPTION_ID)) {
+    return json({ ok: true, ignored: true });
+  }
+  const months = tributePaidMonths(payload);
+  if (!months) return json({ ok: true, ignored: true });
+  if (eventName === "new_subscription") {
+    const consent = await env.DB.prepare(`SELECT 1 AS accepted FROM payment_consents
+      WHERE owner_id = ? AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`).bind(ownerId).first();
+    if (!consent) return json({ ok: true, ignored: true });
+  }
+
+  const eventKey = await sha256Hex(rawBody);
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO tribute_payment_events(event_key, owner_id, event_name, subscription_id, months)
+        VALUES(?, ?, ?, ?, ?)`)
+        .bind(eventKey, ownerId, eventName, subscriptionId || null, months),
+      env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at)
+        SELECT ?, datetime('now', printf('+%d months', ?)) WHERE changes() = 1
+        ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
+          CASE WHEN strftime('%s', subscriptions.expires_at) > unixepoch('now')
+            THEN subscriptions.expires_at ELSE 'now' END,
+          printf('+%d months', ?)
+        )`)
+        .bind(ownerId, months, months),
+    ]);
+  } catch {
+    return json({ error: "Tribute event processing failed" }, 500);
+  }
+  return json({ ok: true, handled: eventName });
+}
+
+function tributePaidMonths(payload) {
+  const amount = Number(payload.amount);
+  if (Number.isFinite(amount)) {
+    const rubles = amount > 3000 ? amount / 100 : amount;
+    const amountPlan = Object.values(PERSONAL_SUBSCRIPTION_PLANS)
+      .find((plan) => Math.abs(rubles - plan.rubles) < 0.01);
+    if (amountPlan) return amountPlan.months;
+  }
+  const period = String(payload.period || payload.subscription_period || payload.period_name || "").toLowerCase();
+  if (/(12|year|год)/.test(period)) return 12;
+  if (/(6|half|полгода|6\s*мес)/.test(period)) return 6;
+  if (/(1|month|месяц)/.test(period)) return 1;
+  return 0;
+}
+
+async function validTributeSignature(rawBody, signature, apiKey) {
+  const normalized = signature.trim().replace(/^sha256=/i, "").toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(normalized)) return false;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(apiKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  const expected = [...new Uint8Array(signed)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return constantTimeEqual(expected, normalized);
+}
+
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function handleGroupMembershipUpdate(change, env) {
@@ -830,6 +961,7 @@ async function getUserBootstrap(env, user) {
     subscription,
     notification_preferences: notificationSettings.preferences,
     can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
+    payments_available: Boolean(tributePaymentsReady(env)),
   };
 }
 

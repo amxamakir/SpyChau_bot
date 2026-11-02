@@ -1,5 +1,6 @@
 # Keep Wrangler's local bundle/cache out of public static assets.
 .wrangler/
+node_modules/
 
 # Local visual previews are not application pages.
 preview-burgundy.css

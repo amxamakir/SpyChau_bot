@@ -1455,3 +1455,38 @@ body{background:#101827;color:#f4f6f9}
 .support-page .support-dock::before{display:none}
 .support-page .support-contact-button{width:min(100%,450px)}
 .support-page .support-dock-note{width:min(100%,450px)}
+
+/* Compact in-app checkout for the Telegram Stars invoice flow. */
+.payment-sheet-backdrop{position:fixed;z-index:35;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,7,20,.72);backdrop-filter:blur(5px)}
+.payment-sheet{position:relative;width:min(100%,560px);max-height:min(84dvh,760px);overflow:auto;padding:12px 20px calc(20px + env(safe-area-inset-bottom));border:1px solid rgba(153,177,238,.2);border-bottom:0;border-radius:28px 28px 0 0;background:#131b38;box-shadow:0 -18px 70px rgba(0,0,0,.4);animation:payment-sheet-up .22s ease}
+@keyframes payment-sheet-up{from{transform:translateY(22px);opacity:.65}to{transform:translateY(0);opacity:1}}
+.payment-sheet-handle{width:42px;height:5px;border-radius:99px;margin:0 auto 22px;background:#566487}
+.payment-sheet-close{position:absolute;top:26px;right:18px;width:34px;height:34px;border:1px solid var(--line);border-radius:50%;background:#1b2548;color:var(--muted);display:grid;place-items:center}
+.payment-sheet h2{margin:0 0 18px;font-size:23px;letter-spacing:-.5px}
+.payment-order-card,.payment-method-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid rgba(153,177,238,.12);border-radius:17px;background:#1a2447}
+.payment-order-icon,.payment-method-star{width:42px;height:42px;flex:none;border-radius:13px;display:grid;place-items:center;background:rgba(76,130,255,.18);color:#80a9ff;font-size:22px}
+.payment-order-card>span:nth-child(2),.payment-method-card>span:nth-child(2){min-width:0;flex:1;display:grid;gap:5px}
+.payment-order-card strong,.payment-method-card strong{font-size:14px;line-height:1.35}
+.payment-order-card small,.payment-method-card small{font-size:11px;color:#9caaca;line-height:1.4}
+.payment-order-card>b{flex:none;font-size:15px;white-space:nowrap}
+.payment-method-label{margin:20px 0 9px;color:#aab7d4;font-size:12px}
+.payment-method-card.selected{border-color:#4c82ff;box-shadow:inset 0 0 0 1px #4c82ff}
+.payment-method-card.selected>i{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#4c82ff;color:#fff;font-style:normal;font-size:13px}
+.payment-terms-consent{display:flex;align-items:flex-start;gap:9px;margin:17px 0;color:#aab7d4;font-size:11px;line-height:1.5}
+.payment-terms-consent input{width:19px;height:19px;flex:none;margin:0;accent-color:#4c82ff}
+.payment-terms-consent a{color:#70a0ff;text-decoration:underline;text-underline-offset:2px}
+.payment-continue{width:100%;min-height:54px;margin-top:4px}
+.payment-continue:disabled{opacity:.48;filter:saturate(.6)}
+.payment-sheet-note{margin:11px 0 0;color:#8999bd;font-size:10px;line-height:1.5;text-align:center}
+.payment-progress-overlay{position:fixed;z-index:45;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:30px;background:#090e22;text-align:center}
+.payment-progress-overlay img{width:min(58vw,220px);height:min(40vh,245px);object-fit:contain;margin-bottom:18px}
+.payment-progress-overlay h2{margin:0 0 9px;font-size:22px}
+.payment-progress-overlay p{max-width:340px;margin:0;color:#9aa8c8;font-size:14px;line-height:1.5}
+.payment-progress-bar{display:block;width:min(100%,280px);height:6px;overflow:hidden;margin-top:26px;border-radius:99px;background:#1b2851}
+.payment-progress-bar i{display:block;width:48%;height:100%;border-radius:inherit;background:#4c82ff;animation:payment-progress 1.4s ease-in-out infinite alternate}
+@keyframes payment-progress{from{transform:translateX(-15%)}to{transform:translateX(125%)}}
+:root[data-theme="light"] .payment-sheet{background:#f4f6fb}
+:root[data-theme="light"] .payment-order-card,:root[data-theme="light"] .payment-method-card{background:#e8edf8}
+:root[data-theme="light"] .payment-order-card small,:root[data-theme="light"] .payment-method-card small,:root[data-theme="light"] .payment-terms-consent,:root[data-theme="light"] .payment-method-label{color:#596986}
+:root[data-theme="light"] .payment-progress-overlay{background:#f4f6fb;color:#17233c}
+:root[data-theme="light"] .payment-progress-overlay p{color:#596986}
