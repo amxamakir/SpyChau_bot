@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.0" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.1" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -981,7 +981,7 @@ async function notifyEntitlementReminders(env) {
       const remaining = Number(pack.credits_remaining || 0);
       if (!total || !remaining) continue;
       const percent = Math.round(remaining / total * 100);
-      const text = `🔔 Осталось мало уведомлений\n\nВ твоём пакете на ${total} уведомлений осталось ${remaining} из ${total} (${percent}%). Пакет не сгорает.\n\nПополнить его можно в приложении SpySkaut, в разделе «Личные чаты».`;
+      const text = `🔔 Скаут напоминает: в пакете на ${total} уведомлений осталось ${remaining} — это ${percent}%. История событий продолжит сохраняться, пока пакет не закончится.`;
       await sendEntitlementReminder(env, String(pack.owner_id), "package_low", String(pack.package_id), text);
     }
   } catch {
