@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.8" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.9" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -676,6 +676,9 @@ async function handleTelegramWebhook(request, env) {
         savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
 
+      const archivedMessage = isIncomingOneTimeMessage(message, connectionRow.owner_id)
+        ? { ...message, __spychau_one_time_saved: true }
+        : { ...message };
       const eventId = await storeBusinessEvent(env, {
         updateId,
         ownerId: connectionRow.owner_id,
@@ -683,7 +686,7 @@ async function handleTelegramWebhook(request, env) {
         chatId,
         messageId,
         eventType,
-        message: { ...message },
+        message: archivedMessage,
       });
       savedEvents.push({ eventId, messageId, eventType });
     }
@@ -1278,6 +1281,7 @@ function logBusinessMediaDiagnostic(update) {
         updateType,
         messageKeys: Object.keys(message).sort().slice(0, 80),
         relevantFieldShapes: relevantShapes(message),
+        messageIdIsZero: Number(message.message_id) === 0,
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
         hasReply: Boolean(reply),
         replyKeys: reply && typeof reply === "object" ? Object.keys(reply).sort().slice(0, 80) : [],
@@ -1832,7 +1836,15 @@ function isOneTimeMessage(message) {
   return message?.__spychau_one_time_saved === true
     || Number(message?.ephemeral_message_id) > 0
     || Number(message?.receiver_user?.id) > 0
-    || Number(message?.ttl_period) > 0;
+    || Number(message?.ttl_period) > 0
+    || (
+      Number(message?.message_id) === 0
+      && message?.chat?.type === "private"
+      && (
+        (Array.isArray(message?.photo) && message.photo.length > 0)
+        || ONE_TIME_MEDIA_FIELDS.some((field) => field !== "photo" && message?.[field] != null)
+      )
+    );
 }
 
 function isIncomingOneTimeMessage(message, ownerId) {
