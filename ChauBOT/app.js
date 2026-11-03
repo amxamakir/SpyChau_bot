@@ -434,7 +434,7 @@ function home() {
   const subscriptionAction = accessActive
     ? subscriptionActive
       ? `<div class="home-subscription-status" role="status"><strong>Безлимит</strong> действует до <span class="home-subscription-expiry">${expiryDate ? escapeHtml(expiryDate) : '∞'}</span></div>`
-      : `<div class="home-subscription-status" role="status">Осталось <strong>${new Intl.NumberFormat('ru-RU').format(state.packageBalance.remaining)} событий</strong> из ${new Intl.NumberFormat('ru-RU').format(state.packageBalance.purchased)}</div><button class="subtle-button" data-tab="tariffs">Пополнить пакет ${icon('chevron', 15)}</button>`
+      : `<div class="home-subscription-status" role="status">Осталось <strong>${new Intl.NumberFormat('ru-RU').format(state.packageBalance.remaining)} событий</strong> из ${new Intl.NumberFormat('ru-RU').format(state.packageBalance.purchased)}</div><button class="subtle-button" data-tab="tariffs" data-open-package="true">Пополнить пакет ${icon('chevron', 15)}</button>`
     : `<button class="button button-light" data-tab="tariffs"><span class="button-stencil-text">${subscriptionExpired ? 'Продлить' : 'Подключить'}</span>${icon('chevron', 16)}</button>`;
   return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${accessActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionTitle}</h1><p>${subscriptionDescription}</p>${subscriptionAction}</div>${racer(false, accessActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
@@ -1435,6 +1435,10 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.tab) {
     state.modal = null;
+    if (target.dataset.tab === 'tariffs' && target.dataset.openPackage === 'true' && state.packageBalance?.has_purchases) {
+      state.tariffMode = 'package';
+      if (!tariffPlans('package').some(plan => plan.id === state.selectedTariff)) state.selectedTariff = 'pack300';
+    }
     const profileDetailTabs = ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group'];
     if (target.dataset.tab === 'profile' && profileDetailTabs.includes(state.tab)) {
       if (state.navigationStack.length) goBack();
