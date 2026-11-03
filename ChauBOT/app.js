@@ -38,7 +38,7 @@ const state = {
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
   notificationPreferencesSaving: false,
-  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentSelection: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentSelection: null, selectedPaymentMethod: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -620,7 +620,8 @@ function paymentSheet() {
         'Архив переписки включён',
       ];
   const orderRows = orderDetails.map(detail => `<div class="payment-order-feature"><span aria-hidden="true">${icon('check', 13)}</span><span>${escapeHtml(detail)}</span></div>`).join('');
-  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet">${icon('close', 19)}</button><header class="payment-sheet-header"><div class="payment-sheet-heading"><h2 id="payment-sheet-title">Оплата</h2><p>Выбери удобный способ оплаты</p></div><img class="payment-sheet-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут" /></header><div class="payment-order-card"><div class="payment-order-features">${orderRows}</div><b class="payment-order-price">${escapeHtml(selected.price)}</b></div><p class="payment-method-label">Выбери способ оплаты</p><div class="payment-method-list"><button type="button" class="payment-method-card payment-method-stub" data-action="cloudpayments-stub" aria-label="СБП и оплата картой — скоро" aria-disabled="true"><span class="payment-method-icon payment-method-card-icon">${icon('card', 21)}</span><span><strong>СБП и оплата картой</strong><small>CloudPayments · подключим позже</small></span><span class="payment-method-soon">Скоро</span></button><button type="button" class="payment-method-card payment-method-tribute" data-action="tribute-stars" ${state.paymentLoading || !tributeReady ? 'disabled' : ''}><span class="payment-method-icon payment-method-stars-icon" aria-hidden="true">⭐</span><span><strong>Telegram Stars</strong><small>${state.paymentLoading ? 'Открываем Tribute…' : tributeReady ? 'Способ оплаты Tribute' : 'Оплата пока настраивается'}</small></span>${icon('chevron', 18)}</button></div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оплаты</a>.</span></label><p class="payment-sheet-note">${detail}</p></section></div>`;
+  const continueDisabled = !state.paymentTermsAccepted || state.selectedPaymentMethod !== 'tribute' || state.paymentLoading || !tributeReady;
+  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet">${icon('close', 19)}</button><header class="payment-sheet-header"><div class="payment-sheet-heading"><h2 id="payment-sheet-title">Оплата</h2><p>Выбери удобный способ оплаты</p></div><img class="payment-sheet-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут" /></header><div class="payment-order-card"><div class="payment-order-features">${orderRows}</div><b class="payment-order-price">${escapeHtml(selected.price)}</b></div><p class="payment-method-label">Выбери способ оплаты</p><div class="payment-method-list"><button type="button" class="payment-method-card payment-method-stub" data-action="cloudpayments-stub" aria-label="СБП и оплата картой — скоро" aria-disabled="true"><span class="payment-method-icon payment-method-card-icon">${icon('card', 21)}</span><span><strong>СБП и оплата картой</strong><small>CloudPayments · подключим позже</small></span><span class="payment-method-soon">Скоро</span></button><button type="button" class="payment-method-card payment-method-tribute ${state.selectedPaymentMethod === 'tribute' ? 'selected' : ''}" data-action="select-tribute-method" aria-pressed="${state.selectedPaymentMethod === 'tribute'}" ${state.paymentLoading || !tributeReady ? 'disabled' : ''}><span class="payment-method-icon payment-method-stars-icon" aria-hidden="true">⭐</span><span><strong>Telegram Stars</strong><small>${state.paymentLoading ? 'Открываем Tribute…' : tributeReady ? 'Способ оплаты Tribute' : 'Оплата пока настраивается'}</small></span><span class="payment-method-selection" aria-hidden="true"></span></button></div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оплаты</a>.</span></label><button type="button" class="button button-blue payment-continue" data-action="continue-payment" ${continueDisabled ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : 'Перейти к оплате'}</button><p class="payment-sheet-note">${detail}</p></section></div>`;
 }
 
 function telegramSettingsDock() {
@@ -954,6 +955,7 @@ async function purchaseSelectedPlan() {
   };
   if (!state.authenticated || !state.telegram?.openTelegramLink) { toast('Открой приложение через Telegram.'); return; }
   if (!state.paymentTermsAccepted) { toast('Сначала прими условия оплаты.'); return; }
+  if (state.selectedPaymentMethod !== 'tribute') { toast('Выбери Telegram Stars.'); return; }
   if (state.paymentLoading) return;
   const previous = `${state.subscription?.expires_at || ''}|${state.packageBalance?.remaining ?? ''}`;
   state.paymentLoading = true;
@@ -1318,6 +1320,13 @@ app.addEventListener('submit', async event => {
 app.addEventListener('change', event => {
   if (!event.target.matches('[data-terms-consent]')) return;
   state.paymentTermsAccepted = event.target.checked;
+  const selection = state.paymentSelection;
+  const canContinue = Boolean(selection
+    && state.selectedPaymentMethod === 'tribute'
+    && !state.paymentLoading
+    && tributePlanAvailable(selection.service_key, selection.plan_id));
+  const button = app.querySelector('[data-action="continue-payment"]');
+  if (button) button.disabled = !state.paymentTermsAccepted || !canContinue;
 });
 
 app.addEventListener('click', async event => {
@@ -1353,6 +1362,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.action === 'open-payment-sheet') {
     if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
+    state.selectedPaymentMethod = 'tribute';
     state.paymentSelection = { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
     state.paymentSheetOpen = true;
     render();
@@ -1361,6 +1371,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.action === 'open-package-payment-sheet') {
     if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
+    state.selectedPaymentMethod = 'tribute';
     state.paymentSelection = { service_key: 'personal_package', plan_id: state.selectedTariff };
     state.paymentSheetOpen = true;
     render();
@@ -1374,10 +1385,16 @@ app.addEventListener('click', async event => {
     if (target.classList.contains('payment-sheet-backdrop') && event.target !== target) return;
     state.paymentSheetOpen = false;
     state.paymentSelection = null;
+    state.selectedPaymentMethod = null;
     render();
     return;
   }
-  if (target.dataset.action === 'tribute-stars') { await purchaseSelectedPlan(); return; }
+  if (target.dataset.action === 'select-tribute-method') {
+    state.selectedPaymentMethod = 'tribute';
+    render();
+    return;
+  }
+  if (target.dataset.action === 'continue-payment') { await purchaseSelectedPlan(); return; }
   if (target.dataset.action === 'cloudpayments-stub') {
     toast('Оплата картой и через СБП появится после подключения CloudPayments. Сейчас списаний не будет.');
     return;

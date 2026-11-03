@@ -1487,13 +1487,17 @@ body{background:#101827;color:#f4f6f9}
 .payment-method-soon{flex:none;padding:5px 8px;border:1px solid rgba(153,177,238,.1);border-radius:999px;background:rgba(144,160,194,.1);color:#a6b3cc;font-size:10px;font-weight:700}
 .payment-method-tribute{border-color:rgba(121,199,230,.25);cursor:pointer;transition:border-color .16s ease,background .16s ease,transform .16s ease}
 .payment-method-tribute:hover:not(:disabled){transform:translateY(-1px);border-color:rgba(121,199,230,.48);background:linear-gradient(120deg,rgba(36,58,96,.98),rgba(28,46,80,.98))}
+.payment-method-tribute.selected{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue);background:linear-gradient(120deg,rgba(35,58,101,.98),rgba(27,44,80,.98))}
 .payment-method-tribute>svg{flex:none;color:#a4b5d4}
+.payment-method-selection{width:22px;height:22px;flex:none;border:2px solid rgba(160,177,215,.45);border-radius:50%;display:grid;place-items:center}
+.payment-method-tribute.selected .payment-method-selection{border-color:var(--blue);background:var(--blue)}
+.payment-method-tribute.selected .payment-method-selection::after{content:"";width:8px;height:8px;border-radius:50%;background:#fff}
 .payment-method-tribute:disabled{opacity:.56;cursor:not-allowed}
 .payment-terms-consent{display:flex;align-items:flex-start;gap:9px;margin:16px 0 0;color:#aab7d4;font-size:11px;line-height:1.5}
 .payment-terms-consent input{width:19px;height:19px;flex:none;margin:0;accent-color:var(--blue)}
 .payment-terms-consent a{color:#8db5ff;text-decoration:underline;text-underline-offset:2px}
-.payment-continue{width:100%;min-height:54px;margin-top:4px}
-.payment-continue:disabled{opacity:.48;filter:saturate(.6)}
+.payment-continue{width:100%;min-height:54px;margin-top:15px}
+.payment-continue:disabled{opacity:.48;filter:saturate(.6);cursor:not-allowed}
 .payment-sheet-note{margin:12px 0 0;color:#9aa9c5;font-size:10px;line-height:1.5;text-align:center}
 @media(min-width:700px){.payment-sheet-backdrop{align-items:center;padding:24px}.payment-sheet{width:min(100%,520px);max-height:min(86dvh,780px);border:1px solid rgba(153,177,238,.2);border-radius:26px;padding:20px 24px 22px;box-shadow:0 24px 90px rgba(0,0,0,.48)}}
 @media(max-width:390px){.payment-sheet{padding-inline:16px}.payment-sheet-header{gap:6px;margin-right:40px}.payment-sheet-mascot{width:62px;height:62px}.payment-sheet-heading h2{font-size:22px}.payment-order-card{gap:9px;padding:13px}.payment-order-feature{font-size:11px}.payment-order-price{max-width:104px;padding-left:10px;font-size:18px}.payment-method-card{gap:9px;padding-inline:11px}.payment-method-card strong{font-size:12px}}
