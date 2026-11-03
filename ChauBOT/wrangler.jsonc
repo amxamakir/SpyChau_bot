@@ -51,7 +51,7 @@
       "vars": {
         "TRIBUTE_PAYMENTS_ENABLED": "true",
         "TRIBUTE_CHECKOUT_URL": "https://t.me/tribute/app?startapp=s1b9w",
-        "TRIBUTE_PRODUCTS": "{\"personal_package:pack100\":{\"web_link\":\"https://web.tribute.tg/p/J2d\",\"amount_rub\":189}}",
+        "TRIBUTE_PRODUCTS": "{\"personal_package:pack100\":{\"web_link\":\"https://web.tribute.tg/p/J2d\",\"amount_rub\":189},\"personal_package:pack300\":{\"web_link\":\"https://web.tribute.tg/p/J8f\",\"amount_rub\":499},\"personal_package:pack500\":{\"web_link\":\"https://web.tribute.tg/p/J8g\",\"amount_rub\":699}}",
         "PAYMENTS_TERMS_VERSION": "2026-11-02",
         "PAYMENTS_TERMS_TEXT": "SpySkaut — условия оплаты\n\nПодписка «Безлимит» открывает функции личных чатов на срок, выбранный на странице Tribute. Подписка продлевается автоматически; период и сумма указаны в Tribute. Автопродление можно отключить там же.\n\nПакет включает указанное при покупке число событий. За каждое новое событие, переданное Telegram подключённому боту, списывается одно событие из пакета. Пакет не сгорает. Историю до подключения восстановить нельзя.\n\nДоступ и пакет активируются после подтверждения оплаты Tribute. Доступные способы оплаты и итоговая сумма отображаются перед подтверждением платежа.\n\nИсполнитель: самозанятый Арсений В. Б.\nПоддержка по оплате и доступу: ssenba154@gmail.com",
         "PAYMENTS_SUPPORT_URL": "mailto:ssenba154@gmail.com"
