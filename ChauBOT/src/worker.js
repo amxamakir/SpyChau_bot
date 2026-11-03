@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.6" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.7" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -1527,7 +1527,8 @@ async function sendEventNotification(env, { ownerId, updateId, messageId, event 
     const current = event?.message || {};
     const media = isOneTimeMessage(current) ? oneTimeMedia(current) : null;
     const method = media?.method || "sendMessage";
-    const notificationText = formatEventNotification(event);
+    const notification = formatEventNotification(event, String(ownerId));
+    const notificationText = notification.text;
     const archiveButton = {
       inline_keyboard: [[{ text: "Открыть архив", web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=archive" } }]],
     };
@@ -1536,23 +1537,28 @@ async function sendEventNotification(env, { ownerId, updateId, messageId, event 
           chat_id: ownerId,
           [media.field]: media.fileId,
           reply_markup: archiveButton,
-          ...(media.caption ? { caption: notificationText.slice(0, 1000) } : {}),
+          ...(media.caption ? {
+            caption: notificationText.slice(0, 1000),
+            caption_entities: notification.entities.filter((entity) => entity.offset + entity.length <= 1000),
+          } : {}),
         }
       : {
           chat_id: ownerId,
           text: notificationText,
+          entities: notification.entities,
           reply_markup: archiveButton,
         };
     let delivered = await callTelegramJson(env, method, payload);
     if (!delivered && media) {
       const archived = await readArchivedMedia(env, ownerId, event?.id, 0);
       if (archived?.bytes?.length) {
-        delivered = await callTelegramUpload(env, media, archived, notificationText, archiveButton, ownerId);
+        delivered = await callTelegramUpload(env, media, archived, notification, archiveButton, ownerId);
       }
       if (!delivered) {
         delivered = await callTelegramJson(env, "sendMessage", {
           chat_id: ownerId,
           text: `${notificationText}\n\nНе получилось отправить вложение в этот чат. Проверь событие в архиве — если файл успел сохраниться, он будет доступен там.`,
+          entities: notification.entities,
           reply_markup: archiveButton,
         });
       }
@@ -1624,14 +1630,17 @@ async function sendConnectInstructions(env, chatId) {
   });
 }
 
-async function callTelegramUpload(env, media, archived, notificationText, replyMarkup, ownerId) {
+async function callTelegramUpload(env, media, archived, notification, replyMarkup, ownerId) {
   try {
     const form = new FormData();
     form.set("chat_id", String(ownerId));
     const safeFileName = String(archived.file_name || `${media.kind}.${media.extension}`).split(/[\\/]/).pop().replace(/[\r\n]/g, "");
     form.set(media.field, new Blob([archived.bytes], { type: archived.mime_type }), safeFileName);
     form.set("reply_markup", JSON.stringify(replyMarkup));
-    if (media.caption) form.set("caption", notificationText.slice(0, 1000));
+    if (media.caption) {
+      form.set("caption", notification.text.slice(0, 1000));
+      form.set("caption_entities", JSON.stringify(notification.entities.filter((entity) => entity.offset + entity.length <= 1000)));
+    }
     const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${media.method}`, { method: "POST", body: form });
     const result = await response.json().catch(() => ({}));
     return response.ok && result.ok === true;
@@ -1640,19 +1649,70 @@ async function callTelegramUpload(env, media, archived, notificationText, replyM
   }
 }
 
-function formatEventNotification(event) {
+function formatEventNotification(event, ownerId = "") {
   const current = event?.message || {};
   const previous = event?.previous_message || {};
   const chat = current.chat || previous.chat || {};
   const chatName = chat.title
+    || (chat.username ? `@${chat.username}` : "")
     || [chat.first_name, chat.last_name].filter(Boolean).join(" ")
-    || (chat.username ? `@${chat.username}` : `чат ${chat.id || ""}`.trim());
-  const lines = event?.event_type === "deleted"
-    ? ["🗑 Сообщение удалено", `Чат: ${chatName}`, `Сообщение: ${messagePreview(current)}`]
+    || `чат ${chat.id || ""}`.trim();
+  const contact = eventContact(current, previous, ownerId);
+  const lines = [];
+  const entities = [];
+  const addLine = (line) => lines.push(line);
+  const addLinkedLine = (label, value, url) => {
+    const prefix = `${label}: `;
+    const offset = lines.join("\n").length + (lines.length ? 1 : 0) + prefix.length;
+    lines.push(`${prefix}${value}`);
+    entities.push({ type: "text_link", offset, length: value.length, url });
+  };
+
+  addLine(event?.event_type === "deleted"
+    ? "🗑 Сообщение удалено"
     : event?.event_type === "edited"
-      ? ["✏️ Сообщение изменено", `Чат: ${chatName}`, `Было: ${messagePreview(previous)}`, `Стало: ${messagePreview(current)}`]
-      : ["👁 Сохранено одноразовое сообщение", `Чат: ${chatName}`, `Сообщение: ${messagePreview(current)}`];
-  return lines.join("\n").slice(0, 3500);
+      ? "✏️ Сообщение изменено"
+      : "👁 Сохранено одноразовое сообщение");
+  if (chat.type === "private") {
+    if (contact.url) addLinkedLine("Контакт", contact.label, contact.url);
+    else addLine(`Контакт: ${contact.label}`);
+  } else {
+    addLine(`Чат: ${chatName}`);
+    if (contact.url) addLinkedLine("Автор", contact.label, contact.url);
+    else addLine(`Автор: ${contact.label}`);
+  }
+  if (event?.event_type === "deleted") {
+    addLine(`Сообщение: ${messagePreview(current)}`);
+  } else if (event?.event_type === "edited") {
+    addLine(`Было: ${messagePreview(previous)}`);
+    addLine(`Стало: ${messagePreview(current)}`);
+  } else {
+    addLine(`Сообщение: ${messagePreview(current)}`);
+  }
+  return { text: lines.join("\n").slice(0, 3500), entities: entities.filter((entity) => entity.offset + entity.length <= 3500) };
+}
+
+function eventContact(current, previous, ownerId) {
+  const chat = current.chat || previous.chat || {};
+  let sender = current.sender_chat || current.from || previous.sender_chat || previous.from || null;
+  if (chat.type === "private") {
+    // In private Business chats, the chat object describes the contact. A
+    // message authored by the account owner should not make the owner appear
+    // as the contact in the notification.
+    if (!sender || (ownerId && String(sender.id) === String(ownerId)) || (!sender.username && chat.username)) sender = chat;
+  }
+  const username = String(sender?.username || "").trim().replace(/^@/, "");
+  if (/^[A-Za-z0-9_]{1,64}$/.test(username)) {
+    return { label: `@${username}`, url: `https://t.me/${username}` };
+  }
+  const senderId = String(sender?.id ?? "");
+  const canLinkUser = sender?.type !== "channel" && /^\d+$/.test(senderId) && !senderId.startsWith("-");
+  const displayName = [sender?.first_name, sender?.last_name].filter(Boolean).join(" ")
+    || sender?.title
+    || (senderId ? `Контакт ${senderId}` : "контакт без юзернейма");
+  return canLinkUser
+    ? { label: "Открыть профиль контакта", url: `tg://user?id=${senderId}` }
+    : { label: `${displayName} (без юзернейма)`, url: "" };
 }
 
 function messagePreview(message) {
