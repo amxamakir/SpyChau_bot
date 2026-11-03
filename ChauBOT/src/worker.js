@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.62" });
+      return json({ status: "ok", service: "spychau-api", version: "0.9.63" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -1244,17 +1244,33 @@ async function hasPersonalDataAccess(db, ownerId) {
 
 async function getNotificationPackageBalance(db, ownerId) {
   try {
-    const row = await db.prepare(`SELECT COALESCE(SUM(p.credits_total), 0) AS purchased,
-      COALESCE(SUM(p.credits_remaining), 0) AS remaining, COUNT(*) AS packages,
-      COALESCE(SUM((SELECT COUNT(*) FROM package_event_usage u WHERE u.package_id = p.package_id)), 0) AS consumed
-      FROM notification_packages p WHERE p.owner_id = ?`).bind(String(ownerId)).first();
-    const purchased = Number(row?.purchased || 0);
-    const remaining = Number(row?.remaining || 0);
-    const consumed = Number(row?.consumed || 0);
-    const refunded = Math.max(0, purchased - remaining - consumed);
-    return { has_purchases: purchased > 0, purchased, remaining, consumed, refunded, packages: Number(row?.packages || 0) };
+    const result = await db.prepare(`SELECT p.package_id, p.plan_id, p.credits_total, p.credits_remaining,
+      p.purchased_at, COALESCE((SELECT COUNT(*) FROM package_event_usage u WHERE u.package_id = p.package_id), 0) AS consumed,
+      CASE WHEN purchase.refunded_at IS NULL THEN 0 ELSE 1 END AS is_refunded
+      FROM notification_packages p
+      LEFT JOIN payment_purchases purchase ON purchase.purchase_id = p.purchase_id
+      WHERE p.owner_id = ? ORDER BY p.rowid ASC`).bind(String(ownerId)).all();
+    const packageItems = (result.results || []).map((item) => {
+      const total = Number(item.credits_total || 0);
+      const remaining = Number(item.credits_remaining || 0);
+      const consumed = Number(item.consumed || 0);
+      return {
+        plan_id: String(item.plan_id || ""),
+        purchased: total,
+        remaining,
+        consumed,
+        refunded: Math.max(0, total - remaining - consumed),
+        is_refunded: Number(item.is_refunded || 0) === 1,
+        purchased_at: item.purchased_at || null,
+      };
+    });
+    const purchased = packageItems.reduce((sum, item) => sum + item.purchased, 0);
+    const remaining = packageItems.reduce((sum, item) => sum + item.remaining, 0);
+    const consumed = packageItems.reduce((sum, item) => sum + item.consumed, 0);
+    const refunded = packageItems.reduce((sum, item) => sum + item.refunded, 0);
+    return { has_purchases: purchased > 0, purchased, remaining, consumed, refunded, packages: packageItems.length, package_items: packageItems };
   } catch (error) {
-    if (/no such table: notification_packages/i.test(String(error?.message || error))) return { has_purchases: false, purchased: 0, remaining: 0, consumed: 0, refunded: 0, packages: 0 };
+    if (/no such table: notification_packages|no such table: package_event_usage/i.test(String(error?.message || error))) return { has_purchases: false, purchased: 0, remaining: 0, consumed: 0, refunded: 0, packages: 0, package_items: [] };
     throw error;
   }
 }
@@ -1267,7 +1283,7 @@ async function consumeNotificationPackageEvent(db, ownerId, eventId) {
     const candidates = await db.prepare(`SELECT p.package_id FROM events e
       JOIN notification_packages p ON p.owner_id = e.owner_id
       WHERE e.id = ? AND e.owner_id = ? AND e.id > p.activated_after_event_id AND p.credits_remaining > 0
-      ORDER BY p.purchased_at, p.package_id LIMIT 20`)
+      ORDER BY p.rowid ASC LIMIT 20`)
       .bind(Number(eventId), String(ownerId)).all();
     for (const { package_id: packageId } of candidates.results || []) {
       const updated = await db.prepare(`UPDATE notification_packages SET credits_remaining = credits_remaining - 1

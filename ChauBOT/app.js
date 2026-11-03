@@ -409,6 +409,7 @@ function home() {
   const subscription = state.subscription || {};
   const subscriptionActive = Boolean(subscription.active);
   const packageActive = !subscriptionActive && Number(state.packageBalance?.remaining || 0) > 0;
+  const packageExhausted = !subscriptionActive && Boolean(state.packageBalance?.has_purchases) && !packageActive;
   const accessActive = subscriptionActive || packageActive;
   const rawExpiry = subscription.expires_at || subscription.active_until || subscription.valid_until || subscription.ends_at || subscription.current_period_end || null;
   const parsedExpiry = rawExpiry ? new Date(typeof rawExpiry === 'number' && rawExpiry < 1e12 ? rawExpiry * 1000 : rawExpiry) : null;
@@ -424,17 +425,20 @@ function home() {
       : recentEvents.length
         ? `<div class="events-list home-event-feed">${recentEvents.map(event => archiveEventRow(event)).join('')}</div>`
         : `<div class="empty-events empty-events-with-mascot"><div class="empty-art search-mascot"><img src="./assets/mascot/scout-observing.png" alt="Скаут наблюдает за событиями" /></div><strong>${state.preview ? 'Предпросмотр интерфейса' : 'Пока ничего не вижу'}</strong><p>${state.preview ? 'Для личных данных открой Mini App из Telegram.' : state.apiError ? 'Обнови приложение и попробуй снова.' : 'Когда появятся события из подключённых чатов, они отобразятся здесь.'}</p>${state.apiError ? `<button class="subtle-button" data-action="refresh">${icon('arrow', 15)} Повторить загрузку</button>` : ''}</div>`;
-  const subscriptionTitle = subscriptionActive ? 'Подписка активна' : packageActive ? 'Пакет активен' : subscriptionExpired ? 'Подписка закончилась' : 'Подписка не активна';
+  const subscriptionTitle = subscriptionActive ? 'Подписка активна' : packageActive ? 'Пакет активен' : packageExhausted ? 'Пакет закончился' : subscriptionExpired ? 'Подписка закончилась' : 'Подписка не активна';
   const subscriptionDescription = subscriptionActive
     ? 'Я в строю, сохраняю события и архив.'
     : packageActive ? 'Сохраняю уведомления из личных чатов и списываю их из пакета.'
+    : packageExhausted ? 'Все уведомления израсходованы. Пополни пакет, чтобы я продолжил сохранять события.'
     : subscriptionExpired
       ? 'Срок подписки истёк. Продли её, чтобы я продолжил сохранять события.'
       : 'Я не на посту и не сохраняю события. Подключай — вернусь в строй.';
   const subscriptionAction = accessActive
     ? subscriptionActive
       ? `<div class="home-subscription-status" role="status"><strong>Безлимит</strong> действует до <span class="home-subscription-expiry">${expiryDate ? escapeHtml(expiryDate) : '∞'}</span></div>`
-      : `<div class="home-subscription-status" role="status">Осталось <strong>${new Intl.NumberFormat('ru-RU').format(state.packageBalance.remaining)} событий</strong> из ${new Intl.NumberFormat('ru-RU').format(state.packageBalance.purchased)}</div><button class="subtle-button" data-tab="tariffs" data-open-package="true">Пополнить пакет ${icon('chevron', 15)}</button>`
+      : `<div class="home-subscription-status" role="status"><strong>Осталось ${new Intl.NumberFormat('ru-RU').format(state.packageBalance.remaining)} событий</strong><small>${packageBalanceBreakdown(state.packageBalance)}</small></div><button class="subtle-button" data-tab="tariffs" data-open-package="true">Пополнить пакет ${icon('chevron', 15)}</button>`
+    : packageExhausted
+      ? `<div class="home-subscription-status" role="status"><strong>Осталось 0 событий</strong><small>${packageBalanceBreakdown(state.packageBalance)}</small></div><button class="subtle-button" data-tab="tariffs" data-open-package="true">Пополнить пакет ${icon('chevron', 15)}</button>`
     : `<button class="button button-light" data-tab="tariffs"><span class="button-stencil-text">${subscriptionExpired ? 'Продлить' : 'Подключить'}</span>${icon('chevron', 16)}</button>`;
   return `<section class="page home-page"><div class="hero-card"><div class="hero-copy"><h1 class="subscription-heading"><span class="subscription-dot ${accessActive ? 'active' : 'inactive'}" aria-hidden="true"></span>${subscriptionTitle}</h1><p>${subscriptionDescription}</p>${subscriptionAction}</div>${racer(false, accessActive)}</div>${connectCard()}<div class="section-heading event-heading"><div><h2>Что происходило</h2></div><button class="text-button" data-tab="archive">Все ${icon('chevron', 17)}</button></div>${feed}<div class="trust-note">${icon('shield', 17)}<span>Доступ и выбранные чаты контролируешь ты.</span></div></section>`;
 }
@@ -516,10 +520,34 @@ function packageBalanceCard() {
   if (!balance?.has_purchases) return '';
   const purchased = Math.max(0, Number(balance.purchased) || 0);
   const remaining = Math.min(purchased, Math.max(0, Number(balance.remaining) || 0));
-  const consumed = Math.max(0, Number(balance.consumed) || 0);
-  const refunded = Math.max(0, Number(balance.refunded) || 0);
-  const percent = purchased ? Math.min(100, Math.round((consumed + refunded) / purchased * 100)) : 0;
-  return `<div class="package-balance-card" role="status"><div class="package-balance-heading"><strong>Пакет уведомлений</strong><b>Осталось ${new Intl.NumberFormat('ru-RU').format(remaining)}</b></div><div class="package-balance-track" aria-label="Использовано ${percent}%"><i style="width:${percent}%"></i></div><small>из ${new Intl.NumberFormat('ru-RU').format(purchased)} событий · использовано ${new Intl.NumberFormat('ru-RU').format(consumed)}${refunded ? ` · возвращено ${new Intl.NumberFormat('ru-RU').format(refunded)}` : ''}</small></div>`;
+  const items = Array.isArray(balance.package_items) ? balance.package_items : [];
+  const activeItems = items.filter(item => Number(item.remaining) > 0 && !item.is_refunded);
+  const visibleItems = activeItems.length ? activeItems : items.slice(-1);
+  const number = value => new Intl.NumberFormat('ru-RU').format(Math.max(0, Number(value) || 0));
+  if (!items.length) {
+    const consumed = Math.max(0, Number(balance.consumed) || 0);
+    const refunded = Math.max(0, Number(balance.refunded) || 0);
+    const percent = purchased ? Math.min(100, Math.round((consumed + refunded) / purchased * 100)) : 0;
+    return `<div class="package-balance-card" role="status"><div class="package-balance-heading"><strong>Пакет уведомлений</strong><b>Осталось ${number(remaining)}</b></div><div class="package-balance-track" aria-label="Использовано ${percent}%"><i style="width:${percent}%"></i></div><small>из ${number(purchased)} событий · использовано ${number(consumed)}${refunded ? ` · возвращено ${number(refunded)}` : ''}</small></div>`;
+  }
+  const rows = visibleItems.map(item => {
+    const total = Math.max(0, Number(item.purchased) || 0);
+    const packRemaining = Math.min(total, Math.max(0, Number(item.remaining) || 0));
+    const consumed = Math.max(0, Number(item.consumed) || 0);
+    const refunded = Math.max(0, Number(item.refunded) || 0);
+    const usedPercent = total ? Math.min(100, Math.round((consumed + refunded) / total * 100)) : 0;
+    const stateLabel = item.is_refunded ? 'Возвращён' : packRemaining > 0 ? `Осталось ${number(packRemaining)} из ${number(total)}` : 'Израсходован';
+    const amountLabel = item.is_refunded ? 'Возвращён' : `${number(packRemaining)} / ${number(total)}`;
+    return `<div class="package-balance-item"><div class="package-balance-heading"><strong>Пакет на ${number(total)} уведомлений</strong><b>${amountLabel}</b></div><div class="package-balance-track" aria-label="Использовано ${usedPercent}%"><i style="width:${usedPercent}%"></i></div><small>${stateLabel}${consumed ? ` · использовано ${number(consumed)}` : ''}</small></div>`;
+  }).join('');
+  return `<div class="package-balance-card" role="status"><div class="package-balance-heading"><strong>${activeItems.length > 1 ? 'Остаток пакетов' : 'Остаток пакета'}</strong><b>Всего осталось ${number(remaining)}</b></div><div class="package-balance-items">${rows}</div></div>`;
+}
+
+function packageBalanceBreakdown(balance) {
+  const allItems = Array.isArray(balance?.package_items) ? balance.package_items : [];
+  const items = allItems.filter(item => Number(item.remaining) > 0 && !item.is_refunded);
+  if (items.length) return items.map(item => `Пакет ${new Intl.NumberFormat('ru-RU').format(Number(item.purchased) || 0)}: ${new Intl.NumberFormat('ru-RU').format(Number(item.remaining) || 0)} из ${new Intl.NumberFormat('ru-RU').format(Number(item.purchased) || 0)}`).join(' · ');
+  return allItems[allItems.length - 1]?.is_refunded ? 'Последний пакет возвращён' : 'Все уведомления израсходованы';
 }
 
 const GROUP_TARIFFS = [

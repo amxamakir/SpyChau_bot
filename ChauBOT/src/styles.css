@@ -1498,7 +1498,12 @@ body{background:#101827;color:#f4f6f9}
 .package-balance-track{height:6px;overflow:hidden;border-radius:99px;background:rgba(129,153,203,.2)}
 .package-balance-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b83ff,#8bb3ff);transition:width .2s ease}
 .package-balance-card small{color:var(--muted);font-size:11px;line-height:1.35}
+.package-balance-items{display:grid;gap:11px}
+.package-balance-item{display:grid;gap:7px;padding-top:10px;border-top:1px solid rgba(129,153,203,.16)}
+.package-balance-item .package-balance-heading{font-size:12px}
+.package-balance-item .package-balance-heading b{font-size:12px}
 :root[data-theme="light"] .package-balance-card{border-color:rgba(71,112,198,.2);background:linear-gradient(135deg,#e8efff,#f7f9ff)}
+:root[data-theme="light"] .package-balance-item{border-top-color:rgba(71,112,198,.15)}
 :root[data-theme="light"] .package-balance-heading b{color:#315fbb}
 :root[data-theme="light"] .payment-sheet{background:#f4f6fb}
 :root[data-theme="light"] .payment-order-card,:root[data-theme="light"] .payment-method-card{background:#e8edf8}
