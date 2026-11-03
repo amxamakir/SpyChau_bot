@@ -196,6 +196,7 @@ function eventTitle(event) {
 
 function eventDescription(event) {
   const message = event.message || {};
+  if (message.__spychau_metadata_only === true) return 'Текст и медиа обычного сообщения не сохранялись';
   if (message.text) return message.text;
   if (message.caption) return message.caption;
   if (message.photo) return 'Фото';
@@ -264,6 +265,7 @@ function archiveEventText(event) {
     // The API hydrates deleted events with their encrypted source snapshot.
     // On the home screen that source row may be outside the 25-event preview.
     const message = event.message || {};
+    if (message.__spychau_metadata_only === true) return `Текст и медиа не сохранялись · ID сообщения ${event.message_id || '—'}`;
     const hasSnapshotContent = typeof message.text === 'string'
       || typeof message.caption === 'string'
       || ['photo', 'video', 'voice', 'video_note', 'document', 'audio', 'animation', 'sticker'].some(field => message[field] != null);

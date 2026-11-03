@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.9" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.10" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -676,9 +676,16 @@ async function handleTelegramWebhook(request, env) {
         savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
 
-      const archivedMessage = isIncomingOneTimeMessage(message, connectionRow.owner_id)
+      const isOneTimeMessage = eventType === "new"
+        && isIncomingOneTimeMessage(message, connectionRow.owner_id);
+      // Keep ordinary business messages out of the content archive. A small,
+      // encrypted metadata-only snapshot lets later edit/delete updates retain
+      // their author and chat without saving ordinary text or media.
+      const archivedMessage = isOneTimeMessage
         ? { ...message, __spychau_one_time_saved: true }
-        : { ...message };
+        : eventType === "new"
+          ? businessMessageIndex(message)
+          : { ...message };
       const eventId = await storeBusinessEvent(env, {
         updateId,
         ownerId: connectionRow.owner_id,
@@ -687,8 +694,11 @@ async function handleTelegramWebhook(request, env) {
         messageId,
         eventType,
         message: archivedMessage,
+        ...(eventType === "new" && !isOneTimeMessage ? { cacheMedia: false } : {}),
       });
-      savedEvents.push({ eventId, messageId, eventType });
+      if (eventType !== "new" || isOneTimeMessage) {
+        savedEvents.push({ eventId, messageId, eventType });
+      }
     }
 
     await notifySavedEvents(env, connectionRow.owner_id, savedEvents, updateId);
@@ -1759,6 +1769,7 @@ function eventContact(current, previous, ownerId) {
 }
 
 function messagePreview(message) {
+  if (message?.__spychau_metadata_only === true) return "Текст и медиа не сохранялись";
   const text = typeof message?.text === "string" ? message.text : typeof message?.caption === "string" ? message.caption : "";
   if (text.trim()) return text.trim().slice(0, 700);
   if (message?.photo) return "Фотография";
@@ -1850,6 +1861,27 @@ function isOneTimeMessage(message) {
 function isIncomingOneTimeMessage(message, ownerId) {
   const senderId = message?.from?.id;
   return isOneTimeMessage(message) && senderId != null && String(senderId) !== String(ownerId);
+}
+
+function businessMessageIndex(message) {
+  const pick = (value, fields) => {
+    if (!value || typeof value !== "object") return null;
+    return Object.fromEntries(fields
+      .filter((field) => value[field] != null)
+      .map((field) => [field, value[field]]));
+  };
+  const indexed = {
+    __spychau_metadata_only: true,
+    message_id: message?.message_id,
+    date: message?.date,
+    chat: pick(message?.chat, ["id", "type", "username", "first_name", "last_name", "title"]),
+  };
+  const from = pick(message?.from, ["id", "is_bot", "username", "first_name", "last_name"]);
+  const senderChat = pick(message?.sender_chat, ["id", "type", "username", "title"]);
+  if (from) indexed.from = from;
+  if (senderChat) indexed.sender_chat = senderChat;
+  if (message?.message_thread_id != null) indexed.message_thread_id = message.message_thread_id;
+  return indexed;
 }
 
 function oneTimeMedia(message) {
