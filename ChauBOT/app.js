@@ -332,7 +332,7 @@ function archiveEventRow(event, showEditedDiff = false) {
     if (!src) return '';
     if (asset.kind === 'photo') return `<a class="event-photo-link" href="${src}" target="_blank" rel="noopener" aria-label="Открыть сохранённую фотографию"><img class="event-photo" src="${src}" alt="Фотография из сообщения" loading="lazy" /></a>`;
     if (asset.kind === 'voice' || asset.kind === 'audio') return `<audio class="event-audio" controls preload="none" src="${src}">Браузер не поддерживает воспроизведение аудио.</audio>`;
-    if (asset.kind === 'video' || asset.kind === 'video_note' || asset.kind === 'animation') return `<video class="event-video" controls playsinline preload="metadata" src="${src}">Браузер не поддерживает воспроизведение видео.</video>`;
+    if (asset.kind === 'video' || asset.kind === 'video_note' || asset.kind === 'animation') return `<video class="event-video" controls playsinline preload="none" src="${src}">Браузер не поддерживает воспроизведение видео.</video>`;
     return `<a class="event-file-link" href="${src}" target="_blank" rel="noopener" download>${escapeHtml(asset.file_name || 'Открыть сохранённый файл')}</a>`;
   }).join('');
   return `<article class="event-row contact-event-row"><div class="event-type-icon ${kind}">${icon(iconName, 18)}</div><div class="event-copy"><div class="event-title-line"><strong>${escapeHtml(eventTitle(event))}</strong><time>${escapeHtml(formatDate(event.created_at))}</time></div>${editedDiff}${media || fallbackPhoto}</div></article>`;
@@ -1608,6 +1608,8 @@ app.addEventListener('click', async event => {
   render();
 });
 
+let archiveSearchTimer = null;
+
 app.addEventListener('input', event => {
   if (event.target.id === 'support-search') {
     const query = event.target.value.trim().toLocaleLowerCase('ru');
@@ -1621,12 +1623,21 @@ app.addEventListener('input', event => {
     if (empty) empty.hidden = visibleCount > 0;
   }
   if (event.target.id === 'archive-search') {
-    const cursor = event.target.selectionStart;
-    state.query = event.target.value;
-    render();
-    const input = document.querySelector('#archive-search');
-    input?.focus();
-    input?.setSelectionRange(cursor, cursor);
+    const searchInput = event.target;
+    const cursor = searchInput.selectionStart;
+    state.query = searchInput.value;
+    if (archiveSearchTimer) window.clearTimeout(archiveSearchTimer);
+    if (event.isComposing) return;
+    archiveSearchTimer = window.setTimeout(() => {
+      archiveSearchTimer = null;
+      if (!searchInput.isConnected || state.tab !== 'archive') return;
+      render();
+      const replacement = app.querySelector('#archive-search');
+      if (!replacement) return;
+      replacement.focus({ preventScroll: true });
+      const nextCursor = Math.min(cursor ?? replacement.value.length, replacement.value.length);
+      replacement.setSelectionRange(nextCursor, nextCursor);
+    }, 120);
   }
 });
 
