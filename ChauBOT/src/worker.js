@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.10.0" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.0" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -488,6 +488,7 @@ export default {
       for (const [ownerId, replies] of repliesByOwner) {
         await notifySavedEvents(env, ownerId, replies);
       }
+      await notifyEntitlementReminders(env);
       const scheduledMinute = Math.floor(Number(_controller.scheduledTime || Date.now()) / 60_000);
       if (scheduledMinute % 30 === 0) {
         await maintainJournal(env);
@@ -922,6 +923,103 @@ function formatPurchaseExpiry(value) {
   if (!normalized) return "не указана";
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow",
+  }).format(new Date(normalized));
+}
+
+async function notifyEntitlementReminders(env) {
+  if (!env.TELEGRAM_BOT_TOKEN) return;
+  try {
+    const subscriptions = await env.DB.prepare(`SELECT owner_id, plan_id, expires_at, auto_renew
+      FROM subscriptions
+      WHERE plan_id IN ('month', 'half-year', 'year')
+        AND julianday(expires_at) > julianday('now')
+        AND ((julianday(expires_at) > julianday('now', '+71 hours')
+          AND julianday(expires_at) <= julianday('now', '+72 hours'))
+          OR EXISTS (SELECT 1 FROM entitlement_reminders reminder
+            WHERE reminder.owner_id = subscriptions.owner_id
+              AND reminder.reminder_type = 'subscription_ending'
+              AND reminder.entitlement_key = subscriptions.expires_at
+              AND reminder.sent_at IS NULL AND reminder.attempts < 3
+              AND (reminder.last_attempt_at IS NULL OR reminder.last_attempt_at <= datetime('now', '-5 minutes'))))
+        AND NOT EXISTS (SELECT 1 FROM entitlement_reminders reminder
+          WHERE reminder.owner_id = subscriptions.owner_id
+            AND reminder.reminder_type = 'subscription_ending'
+            AND reminder.entitlement_key = subscriptions.expires_at
+            AND (reminder.sent_at IS NOT NULL OR reminder.attempts >= 3
+              OR (reminder.last_attempt_at IS NOT NULL AND reminder.last_attempt_at > datetime('now', '-5 minutes'))))
+      ORDER BY expires_at ASC LIMIT 100`).all();
+    for (const subscription of subscriptions.results || []) {
+      const plan = PERSONAL_SUBSCRIPTION_PLANS[subscription.plan_id];
+      if (!plan) continue;
+      const expiry = formatPurchaseExpiryDateTime(subscription.expires_at);
+      const renewalNote = Number(subscription.auto_renew) === 1
+        ? "Автопродление включено. Его статус можно проверить в Tribute."
+        : "Продли подписку до этой даты в SpySkaut, чтобы сохранить доступ к личным чатам.";
+      const text = `🔔 Напоминание о подписке\n\nБезлимит на ${plan.months} ${russianMonthWord(plan.months)} закончится через 3 дня — ${expiry} (МСК).\n${renewalNote}\n\nСтатус подписки можно посмотреть в разделе «Профиль» приложения SpySkaut.`;
+      await sendEntitlementReminder(env, String(subscription.owner_id), "subscription_ending", String(subscription.expires_at), text);
+    }
+
+    const packages = await env.DB.prepare(`SELECT p.owner_id, p.package_id, p.credits_total, p.credits_remaining
+      FROM notification_packages p
+      JOIN payment_purchases purchase ON purchase.purchase_id = p.purchase_id AND purchase.refunded_at IS NULL
+      WHERE p.credits_remaining > 0
+        AND p.credits_remaining * 10 <= p.credits_total
+        AND p.rowid = (
+          SELECT MAX(latest.rowid) FROM notification_packages latest
+          JOIN payment_purchases latest_purchase
+            ON latest_purchase.purchase_id = latest.purchase_id AND latest_purchase.refunded_at IS NULL
+          WHERE latest.owner_id = p.owner_id
+        )
+        AND NOT EXISTS (SELECT 1 FROM entitlement_reminders reminder
+          WHERE reminder.owner_id = p.owner_id AND reminder.reminder_type = 'package_low'
+            AND reminder.entitlement_key = p.package_id
+            AND (reminder.sent_at IS NOT NULL OR reminder.attempts >= 3
+              OR (reminder.last_attempt_at IS NOT NULL AND reminder.last_attempt_at > datetime('now', '-5 minutes'))))
+      ORDER BY p.owner_id LIMIT 100`).all();
+    for (const pack of packages.results || []) {
+      const total = Number(pack.credits_total || 0);
+      const remaining = Number(pack.credits_remaining || 0);
+      if (!total || !remaining) continue;
+      const percent = Math.round(remaining / total * 100);
+      const text = `🔔 Осталось мало уведомлений\n\nВ твоём пакете на ${total} уведомлений осталось ${remaining} из ${total} (${percent}%). Пакет не сгорает.\n\nПополнить его можно в приложении SpySkaut, в разделе «Личные чаты».`;
+      await sendEntitlementReminder(env, String(pack.owner_id), "package_low", String(pack.package_id), text);
+    }
+  } catch {
+    console.error("Entitlement reminder scan failed");
+  }
+}
+
+async function sendEntitlementReminder(env, ownerId, reminderType, entitlementKey, text) {
+  try {
+    await env.DB.prepare(`INSERT OR IGNORE INTO entitlement_reminders(owner_id, reminder_type, entitlement_key)
+      VALUES(?, ?, ?)`).bind(ownerId, reminderType, entitlementKey).run();
+    const claim = await env.DB.prepare(`UPDATE entitlement_reminders SET
+        attempts = attempts + 1, last_attempt_at = CURRENT_TIMESTAMP
+      WHERE owner_id = ? AND reminder_type = ? AND entitlement_key = ?
+        AND sent_at IS NULL AND attempts < 3
+        AND (last_attempt_at IS NULL OR last_attempt_at <= datetime('now', '-5 minutes'))`)
+      .bind(ownerId, reminderType, entitlementKey).run();
+    if (Number(claim.meta?.changes || 0) !== 1) return false;
+    const sent = await callTelegramJson(env, "sendMessage", { chat_id: ownerId, text });
+    if (sent) {
+      await env.DB.prepare(`UPDATE entitlement_reminders SET sent_at = CURRENT_TIMESTAMP
+        WHERE owner_id = ? AND reminder_type = ? AND entitlement_key = ?`)
+        .bind(ownerId, reminderType, entitlementKey).run();
+      return true;
+    }
+    console.error("Entitlement reminder could not be delivered", { reminderType });
+    return false;
+  } catch {
+    console.error("Entitlement reminder delivery failed", { reminderType });
+    return false;
+  }
+}
+
+function formatPurchaseExpiryDateTime(value) {
+  const normalized = isoUtcTimestamp(value);
+  if (!normalized) return "не указана";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow",
   }).format(new Date(normalized));
 }
 
