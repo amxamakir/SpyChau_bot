@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.7" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.8" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -637,18 +637,21 @@ async function handleTelegramWebhook(request, env) {
       const eventType = update.edited_business_message ? "edited" : "new";
       const chatId = message.chat?.id == null ? "" : String(message.chat.id);
       const messageId = message.message_id == null ? "" : String(message.message_id);
-      // In Telegram's reply-before-open flow, the original disappearing media
-      // may be attached to either reply_to_message or external_reply. Collect
-      // every supported attachment from both shapes instead of stopping at the
-      // first one found. Capture it before writing the owner's reply so a
-      // one-time file has the best chance of still being downloadable.
+      // In Telegram's reply-before-open flow, a replied-to message may be
+      // attached to either reply_to_message or external_reply. Inspect both,
+      // but only archive it as one-time media when Telegram marks it as such.
       const repliedMedia = eventType === "new"
         && message.from?.id != null
         && String(message.from.id) === String(connectionRow.owner_id)
         && message.chat?.type === "private"
         ? collectRepliedMedia(message)
         : [];
-      for (const [mediaIndex, replied] of repliedMedia.entries()) {
+      // A reply can contain an ordinary quoted photo or file. Do not label it
+      // as one-time content unless Telegram included an explicit ephemeral
+      // marker on the original incoming message.
+      const confirmedOneTimeMedia = repliedMedia.filter(({ source }) =>
+        isIncomingOneTimeMessage(source, connectionRow.owner_id));
+      for (const [mediaIndex, replied] of confirmedOneTimeMedia.entries()) {
         const { source, media, kind } = replied;
         if (source.from?.id != null && String(source.from.id) === String(connectionRow.owner_id)) continue;
         const originalId = source.message_id == null ? "unknown" : String(source.message_id);
@@ -1229,16 +1232,42 @@ function groupMessageSnapshot(message) {
 
 function logBusinessMediaDiagnostic(update) {
   const mediaFields = ["photo", "voice", "video_note", "video", "audio", "document", "animation", "live_photo"];
+  const interestingField = /media|photo|video|voice|audio|document|animation|file|ttl|ephemeral|self|destroy|view.?once|reply|story/i;
+  const fieldShape = (value) => {
+    if (value === null) return { type: "null" };
+    if (Array.isArray(value)) {
+      const first = value[0];
+      return {
+        type: "array",
+        length: value.length,
+        ...(first && typeof first === "object" ? { firstItemKeys: Object.keys(first).sort().slice(0, 40) } : {}),
+      };
+    }
+    if (typeof value === "object") return { type: "object", keys: Object.keys(value).sort().slice(0, 40) };
+    return { type: typeof value };
+  };
+  const relevantShapes = (value) => Object.fromEntries(
+    Object.entries(value || {})
+      .filter(([key]) => interestingField.test(key))
+      .slice(0, 40)
+      .map(([key, fieldValue]) => [key, fieldShape(fieldValue)]),
+  );
   const candidates = [
     ["business_message", update?.business_message],
     ["edited_business_message", update?.edited_business_message],
     ["message", update?.message],
+    ["edited_message", update?.edited_message],
+    ["channel_post", update?.channel_post],
+    ["edited_channel_post", update?.edited_channel_post],
   ];
   const messages = candidates
     .filter(([updateType, message]) => message && (
-      updateType !== "message"
+      updateType === "business_message"
+      || updateType === "edited_business_message"
       || mediaFields.some((field) => message[field] != null)
+      || Object.keys(message).some((key) => interestingField.test(key))
       || message.reply_to_message
+      || message.external_reply
       || Number(message.ttl_period) > 0
     ))
     .map(([updateType, message]) => {
@@ -1247,14 +1276,22 @@ function logBusinessMediaDiagnostic(update) {
       const repliedMedia = collectRepliedMedia(message);
       return {
         updateType,
+        messageKeys: Object.keys(message).sort().slice(0, 80),
+        relevantFieldShapes: relevantShapes(message),
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
         hasReply: Boolean(reply),
+        replyKeys: reply && typeof reply === "object" ? Object.keys(reply).sort().slice(0, 80) : [],
+        replyRelevantFieldShapes: relevantShapes(reply),
         replyMessageIdIsZero: Number(reply?.message_id) === 0,
         replyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(reply?.[field])])),
         hasExternalReply: Boolean(externalReply),
+        externalReplyKeys: externalReply && typeof externalReply === "object" ? Object.keys(externalReply).sort().slice(0, 80) : [],
+        externalReplyRelevantFieldShapes: relevantShapes(externalReply),
         externalReplyMedia: Object.fromEntries(mediaFields.map((field) => [field, Boolean(externalReply?.[field])])),
-        repliedMediaCount: repliedMedia.length,
-        repliedMediaKinds: repliedMedia.map((item) => item.kind),
+        repliedMediaCount: repliedMedia.filter(({ source }) => isIncomingOneTimeMessage(source, message.from?.id)).length,
+        repliedMediaKinds: repliedMedia
+          .filter(({ source }) => isIncomingOneTimeMessage(source, message.from?.id))
+          .map((item) => item.kind),
         replyHasEphemeralMessageId: Number(reply?.ephemeral_message_id) > 0,
         replyHasTtlPeriod: Number(reply?.ttl_period) > 0,
         externalReplyHasEphemeralMessageId: Number(externalReply?.ephemeral_message_id) > 0,
@@ -1271,9 +1308,11 @@ function logBusinessMediaDiagnostic(update) {
   // Temporary diagnostics intentionally record only update/media field presence.
   // Never log message text, account/chat IDs, file IDs, or media contents.
   console.log("[telegram-media-diagnostic]", JSON.stringify({
+    updateKeys: Object.keys(update || {}).sort().slice(0, 80),
     messages,
     deletedBusinessMessages: deleted ? {
       present: true,
+      keys: Object.keys(deleted).sort().slice(0, 40),
       hasChat: Boolean(deleted.chat),
       messageCount: Array.isArray(deleted.message_ids) ? deleted.message_ids.length : 0,
     } : null,
