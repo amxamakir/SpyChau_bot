@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.9.63" });
+      return json({ status: "ok", service: "spychau-api", version: "0.10.0" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -746,8 +746,9 @@ async function handleTributeWebhook(request, env) {
     if (!consent) return json({ ok: true, ignored: true });
   }
   const eventKey = await sha256Hex(rawBody);
+  let purchaseRecorded = false;
   try {
-    await env.DB.batch([
+    const results = await env.DB.batch([
       env.DB.prepare(`INSERT OR IGNORE INTO tribute_payment_events(event_key, owner_id, event_name, subscription_id, months)
         VALUES(?, ?, ?, ?, ?)`)
         .bind(eventKey, ownerId, eventName, subscriptionId, plan.months),
@@ -768,7 +769,9 @@ async function handleTributeWebhook(request, env) {
         ), plan_id = excluded.plan_id, auto_renew = 1`)
         .bind(ownerId, plan.months, planId, plan.months),
     ]);
+    purchaseRecorded = Number(results?.[0]?.meta?.changes || 0) === 1;
   } catch { return json({ error: "Tribute subscription event processing failed" }, 500); }
+  if (purchaseRecorded) await notifyPurchaseConfirmed(env, ownerId, "personal_unlimited", planId, eventName);
   return json({ ok: true, handled: eventName, plan_id: planId });
 }
 
@@ -820,7 +823,7 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
     if (serviceKey === "personal_package") {
       const plan = PERSONAL_PACKAGE_PLANS[planId];
       if (!plan) return json({ error: "unknown package plan" }, 400);
-      await env.DB.batch([
+      const results = await env.DB.batch([
         env.DB.prepare(`INSERT OR IGNORE INTO tribute_digital_product_events(
           provider_event_id, purchase_id, owner_id, product_id, service_key, plan_id, amount_minor, currency
         ) VALUES(?, ?, ?, ?, 'personal_package', ?, ?, 'RUB')`)
@@ -836,13 +839,16 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
         WHERE changes() = 1`)
           .bind(crypto.randomUUID(), ownerId, `tribute:product:${purchaseId}`, planId, plan.events, plan.events, ownerId),
       ]);
+      if (Number(results?.[0]?.meta?.changes || 0) === 1) {
+        await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, "new_digital_product", purchaseId);
+      }
       return json({ ok: true, handled: "new_digital_product", service: serviceKey });
     }
 
     const plan = PERSONAL_SUBSCRIPTION_PLANS[planId];
     if (!plan) return json({ error: "unknown subscription plan" }, 400);
     const eventKey = `tribute:product:${purchaseId}`;
-    await env.DB.batch([
+    const results = await env.DB.batch([
       env.DB.prepare(`INSERT OR IGNORE INTO tribute_digital_product_events(
         provider_event_id, purchase_id, owner_id, product_id, service_key, plan_id, amount_minor, currency
       ) VALUES(?, ?, ?, ?, 'personal_unlimited', ?, ?, 'RUB')`)
@@ -862,12 +868,61 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
           WHEN julianday(subscriptions.expires_at) > julianday('now') THEN subscriptions.auto_renew ELSE 0 END`)
         .bind(ownerId, plan.months, planId, plan.months),
     ]);
+    if (Number(results?.[0]?.meta?.changes || 0) === 1) {
+      await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, "new_digital_product", purchaseId);
+    }
     return json({ ok: true, handled: "new_digital_product", service: serviceKey, plan_id: planId });
 
     return json({ ok: true, ignored: true });
   } catch {
     return json({ error: "Tribute digital product could not be recorded" }, 500);
   }
+}
+
+async function notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventName, purchaseId = null) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  try {
+    let text = "";
+    if (serviceKey === "personal_package") {
+      const plan = PERSONAL_PACKAGE_PLANS[planId];
+      if (!plan) return false;
+      const balance = await getNotificationPackageBalance(env.DB, ownerId);
+      let packageRemaining = plan.events;
+      if (purchaseId) {
+        const purchasedPackage = await env.DB.prepare(`SELECT credits_remaining FROM notification_packages
+          WHERE purchase_id = ? AND owner_id = ? LIMIT 1`).bind(`tribute:product:${purchaseId}`, ownerId).first();
+        packageRemaining = Number(purchasedPackage?.credits_remaining ?? plan.events);
+      }
+      text = `✅ Оплата получена!\n\nПакет на ${plan.events} уведомлений активирован.\n\nВ купленном пакете осталось ${packageRemaining} из ${plan.events}.\nВсего доступно: ${Number(balance.remaining || 0)} уведомлений. Пакет не сгорает.\n\nОстаток можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
+    } else if (serviceKey === "personal_unlimited") {
+      const plan = PERSONAL_SUBSCRIPTION_PLANS[planId];
+      if (!plan) return false;
+      const subscription = await getSubscription(env.DB, ownerId);
+      const expiry = subscription.expires_at ? formatPurchaseExpiry(subscription.expires_at) : "не указана";
+      const action = eventName === "renewed_subscription" ? "продлена" : "активирована";
+      text = `✅ Оплата получена!\n\nПодписка «Личные чаты — Безлимит на ${plan.months} ${russianMonthWord(plan.months)}» ${action}.\nДоступ действует до ${expiry}.\n\nСтатус подписки можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
+    } else {
+      return false;
+    }
+    const sent = await callTelegramJson(env, "sendMessage", { chat_id: ownerId, text });
+    if (!sent) console.error("Purchase confirmation message could not be delivered", { serviceKey, planId, eventName });
+    return sent;
+  } catch {
+    console.error("Purchase confirmation could not be prepared", { serviceKey, planId, eventName });
+    return false;
+  }
+}
+
+function russianMonthWord(months) {
+  return months === 1 ? "месяц" : months === 2 || months === 3 || months === 4 ? "месяца" : "месяцев";
+}
+
+function formatPurchaseExpiry(value) {
+  const normalized = isoUtcTimestamp(value);
+  if (!normalized) return "не указана";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow",
+  }).format(new Date(normalized));
 }
 
 async function handleTributeDigitalProductRefund(payload, rawBody, env) {
