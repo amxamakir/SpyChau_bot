@@ -552,14 +552,14 @@ function packageBalanceBreakdown(balance) {
 }
 
 const GROUP_TARIFFS = [
-  { id: 'groups3', name: '3 группы', unit: 'Доступ на 1 месяц', groups: 3, priceRub: 349 },
-  { id: 'groups10', name: '10 групп', unit: 'Доступ на 1 месяц', groups: 10, priceRub: 790, badge: 'Популярный', discount: '−32%' },
-  { id: 'groups20', name: '20 групп', unit: 'Доступ на 1 месяц', groups: 20, priceRub: 1090, discount: '−53%' }
+  { id: 'groups3', name: '3 группы', unit: 'Доступ на 1 месяц', groups: 3, priceRub: 349, stars: 218 },
+  { id: 'groups10', name: '10 групп', unit: 'Доступ на 1 месяц', groups: 10, priceRub: 790, stars: 494, badge: 'Популярный', discount: '−32%' },
+  { id: 'groups20', name: '20 групп', unit: 'Доступ на 1 месяц', groups: 20, priceRub: 1090, stars: 681, discount: '−53%' }
 ];
 
 function groupTariffsPricing() {
   const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
-  const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><strong>${tariffPriceLabel(plan.priceRub)}</strong></span></button>`).join('');
+  const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><span>⭐ <small>${new Intl.NumberFormat('ru-RU').format(plan.stars)}</small></span><strong>${tariffPriceLabel(plan.priceRub)}</strong></span></button>`).join('');
   const benefits = ['Изменения сообщений в подключённых группах', 'Лимит зависит от выбранного тарифа', 'Для подключения нужны права администратора в группе'];
   return `<div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits group-tariff-benefits">${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div>`;
 }
