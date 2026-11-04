@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.12" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.13" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -655,10 +655,11 @@ async function handleTelegramWebhook(request, env) {
           chat: source.chat || message.chat,
           from: source.from || message.reply_to_message?.from || message.external_reply?.from || {},
         };
-        // A normal message the owner replied to is already stored from its
-        // original business_message update. Keep it in the encrypted journal,
-        // but never turn it into a visible/notifyable one-time event.
-        if (!isIncomingOneTimeMessage(sourceMessage, connectionRow.owner_id)) continue;
+        // Replies often omit Telegram's explicit one-time markers. Filter only
+        // messages that are clearly ordinary; preserve the ambiguous candidates
+        // just as the older reply flow did.
+        if (sourceMessage.from?.id != null && String(sourceMessage.from.id) === String(connectionRow.owner_id)) continue;
+        if (isClearlyOrdinaryMessage(sourceMessage)) continue;
         const originalId = source.message_id == null ? "unknown" : String(source.message_id);
         const syntheticMessageId = `reply-media:${chatId}:${originalId}:${messageId}:${kind}:${mediaIndex}`;
         const syntheticMessage = {
@@ -1816,6 +1817,14 @@ function isOneTimeMessage(message) {
       && Number(message.message_id) === 0
       && message?.chat?.type === "private"
     );
+}
+
+function isClearlyOrdinaryMessage(message) {
+  return Number(message?.message_id) > 0
+    && message?.__spychau_one_time_saved !== true
+    && !(Number(message?.ephemeral_message_id) > 0)
+    && !(Number(message?.receiver_user?.id) > 0)
+    && !(Number(message?.ttl_period) > 0);
 }
 
 function isIncomingOneTimeMessage(message, ownerId) {
