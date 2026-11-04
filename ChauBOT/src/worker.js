@@ -1785,26 +1785,51 @@ function constantTimeEqual(left, right) {
   return difference === 0;
 }
 
+
 function isEventEnabledForOwner(event, ownerId, preferences) {
   if (event?.pending_expires_at_ms != null) return false;
-  const message = event?.message || {};
-  if (message.__spychau_hidden_ordinary === true) return false;
-  const chat = message.chat || event?.previous_message?.chat || {};
-  if ((chat.type === "group" || chat.type === "supergroup") && !preferences.group_messages) return false;
 
-  if (event?.event_type === "deleted" || event?.event_type === "edited") {
+  const message = event?.message || {};
+  const chat = message.chat || event?.previous_message?.chat || {};
+
+  // Обычные сообщения не должны вызывать уведомления.
+  if (message.__spychau_hidden_ordinary === true) return false;
+
+  // Учитываем настройку уведомлений для групп.
+  if (
+    (chat.type === "group" || chat.type === "supergroup")
+    && !preferences.group_messages
+  ) {
+    return false;
+  }
+
+  // Уведомления об удалении и редактировании.
+  if (
+    event?.event_type === "deleted"
+    || event?.event_type === "edited"
+  ) {
     const senderId = message.from?.id;
     if (senderId == null) return false;
-    const isOwnerAuthored = String(senderId) === String(ownerId);
+
+    const isOwnerAuthored =
+      String(senderId) === String(ownerId);
+
     const preferenceKey = event.event_type === "deleted"
       ? (isOwnerAuthored ? "deleted_by_owner" : "deleted_messages")
       : (isOwnerAuthored ? "edited_by_owner" : "edited_messages");
+
     return Boolean(preferences[preferenceKey]);
   }
 
-  return event?.event_type === "new"
-    && isIncomingOneTimeMessage(message, ownerId)
-    && Boolean(preferences.one_time_messages);
+  // Новые события разрешены только для входящих одноразовых сообщений.
+  if (event?.event_type === "new") {
+    return (
+      isIncomingOneTimeMessage(message, ownerId)
+      && Boolean(preferences.one_time_messages)
+    );
+  }
+
+  return false;
 }
 
 function isOneTimeMessage(message) {
