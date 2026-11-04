@@ -205,7 +205,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.20" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.21" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -743,16 +743,23 @@ async function handleTelegramWebhook(request, env) {
         savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
 
-      const eventId = await storeBusinessEvent(env, {
-        updateId,
-        ownerId: connectionRow.owner_id,
-        connectionId,
-        chatId,
-        messageId,
-        eventType,
-        message: { ...message },
-      });
-      savedEvents.push({ eventId, messageId, eventType });
+      // Не сохраняем сам ответ на обычное сообщение: для такого reply
+      // repliedMedia пуст. Сам ответ сохраняем, если в цитате нашли one-time media.
+      const isReply = Boolean(message.reply_to_message || message.external_reply);
+      const shouldStoreMessage = !isReply || repliedMedia.length > 0;
+
+      if (shouldStoreMessage) {
+        const eventId = await storeBusinessEvent(env, {
+          updateId,
+          ownerId: connectionRow.owner_id,
+          connectionId,
+          chatId,
+          messageId,
+          eventType,
+          message: { ...message },
+        });
+        savedEvents.push({ eventId, messageId, eventType });
+      }
     }
 
     await notifySavedEvents(env, connectionRow.owner_id, savedEvents, updateId);
@@ -2142,6 +2149,16 @@ function oneTimeMedia(message) {
 
 const ONE_TIME_MEDIA_FIELDS = ["photo", "video", "video_note", "voice", "audio", "document", "animation"];
 
+// Проверяет, что объект медиа помечен как самоуничтожающийся.
+function isOneTimeMedia(item) {
+  return Boolean(
+    item
+    && typeof item === "object"
+    && typeof item.ttl_seconds === "number"
+    && item.ttl_seconds > 0,
+  );
+}
+
 function collectRepliedMedia(message) {
   const queue = [message.reply_to_message, message.external_reply].filter((candidate) => candidate && typeof candidate === "object");
   const sources = [];
@@ -2164,6 +2181,8 @@ function collectRepliedMedia(message) {
         ? [...value].sort((left, right) => Number(right.file_size || 0) - Number(left.file_size || 0))[0]
         : value;
       if (!item?.file_id) continue;
+      // Сохраняем только самоуничтожающиеся медиа.
+      if (!isOneTimeMedia(item)) continue;
       const kind = field;
       const identity = item.file_unique_id || item.file_id;
       if (seen.has(identity)) continue;
