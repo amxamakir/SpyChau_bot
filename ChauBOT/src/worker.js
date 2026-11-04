@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.11" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.12" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -1260,6 +1260,9 @@ function logBusinessMediaDiagnostic(update) {
       const repliedMedia = collectRepliedMedia(message);
       return {
         updateType,
+        messageIdIsZero: message.message_id != null && Number(message.message_id) === 0,
+        hasFrom: message.from?.id != null,
+        chatType: message.chat?.type || null,
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
         hasReply: Boolean(reply),
         replyMessageIdIsZero: Number(reply?.message_id) === 0,
@@ -1809,9 +1812,9 @@ function isOneTimeMessage(message) {
     || Number(message?.receiver_user?.id) > 0
     || Number(message?.ttl_period) > 0
     || (
-      Number(message?.message_id) === 0
+      message?.message_id != null
+      && Number(message.message_id) === 0
       && message?.chat?.type === "private"
-      && Boolean(oneTimeMedia(message))
     );
 }
 
