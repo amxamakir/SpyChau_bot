@@ -19,8 +19,7 @@ This note records official Telegram rules and API constraints relevant to SpySka
 - Describe monitoring as limited to connected chats and updates Telegram delivers after connection.
 - Do not promise recovery of messages sent before connection, deleted content without a received update, or any media that Telegram does not deliver to the bot.
 - Treat timed/ephemeral media as best-effort only. Telegram's API documentation describes TTL media and view-triggered destruction, so the product must not claim universal preservation of one-view photos, videos, or voice messages.
-- Ordinary messages received in connected private chats remain in the encrypted journal for up to seven days, but are hidden from the app archive and bot notifications. A reply to an ordinary message must not relabel it as one-time content.
-- In reply flows, hide media that has a positive `message_id` and no ephemeral markers. Preserve other media candidates using the existing best-effort flow; if Telegram omits identifying metadata, an ordinary message can remain ambiguous and may be shown. Do not promise that every replied item can be classified reliably.
+- In reply flows, hide media with a positive `message_id` and no ephemeral markers. Preserve other replied media candidates as one-time events; if Telegram omits identifying metadata, an ordinary message may remain ambiguous and may be shown.
 - Provide clear controls for chat selection, retention duration, export, deletion, and disconnecting access.
 
 ## Mini App security

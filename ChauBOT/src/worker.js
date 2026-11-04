@@ -143,7 +143,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.13" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.14" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -655,9 +655,6 @@ async function handleTelegramWebhook(request, env) {
           chat: source.chat || message.chat,
           from: source.from || message.reply_to_message?.from || message.external_reply?.from || {},
         };
-        // Replies often omit Telegram's explicit one-time markers. Filter only
-        // messages that are clearly ordinary; preserve the ambiguous candidates
-        // just as the older reply flow did.
         if (sourceMessage.from?.id != null && String(sourceMessage.from.id) === String(connectionRow.owner_id)) continue;
         if (isClearlyOrdinaryMessage(sourceMessage)) continue;
         const originalId = source.message_id == null ? "unknown" : String(source.message_id);
@@ -1261,9 +1258,6 @@ function logBusinessMediaDiagnostic(update) {
       const repliedMedia = collectRepliedMedia(message);
       return {
         updateType,
-        messageIdIsZero: message.message_id != null && Number(message.message_id) === 0,
-        hasFrom: message.from?.id != null,
-        chatType: message.chat?.type || null,
         media: Object.fromEntries(mediaFields.map((field) => [field, message[field] != null])),
         hasReply: Boolean(reply),
         replyMessageIdIsZero: Number(reply?.message_id) === 0,
@@ -1785,7 +1779,6 @@ function constantTimeEqual(left, right) {
   return difference === 0;
 }
 
-
 function isEventEnabledForOwner(event, ownerId, preferences) {
   if (event?.pending_expires_at_ms != null) return false;
 
@@ -1811,9 +1804,7 @@ function isEventEnabledForOwner(event, ownerId, preferences) {
     const senderId = message.from?.id;
     if (senderId == null) return false;
 
-    const isOwnerAuthored =
-      String(senderId) === String(ownerId);
-
+    const isOwnerAuthored = String(senderId) === String(ownerId);
     const preferenceKey = event.event_type === "deleted"
       ? (isOwnerAuthored ? "deleted_by_owner" : "deleted_messages")
       : (isOwnerAuthored ? "edited_by_owner" : "edited_messages");
