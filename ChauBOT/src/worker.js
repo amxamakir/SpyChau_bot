@@ -15,19 +15,19 @@ import {
 const MAX_INIT_DATA_AGE_SECONDS = 60 * 60 * 24;
 const ARCHIVE_PAGE_SIZE = 100;
 const PERSONAL_SUBSCRIPTION_PLANS = Object.freeze({
-  month: { months: 1, rubles: 249 },
-  "half-year": { months: 6, rubles: 1190 },
-  year: { months: 12, rubles: 1790 },
+  month: { months: 1, rubles: 249, stars: 156 },
+  "half-year": { months: 6, rubles: 1190, stars: 745 },
+  year: { months: 12, rubles: 1790, stars: 1119 },
 });
 const PERSONAL_PACKAGE_PLANS = Object.freeze({
-  pack100: { events: 100, rubles: 189 },
-  pack300: { events: 300, rubles: 499 },
-  pack500: { events: 500, rubles: 699 },
+  pack100: { events: 100, rubles: 189, stars: 118 },
+  pack300: { events: 300, rubles: 499, stars: 312 },
+  pack500: { events: 500, rubles: 699, stars: 437 },
 });
 const GROUP_ACCESS_PLANS = Object.freeze({
-  groups3: { groups: 3, months: 1, rubles: 349 },
-  groups10: { groups: 10, months: 1, rubles: 790 },
-  groups20: { groups: 20, months: 1, rubles: 1090 },
+  groups3: { groups: 3, months: 1, rubles: 349, stars: 218 },
+  groups10: { groups: 10, months: 1, rubles: 790, stars: 494 },
+  groups20: { groups: 20, months: 1, rubles: 1090, stars: 681 },
 });
 
 function tributePaymentsConfigured(env) {
@@ -36,7 +36,8 @@ function tributePaymentsConfigured(env) {
     && typeof env.PAYMENTS_TERMS_VERSION === "string" && env.PAYMENTS_TERMS_VERSION.trim()
     && typeof env.PAYMENTS_TERMS_TEXT === "string" && env.PAYMENTS_TERMS_TEXT.trim()
     && typeof env.PAYMENTS_SUPPORT_URL === "string"
-    && (/^https:\/\/\S+$/i.test(env.PAYMENTS_SUPPORT_URL) || /^mailto:[^\s@]+@[^\s@]+$/i.test(env.PAYMENTS_SUPPORT_URL));
+    && (/^https:\/\/\S+$/i.test(env.PAYMENTS_SUPPORT_URL) || /^mailto:[^\s@]+@[^\s@]+$/i.test(env.PAYMENTS_SUPPORT_URL))
+    && env.TRIBUTE_SHOP_API_ENABLED === "true";
 }
 
 function tributePaymentsReady(env, serviceKey = null, planId = null) {
@@ -44,10 +45,70 @@ function tributePaymentsReady(env, serviceKey = null, planId = null) {
   if (["personal_unlimited", "personal_package", "groups"].includes(serviceKey)) {
     const plans = serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS
       : serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS : GROUP_ACCESS_PLANS;
-    if (planId) return Boolean(tributeProduct(env, serviceKey, planId));
-    return Object.keys(plans).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
+    if (planId) return Object.hasOwn(plans, planId);
+    return Object.keys(plans).length > 0;
   }
   return serviceKey === null;
+}
+
+function tributeBillingPeriod(serviceKey, planId) {
+  if (serviceKey === "personal_package") return "onetime";
+  const plan = serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId] : GROUP_ACCESS_PLANS[planId];
+  if (plan?.months === 1) return "monthly";
+  if (plan?.months === 6) return "halfyearly";
+  if (plan?.months === 12) return "yearly";
+  return null;
+}
+
+async function getTributeShop(env) {
+  const query = env.TRIBUTE_SHOP_ID ? `?shopId=${encodeURIComponent(String(env.TRIBUTE_SHOP_ID))}` : "";
+  let response;
+  try {
+    response = await fetch(`https://tribute.tg/api/v1/shop${query}`, {
+      headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
+    });
+  } catch { return { shop: null, issue: "api_unavailable" }; }
+  if (!response.ok) return { shop: null, issue: response.status === 404 ? "shop_not_found" : "api_unavailable" };
+  try {
+    const shop = await response.json();
+    if (!shop || Number(shop.status) !== 1) return { shop: null, issue: "shop_inactive" };
+    return { shop, issue: null };
+  } catch { return { shop: null, issue: "invalid_response" }; }
+}
+
+async function createTributeShopOrder(env, body) {
+  let response;
+  try {
+    response = await fetch("https://tribute.tg/api/v1/shop/orders", {
+      method: "POST",
+      headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ ...(env.TRIBUTE_SHOP_ID ? { shopId: Number(env.TRIBUTE_SHOP_ID) } : {}), ...body }),
+    });
+  } catch { return { order: null, issue: "api_unavailable" }; }
+  if (!response.ok) {
+    const issue = response.status === 401 || response.status === 403 ? "shop_api_access_denied"
+      : response.status === 404 ? "shop_not_found" : "shop_order_rejected";
+    return { order: null, issue };
+  }
+  try { return { order: await response.json(), issue: null }; }
+  catch { return { order: null, issue: "invalid_response" }; }
+}
+
+async function cancelTributeShopOrder(env, orderUuid) {
+  try {
+    const response = await fetch(`https://tribute.tg/api/v1/shop/orders/${encodeURIComponent(orderUuid)}/cancel`, {
+      method: "POST",
+      headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
+    });
+    return response.ok;
+  } catch { return false; }
+}
+
+function tributePlanLabel(serviceKey, planId) {
+  if (serviceKey === "personal_package") return `Пакет уведомлений · ${PERSONAL_PACKAGE_PLANS[planId]?.events || 0} событий`;
+  if (serviceKey === "groups") return `SpySkaut · ${GROUP_ACCESS_PLANS[planId]?.groups || 0} групп`;
+  const months = PERSONAL_SUBSCRIPTION_PLANS[planId]?.months || 0;
+  return `Личные чаты — Безлимит · ${months} ${russianMonthWord(months)}`;
 }
 
 function tributeProductMap(env) {
@@ -144,7 +205,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.18" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.19" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -213,38 +274,46 @@ export default {
           const ownerId = String(user.id);
           if (!plan) return json({ error: "plan_unavailable" }, 400);
           if (!tributePaymentsReady(env, serviceKey, planId)) return json({ error: "plan_unavailable" }, 503);
-          const product = tributeProduct(env, serviceKey, planId);
-          if (!product) return json({ error: "plan_unavailable" }, 400);
-          const lookup = await getTributeProductByWebLink(product.web_link, env);
-          const actualProduct = lookup.product;
-          const actualType = String(actualProduct?.type || "").toLowerCase();
-          const actualStatus = String(actualProduct?.status || "").toLowerCase();
-          const actualCurrency = String(actualProduct?.currency || "").toUpperCase();
-          const actualAmount = Number(actualProduct?.amount);
-          let productIssue = lookup.issue;
-          if (actualProduct) {
-            if (actualType !== "digital") productIssue = "wrong_product_type";
-            else if (actualStatus !== "approved") productIssue = "product_not_approved";
-            else if (actualCurrency !== "RUB") productIssue = "wrong_currency";
-            else if (actualAmount !== product.amount_rub * 100) productIssue = "wrong_amount";
-            else productIssue = null;
+          const purchaseMode = String(body.purchase_mode || "one_time");
+          if (!(purchaseMode === "one_time" || purchaseMode === "recurring")) return json({ error: "invalid_purchase_mode" }, 400);
+          if (purchaseMode === "recurring" && body.autorenew_accepted !== true) return json({ error: "autorenew_consent_required" }, 400);
+          if (purchaseMode === "recurring" && serviceKey === "personal_package") return json({ error: "package_cannot_auto_renew" }, 400);
+          const billingPeriod = purchaseMode === "one_time" ? "onetime" : tributeBillingPeriod(serviceKey, planId);
+          if (!billingPeriod) return json({ error: "plan_unavailable" }, 400);
+          const shopLookup = await getTributeShop(env);
+          if (!shopLookup.shop) return json({ error: `tribute_${shopLookup.issue || "shop_unavailable"}` }, 503);
+          const shop = shopLookup.shop;
+          if (shop.onlyStars === true) return json({ error: "tribute_shop_must_support_rub" }, 503);
+          if (shop.tokenCharging === true) return json({ error: "tribute_stars_not_enabled" }, 503);
+          if (purchaseMode === "recurring" && shop.recurrent !== true) return json({ error: "tribute_recurring_not_enabled" }, 503);
+          const starsAmount = (billingPeriod === "onetime" || billingPeriod === "monthly") ? Number(plan.stars) : 0;
+          if (starsAmount <= 0 && billingPeriod !== "halfyearly" && billingPeriod !== "yearly") {
+            return json({ error: "tribute_stars_not_enabled" }, 503);
           }
-          if (productIssue) {
-            const reportedAmount = Number.isFinite(actualAmount) && actualAmount >= 0 && actualAmount % 100 === 0
-              ? actualAmount / 100 : null;
-            console.warn("Tribute checkout blocked: product validation failed", JSON.stringify({
-              plan_id: planId,
-              issue: productIssue,
-              expected_rub: product.amount_rub,
-              reported_rub: reportedAmount,
-              status: actualStatus || null,
-              currency: actualCurrency || null,
-            }));
-            return json({ error: "tribute_product_price_mismatch", details: {
-              issue: productIssue,
-              expected_rub: product.amount_rub,
-              reported_rub: reportedAmount,
-            } }, 409);
+          const preferredPaymentMethods = ["sbp", "card", ...(starsAmount > 0 ? ["stars"] : [])].map(type => ({ type }));
+          const orderResult = await createTributeShopOrder(env, {
+            amount: Number(plan.rubles) * 100,
+            currency: "rub",
+            title: tributePlanLabel(serviceKey, planId),
+            description: purchaseMode === "recurring"
+              ? `SpySkaut: доступ на ${plan.months} ${russianMonthWord(plan.months)} с автоматическим продлением. Отменить продление можно в Tribute.`
+              : `SpySkaut: ${tributePlanLabel(serviceKey, planId)}. Разовая покупка без автопродления.`,
+            customerId: ownerId,
+            period: billingPeriod,
+            ...(starsAmount > 0 ? { starsAmount } : {}),
+            preferredPaymentMethods,
+          });
+          if (!orderResult.order) return json({ error: `tribute_${orderResult.issue || "shop_order_failed"}` }, 503);
+          const order = orderResult.order;
+          const checkoutUrl = String(order.webappPaymentUrl || "").trim();
+          const orderLink = (() => { try { const url = new URL(checkoutUrl); return ["t.me", "telegram.me", "www.telegram.me"].includes(url.hostname.toLowerCase()) && /^\/(?:tribute|tribute_bot)\/app$/i.test(url.pathname) && Boolean(url.searchParams.get("startapp")); } catch { return false; } })();
+          if (!/^[0-9a-f-]{36}$/i.test(String(order.uuid || "")) || !orderLink
+            || Number(order.amount) !== Number(plan.rubles) * 100
+            || String(order.currency || "").toLowerCase() !== "rub"
+            || Number(order.starsAmount || 0) !== starsAmount
+            || String(order.period || "") !== billingPeriod) {
+            console.warn("Tribute Shop order validation failed", JSON.stringify({ plan_id: planId, service_key: serviceKey, mode: purchaseMode }));
+            return json({ error: "tribute_shop_order_mismatch" }, 502);
           }
           if (serviceKey === "groups") {
             await env.DB.prepare(`INSERT INTO service_payment_consents(consent_id, owner_id, service_key, plan_id, terms_version)
@@ -255,10 +324,13 @@ export default {
               VALUES(?, ?, ?, ?, ?)`)
               .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
           }
-          const checkoutUrl = serviceKey === "personal_unlimited" && planId === "month"
-            ? product.link
-            : product.checkout_url;
-          return json({ checkout_url: checkoutUrl, amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
+          await env.DB.prepare(`INSERT INTO tribute_shop_orders(
+            order_uuid, owner_id, service_key, plan_id, amount_minor, stars_amount, currency, billing_period,
+            purchase_mode, autorenew_accepted_at
+          ) VALUES(?, ?, ?, ?, ?, ?, 'rub', ?, ?, CASE WHEN ? = 'recurring' THEN CURRENT_TIMESTAMP ELSE NULL END)`)
+            .bind(order.uuid, ownerId, serviceKey, planId, Number(plan.rubles) * 100, starsAmount,
+              billingPeriod, purchaseMode, purchaseMode).run();
+          return json({ checkout_url: checkoutUrl, amount: plan.rubles, stars: starsAmount, currency: "RUB", service_key: serviceKey, plan_id: planId, purchase_mode: purchaseMode, billing_period: billingPeriod });
         }
 
         if (route === "/api/home/events" && request.method === "GET") {
@@ -715,6 +787,9 @@ async function handleTributeWebhook(request, env) {
   try { event = JSON.parse(rawBody); } catch { return json({ error: "invalid JSON" }, 400); }
   const eventName = String(event?.name || "");
   const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  if (eventName.startsWith("shop_order")) {
+    return handleTributeShopWebhook(eventName, event, payload, rawBody, env);
+  }
   if (eventName === "new_digital_product") {
     return handleTributeDigitalProduct(payload, rawBody, env);
   }
@@ -772,6 +847,160 @@ async function handleTributeWebhook(request, env) {
   } catch { return json({ error: "Tribute subscription event processing failed" }, 500); }
   if (purchaseRecorded) await notifyPurchaseConfirmed(env, ownerId, "personal_unlimited", planId, eventName);
   return json({ ok: true, handled: eventName, plan_id: planId });
+}
+
+async function handleTributeShopWebhook(eventName, event, payload, rawBody, env) {
+  const orderUuid = String(payload.uuid || payload.orderUuid || "");
+  if (!/^[0-9a-f-]{36}$/i.test(orderUuid)) return json({ error: "invalid Tribute Shop order UUID" }, 400);
+  const order = await env.DB.prepare(`SELECT * FROM tribute_shop_orders WHERE order_uuid = ?`).bind(orderUuid).first();
+  if (!order) return json({ ok: true, ignored: true, reason: "shop_order_not_mapped" });
+
+  const transactionId = payload.transactionId == null ? "" : String(payload.transactionId);
+  const createdAt = String(event?.created_at || "");
+  const eventIdentity = `${eventName}:${orderUuid}:${transactionId}:${createdAt}`;
+  const eventKey = await sha256Hex(eventIdentity || rawBody);
+  const recordEvent = () => env.DB.prepare(`INSERT OR IGNORE INTO tribute_shop_order_events(
+    event_key, order_uuid, event_name, transaction_id
+  ) VALUES(?, ?, ?, ?)`)
+    .bind(eventKey, orderUuid, eventName, transactionId || null);
+
+  if (eventName === "shop_order_cancelled") {
+    try {
+      await env.DB.batch([
+        recordEvent(),
+        env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'cancelled', cancelled_at = COALESCE(cancelled_at, CURRENT_TIMESTAMP),
+          updated_at = CURRENT_TIMESTAMP WHERE order_uuid = ? AND changes() = 1`).bind(orderUuid),
+        env.DB.prepare(`UPDATE subscriptions SET auto_renew = 0, updated_at = CURRENT_TIMESTAMP
+          WHERE provider_order_uuid = ?`).bind(orderUuid),
+      ]);
+    } catch { return json({ error: "Tribute Shop cancellation could not be recorded" }, 500); }
+    return json({ ok: true, handled: eventName });
+  }
+
+  if (eventName === "shop_order_payment_failed" || eventName === "shop_order_charge_failed") {
+    try {
+      await env.DB.batch([
+        recordEvent(),
+        env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'payment_failed', updated_at = CURRENT_TIMESTAMP
+          WHERE order_uuid = ? AND changes() = 1`).bind(orderUuid),
+      ]);
+    } catch { return json({ error: "Tribute Shop failure could not be recorded" }, 500); }
+    return json({ ok: true, handled: eventName });
+  }
+
+  if (eventName === "shop_order_refunded") {
+    try {
+      if (order.purchase_mode === "recurring" && order.status !== "cancelled") {
+        if (!await cancelTributeShopOrder(env, orderUuid)) return json({ error: "Tribute Shop subscription cancellation failed after refund" }, 500);
+      }
+      const inserted = await recordEvent().run();
+      if (Number(inserted.meta?.changes || 0) !== 1) return json({ ok: true, ignored: true, reason: "duplicate_event" });
+      await env.DB.prepare(`UPDATE payment_purchases SET refunded_at = CURRENT_TIMESTAMP
+        WHERE provider_order_uuid = ? AND refunded_at IS NULL`).bind(orderUuid).run();
+      await env.DB.prepare(`UPDATE notification_packages SET credits_remaining = 0
+        WHERE purchase_id = (SELECT purchase_id FROM payment_purchases WHERE provider_order_uuid = ? LIMIT 1)`)
+        .bind(orderUuid).run();
+      await env.DB.prepare(`UPDATE subscriptions SET
+        expires_at = COALESCE((SELECT MAX(expires_at) FROM payment_purchases
+          WHERE owner_id = subscriptions.owner_id AND service_key = 'personal_unlimited'
+            AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP), CURRENT_TIMESTAMP),
+        auto_renew = CASE WHEN provider_order_uuid = ? THEN 0 ELSE auto_renew END,
+        provider_order_uuid = CASE WHEN provider_order_uuid = ? THEN NULL ELSE provider_order_uuid END,
+        updated_at = CURRENT_TIMESTAMP WHERE owner_id = ?`)
+        .bind(orderUuid, orderUuid, order.owner_id).run();
+      await env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'refunded', updated_at = CURRENT_TIMESTAMP
+        WHERE order_uuid = ?`).bind(orderUuid).run();
+    } catch { return json({ error: "Tribute Shop refund could not be recorded" }, 500); }
+    return json({ ok: true, handled: eventName });
+  }
+
+  const isInitialPayment = eventName === "shop_order" || eventName === "shop_order_payment_received";
+  const isRenewal = eventName === "shop_order_charge_success";
+  if (!isInitialPayment && !isRenewal) return json({ ok: true, ignored: true });
+  if (isInitialPayment && String(payload.status || "paid").toLowerCase() !== "paid") return json({ ok: true, ignored: true, reason: "order_not_paid" });
+  if (String(payload.currency || "").toLowerCase() !== "rub"
+    || Number(payload.amount) !== Number(order.amount_minor)) {
+    console.warn("Tribute Shop payment does not match order", JSON.stringify({ order_uuid: orderUuid, event: eventName }));
+    return json({ error: "Tribute Shop payment amount mismatch" }, 400);
+  }
+
+  const serviceKey = String(order.service_key);
+  const planId = String(order.plan_id);
+  const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId]
+    : serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId] : GROUP_ACCESS_PLANS[planId];
+  if (!plan) return json({ error: "unknown Tribute Shop plan" }, 400);
+  const purchaseId = `shop-order:${orderUuid}`;
+  const eventTimestamp = Number.isFinite(Date.parse(createdAt)) ? new Date(createdAt).toISOString() : new Date().toISOString();
+  try {
+    if (isRenewal && order.purchase_mode === "recurring") {
+      const results = await env.DB.batch([
+        recordEvent(),
+        env.DB.prepare(`UPDATE payment_purchases SET
+          expires_at = datetime(CASE WHEN julianday(expires_at) > julianday('now') THEN expires_at ELSE 'now' END,
+            printf('+%d months', ?)), purchased_at = ?
+          WHERE purchase_id = ? AND refunded_at IS NULL AND changes() = 1`)
+          .bind(plan.months, eventTimestamp, purchaseId),
+        env.DB.prepare(`UPDATE subscriptions SET expires_at = datetime(
+            CASE WHEN julianday(expires_at) > julianday('now') THEN expires_at ELSE 'now' END,
+            printf('+%d months', ?)), auto_renew = 1, provider_order_uuid = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE owner_id = ? AND provider_order_uuid = ? AND changes() = 1`)
+          .bind(plan.months, orderUuid, String(order.owner_id), orderUuid),
+        env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'paid', updated_at = CURRENT_TIMESTAMP
+          WHERE order_uuid = ? AND changes() = 1`).bind(orderUuid),
+      ]);
+      if (Number(results?.[0]?.meta?.changes || 0) === 1) {
+        await notifyPurchaseConfirmed(env, String(order.owner_id), serviceKey, planId, eventName, purchaseId);
+      }
+      return json({ ok: true, handled: eventName, plan_id: planId });
+    }
+
+    const statements = [
+      recordEvent(),
+      env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency,
+        expires_at, credits_granted, groups_limit, provider_order_uuid, purchased_at
+      ) SELECT ?, 'tribute_shop', ?, ?, ?, ?, ?, 'RUB',
+        CASE WHEN ? IS NULL THEN NULL ELSE datetime('now', printf('+%d months', ?)) END,
+        ?, ?, ?, ? WHERE changes() = 1`)
+        .bind(purchaseId, `shop-order:${orderUuid}`, String(order.owner_id), serviceKey, planId,
+          Number(order.amount_minor), serviceKey === "personal_package" ? null : plan.months,
+          serviceKey === "personal_package" ? 0 : plan.months,
+          serviceKey === "personal_package" ? plan.events : 0,
+          serviceKey === "groups" ? plan.groups : 0,
+          orderUuid, eventTimestamp),
+    ];
+    if (serviceKey === "personal_package") {
+      statements.push(env.DB.prepare(`INSERT OR IGNORE INTO notification_packages(
+        package_id, owner_id, purchase_id, plan_id, credits_total, credits_remaining, activated_after_event_id
+      ) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(id) FROM events WHERE owner_id = ?), 0)
+        WHERE changes() = 1`)
+        .bind(crypto.randomUUID(), String(order.owner_id), purchaseId, planId, plan.events, plan.events, String(order.owner_id)));
+    } else if (serviceKey === "personal_unlimited") {
+      statements.push(env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew, provider_order_uuid)
+        SELECT ?, datetime('now', printf('+%d months', ?)), ?, ?, ? WHERE changes() = 1
+        ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
+          CASE WHEN julianday(subscriptions.expires_at) > julianday('now') THEN subscriptions.expires_at ELSE 'now' END,
+          printf('+%d months', ?)
+        ), plan_id = excluded.plan_id,
+        auto_renew = CASE WHEN excluded.auto_renew = 1 THEN 1
+          WHEN julianday(subscriptions.expires_at) > julianday('now') THEN subscriptions.auto_renew ELSE 0 END,
+        provider_order_uuid = CASE WHEN excluded.auto_renew = 1 THEN excluded.provider_order_uuid
+          ELSE subscriptions.provider_order_uuid END,
+        updated_at = CURRENT_TIMESTAMP`)
+        .bind(String(order.owner_id), plan.months, planId, order.purchase_mode === "recurring" ? 1 : 0,
+          order.purchase_mode === "recurring" ? orderUuid : null, plan.months));
+    }
+    statements.push(env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'paid', updated_at = CURRENT_TIMESTAMP
+      WHERE order_uuid = ? AND changes() = 1`).bind(orderUuid));
+    const results = await env.DB.batch(statements);
+    if (Number(results?.[1]?.meta?.changes || 0) === 1) {
+      await notifyPurchaseConfirmed(env, String(order.owner_id), serviceKey, planId, eventName, purchaseId);
+    }
+  } catch (error) {
+    console.error("Tribute Shop payment could not be recorded", { orderUuid, eventName, error: String(error?.message || error) });
+    return json({ error: "Tribute Shop payment could not be recorded" }, 500);
+  }
+  return json({ ok: true, handled: eventName, service_key: serviceKey, plan_id: planId });
 }
 
 async function handleTributeDigitalProduct(payload, rawBody, env) {
@@ -907,8 +1136,9 @@ async function notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventNa
       const balance = await getNotificationPackageBalance(env.DB, ownerId);
       let packageRemaining = plan.events;
       if (purchaseId) {
+        const storedPurchaseId = String(purchaseId).startsWith("shop-order:") ? String(purchaseId) : `tribute:product:${purchaseId}`;
         const purchasedPackage = await env.DB.prepare(`SELECT credits_remaining FROM notification_packages
-          WHERE purchase_id = ? AND owner_id = ? LIMIT 1`).bind(`tribute:product:${purchaseId}`, ownerId).first();
+          WHERE purchase_id = ? AND owner_id = ? LIMIT 1`).bind(storedPurchaseId, ownerId).first();
         packageRemaining = Number(purchasedPackage?.credits_remaining ?? plan.events);
       }
       text = `✅ Оплата получена!\n\nПакет на ${plan.events} уведомлений активирован.\n\nВ купленном пакете осталось ${packageRemaining} из ${plan.events}.\nВсего доступно: ${Number(balance.remaining || 0)} уведомлений. Пакет не сгорает.\n\nОстаток можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
@@ -917,14 +1147,15 @@ async function notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventNa
       if (!plan) return false;
       const subscription = await getSubscription(env.DB, ownerId);
       const expiry = subscription.expires_at ? formatPurchaseExpiry(subscription.expires_at) : "не указана";
-      const action = eventName === "renewed_subscription" ? "продлена" : "активирована";
+      const action = ["renewed_subscription", "shop_order_charge_success"].includes(eventName) ? "продлена" : "активирована";
       text = `✅ Оплата получена!\n\nПодписка «Личные чаты — Безлимит на ${plan.months} ${russianMonthWord(plan.months)}» ${action}.\nДоступ действует до ${expiry}.\n\nСтатус подписки можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
     } else if (serviceKey === "groups") {
       const plan = GROUP_ACCESS_PLANS[planId];
       if (!plan) return false;
       const entitlement = await getGroupEntitlement(env.DB, ownerId);
       const expiry = entitlement.expires_at ? formatPurchaseExpiryDateTime(entitlement.expires_at) : "не указана";
-      text = `✅ Оплата получена!\n\nДоступ к ${plan.groups} групповым чатам на 1 месяц активирован.\nЛимиты нескольких действующих пакетов складываются. Ближайший срок окончания: ${expiry}.\n\nСтатус и свободные места можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
+      const action = eventName === "shop_order_charge_success" ? "продлён" : "активирован";
+      text = `✅ Оплата получена!\n\nДоступ к ${plan.groups} групповым чатам на 1 месяц ${action}.\nЛимиты нескольких действующих пакетов складываются. Ближайший срок окончания: ${expiry}.\n\nСтатус и свободные места можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
     } else {
       return false;
     }
@@ -965,10 +1196,15 @@ async function getGroupEntitlement(db, ownerId, env = null) {
       (SELECT plan_id FROM payment_purchases p2 WHERE p2.owner_id = ? AND p2.service_key = 'groups'
         AND p2.refunded_at IS NULL AND p2.expires_at > CURRENT_TIMESTAMP
         ORDER BY p2.purchased_at DESC, p2.created_at DESC LIMIT 1) AS plan_id,
+      (SELECT COUNT(*) FROM tribute_shop_orders shop
+        JOIN payment_purchases purchase ON purchase.provider_order_uuid = shop.order_uuid
+        WHERE shop.owner_id = ? AND shop.service_key = 'groups' AND shop.purchase_mode = 'recurring'
+          AND shop.status = 'paid' AND shop.cancelled_at IS NULL
+          AND purchase.refunded_at IS NULL AND purchase.expires_at > CURRENT_TIMESTAMP) AS auto_renew,
       (SELECT COUNT(*) FROM group_chats g WHERE g.owner_id = ? AND g.active = 1) AS active_groups
     FROM payment_purchases
     WHERE owner_id = ? AND service_key = 'groups' AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP`)
-    .bind(String(ownerId), String(ownerId), String(ownerId)).first();
+    .bind(String(ownerId), String(ownerId), String(ownerId), String(ownerId)).first();
   let groupsLimit = Number(row?.groups_limit || 0);
   let testAccess = false;
   if (!groupsLimit && env?.SUBSCRIPTION_TEST_OWNER_ID && String(ownerId) === String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
@@ -987,6 +1223,7 @@ async function getGroupEntitlement(db, ownerId, env = null) {
     groups_available: Math.max(0, groupsLimit - activeGroups),
     expires_at: row?.expires_at ? isoUtcTimestamp(row.expires_at) : null,
     purchase_count: Number(row?.purchase_count || 0),
+    auto_renew: Number(row?.auto_renew || 0) > 0,
     test_access: testAccess,
     capabilities: { group_features: groupsLimit > 0 },
   };

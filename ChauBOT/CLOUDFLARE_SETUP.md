@@ -118,7 +118,7 @@ Keep the existing Worker `spychau-bot`, its URL, production D1 database, private
 
 ## Prepare Tribute payments
 
-1. Apply the payment migration to the intended database before deploying the Worker:
+1. Apply the payment migrations to the intended database before deploying the Worker:
 
    ```powershell
    npx wrangler d1 migrations apply spychau-bot-dev --remote
@@ -131,9 +131,11 @@ Keep the existing Worker `spychau-bot`, its URL, production D1 database, private
    npx wrangler secret put TRIBUTE_API_KEY --name spychau-bot
    ```
 
-3. In Tribute Creator Dashboard → Settings → API Keys, set the webhook URL to `https://spychau-bot.senba11.workers.dev/webhooks/tribute`, save it, and use **Send test request** to check delivery.
+3. In Tribute Creator Dashboard → Settings → API Keys, set the webhook URL to `https://spychau-bot.senba11.workers.dev/webhooks/tribute`, save it, and use **Send test request** to check signed delivery. The handler supports both legacy Digital Product events and Shop API order, renewal, cancellation, and refund events.
 
-4. Keep `TRIBUTE_PAYMENTS_ENABLED` set to `false` until the signed webhook has been verified, payment terms and support contact are configured, and the checkout behavior has been confirmed. Then enable the flag for production.
+4. Confirm in Tribute that the API key can read an active standard Shop (`onlyStars` disabled), recurring orders are enabled, and Telegram Stars are enabled (`tokenCharging` disabled). Tribute Shop API accepts both the RUB and Stars prices sent by the Worker; one-time orders support SBP when enabled for the seller, and recurring SBP must be enabled separately by Tribute support. Stars are available for one-time and monthly orders; six- and twelve-month auto-renewal therefore use card/SBP, while their one-time checkout also offers Stars.
+
+5. Keep `TRIBUTE_SHOP_API_ENABLED` set to `false` until the signed webhook and a non-charged Shop API order have been verified, then enable it for production. The checkout endpoint checks Shop status and recurring support before creating an order. The Shop API `preferredPaymentMethods` setting is a preference, not a restriction; Tribute controls which enabled methods are shown to each buyer.
 
 Do not change the D1/R2 bindings or `JOURNAL_ENCRYPTION_KEY`: user IDs stay the same between bots, so existing archive rows, subscriptions, and encrypted journal objects remain available after the user opens the app through the new bot.
 
