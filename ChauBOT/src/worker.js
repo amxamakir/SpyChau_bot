@@ -205,7 +205,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.21" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.22" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -712,12 +712,20 @@ async function handleTelegramWebhook(request, env) {
       // every supported attachment from both shapes instead of stopping at the
       // first one found. Capture it before writing the owner's reply so a
       // one-time file has the best chance of still being downloadable.
-      const repliedMedia = eventType === "new"
+      const isOwnerPrivateReply = eventType === "new"
         && message.from?.id != null
         && String(message.from.id) === String(connectionRow.owner_id)
-        && message.chat?.type === "private"
-        ? collectRepliedMedia(message)
-        : [];
+        && message.chat?.type === "private";
+      if (isOwnerPrivateReply && env.TELEGRAM_REPLY_DIAGNOSTICS === "true") {
+        const replyPayload = {
+          reply_to_message: message.reply_to_message || null,
+          external_reply: message.external_reply || null,
+        };
+        if (replyPayload.reply_to_message || replyPayload.external_reply) {
+          console.log("REPLIED_TO_JSON:", JSON.stringify(replyPayload));
+        }
+      }
+      const repliedMedia = isOwnerPrivateReply ? collectRepliedMedia(message) : [];
       for (const [mediaIndex, replied] of repliedMedia.entries()) {
         const { source, media, kind } = replied;
         if (source.from?.id != null && String(source.from.id) === String(connectionRow.owner_id)) continue;
