@@ -24,6 +24,11 @@ const PERSONAL_PACKAGE_PLANS = Object.freeze({
   pack300: { events: 300, rubles: 499 },
   pack500: { events: 500, rubles: 699 },
 });
+const GROUP_ACCESS_PLANS = Object.freeze({
+  groups3: { groups: 3, months: 1, rubles: 349 },
+  groups10: { groups: 10, months: 1, rubles: 790 },
+  groups20: { groups: 20, months: 1, rubles: 1090 },
+});
 
 function tributePaymentsConfigured(env) {
   return env.TRIBUTE_PAYMENTS_ENABLED === "true"
@@ -36,13 +41,11 @@ function tributePaymentsConfigured(env) {
 
 function tributePaymentsReady(env, serviceKey = null, planId = null) {
   if (!tributePaymentsConfigured(env)) return false;
-  if (serviceKey === "personal_unlimited") {
-    return /^https:\/\/(?:t\.me|telegram\.me)\/(?:tribute|tribute_bot)\/app\?startapp=s[\w-]+$/i
-      .test(String(env.TRIBUTE_CHECKOUT_URL || "").trim());
-  }
-  if (serviceKey === "personal_package") {
+  if (["personal_unlimited", "personal_package", "groups"].includes(serviceKey)) {
+    const plans = serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS
+      : serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS : GROUP_ACCESS_PLANS;
     if (planId) return Boolean(tributeProduct(env, serviceKey, planId));
-    return Object.keys(PERSONAL_PACKAGE_PLANS).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
+    return Object.keys(plans).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
   }
   return serviceKey === null;
 }
@@ -58,19 +61,17 @@ function tributeProduct(env, serviceKey, planId) {
   const products = tributeProductMap(env);
   const key = `${serviceKey}:${planId}`;
   const spec = products?.[key];
-  const expected = serviceKey === "personal_package"
-    ? PERSONAL_PACKAGE_PLANS[planId]?.rubles
-    : serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId]?.rubles : null;
-  const rawLink = String(spec?.link || spec?.web_link || "").trim();
-  const webMatch = rawLink.match(/^https:\/\/web\.tribute\.tg\/p\/([\w-]+)$/i);
-  const link = webMatch
-    ? `https://t.me/tribute/app?startapp=p${webMatch[1]}`
-    : rawLink;
-  const webLink = String(spec?.web_link || (webMatch ? rawLink : "")).trim();
-  if (!expected || Number(spec?.amount_rub) !== expected
-    || !/^https:\/\/(?:t\.me|telegram\.me)\/(?:tribute|tribute_bot)\/app\?startapp=p[\w-]+$/i.test(link)) return null;
-  const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId] : PERSONAL_SUBSCRIPTION_PLANS[planId];
-  return { key, link, web_link: webLink, amount_rub: expected, ...plan };
+  const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId]
+    : serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId]
+      : serviceKey === "groups" ? GROUP_ACCESS_PLANS[planId] : null;
+  const expected = plan?.rubles;
+  const rawLink = String(spec?.telegram_link || spec?.link || "").trim();
+  const rawWebLink = String(spec?.web_link || "").trim();
+  const webMatch = rawWebLink.match(/^https:\/\/web\.tribute\.tg\/p\/([\w-]+)$/i);
+  const telegramMatch = rawLink.match(/^https:\/\/(?:t\.me|telegram\.me)\/(?:tribute|tribute_bot)\/app\?startapp=p[\w-]+$/i);
+  if (!plan || !Number.isFinite(expected) || Number(spec?.amount_rub) !== expected
+    || !webMatch || !telegramMatch) return null;
+  return { key, link: rawLink, web_link: rawWebLink, checkout_url: rawWebLink, amount_rub: expected, ...plan };
 }
 
 async function getTributeProduct(productId, env) {
@@ -143,7 +144,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.7" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.16" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -206,19 +207,12 @@ export default {
           }
           const serviceKey = String(body.service_key || "personal_unlimited");
           const planId = String(body.plan_id || "");
-          if (!(["personal_unlimited", "personal_package"].includes(serviceKey))) return json({ error: "plan_unavailable" }, 400);
-          const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId] : PERSONAL_SUBSCRIPTION_PLANS[planId];
+          if (!(["personal_unlimited", "personal_package", "groups"].includes(serviceKey))) return json({ error: "plan_unavailable" }, 400);
+          const plan = serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS[planId]
+            : serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId] : GROUP_ACCESS_PLANS[planId];
           const ownerId = String(user.id);
           if (!plan) return json({ error: "plan_unavailable" }, 400);
           if (!tributePaymentsReady(env, serviceKey, planId)) return json({ error: "plan_unavailable" }, 503);
-          if (serviceKey === "personal_unlimited") {
-            await env.DB.batch(Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((subscriptionPlanId) =>
-              env.DB.prepare(`INSERT INTO payment_consents(consent_id, owner_id, plan_id, terms_version)
-                VALUES(?, ?, ?, ?)`)
-                .bind(crypto.randomUUID(), ownerId, subscriptionPlanId, env.PAYMENTS_TERMS_VERSION)
-            ));
-            return json({ checkout_url: env.TRIBUTE_CHECKOUT_URL.trim(), amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
-          }
           const product = tributeProduct(env, serviceKey, planId);
           if (!product) return json({ error: "plan_unavailable" }, 400);
           const lookup = await getTributeProductByWebLink(product.web_link, env);
@@ -227,14 +221,12 @@ export default {
           const actualStatus = String(actualProduct?.status || "").toLowerCase();
           const actualCurrency = String(actualProduct?.currency || "").toUpperCase();
           const actualAmount = Number(actualProduct?.amount);
-          const starsEnabled = actualProduct?.starsAmountEnabled === true || actualProduct?.starsAmountEnabled === "true";
           let productIssue = lookup.issue;
           if (actualProduct) {
             if (actualType !== "digital") productIssue = "wrong_product_type";
             else if (actualStatus !== "approved") productIssue = "product_not_approved";
             else if (actualCurrency !== "RUB") productIssue = "wrong_currency";
             else if (actualAmount !== product.amount_rub * 100) productIssue = "wrong_amount";
-            else if (!starsEnabled) productIssue = "stars_not_enabled";
             else productIssue = null;
           }
           if (productIssue) {
@@ -254,10 +246,16 @@ export default {
               reported_rub: reportedAmount,
             } }, 409);
           }
-          await env.DB.prepare(`INSERT INTO tribute_product_consents(consent_id, owner_id, plan_id, terms_version, service_key)
-            VALUES(?, ?, ?, ?, ?)`)
-            .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
-          return json({ checkout_url: product.link, amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
+          if (serviceKey === "groups") {
+            await env.DB.prepare(`INSERT INTO service_payment_consents(consent_id, owner_id, service_key, plan_id, terms_version)
+              VALUES(?, ?, 'groups', ?, ?)`)
+              .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION).run();
+          } else {
+            await env.DB.prepare(`INSERT INTO tribute_product_consents(consent_id, owner_id, plan_id, terms_version, service_key)
+              VALUES(?, ?, ?, ?, ?)`)
+              .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
+          }
+          return json({ checkout_url: product.checkout_url, amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
         }
 
         if (route === "/api/home/events" && request.method === "GET") {
@@ -376,12 +374,9 @@ export default {
         if (route === "/api/archive/groups" && request.method === "GET") {
           const cursor = archiveCursor(url);
           if (cursor.error) return json({ error: "invalid_cursor" }, 400);
-          const subscription = await getSubscription(env.DB, String(user.id));
-          if (!subscription.active) return json({ error: "subscription_required" }, 403);
           const ownerId = String(user.id);
-          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
-            return json({ available: false, groups: [], topics: [], events: [] });
-          }
+          const entitlement = await getGroupEntitlement(env.DB, ownerId, env);
+          if (!entitlement.active) return json({ error: "group_entitlement_required" }, 403);
           const groups = await env.DB.prepare(`
             SELECT chat_id, chat_type, title, username, bot_status, connected_at, updated_at
             FROM group_chats WHERE owner_id = ? AND active = 1 ORDER BY updated_at DESC
@@ -785,9 +780,8 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
   }
   const actualProduct = await getTributeProduct(productId, env);
   if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
-    || String(actualProduct.currency || "").toUpperCase() !== "RUB"
-    || actualProduct.starsAmountEnabled !== true) {
-    return json({ error: "Tribute product is missing or not configured for Stars" }, 503);
+    || String(actualProduct.currency || "").toUpperCase() !== "RUB") {
+    return json({ error: "Tribute digital product is missing, not approved, or not in RUB" }, 503);
   }
   let serviceKey = null;
   let planId = null;
@@ -795,11 +789,14 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
   for (const key of [
     ...Object.keys(PERSONAL_PACKAGE_PLANS).map((id) => `personal_package:${id}`),
     ...Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((id) => `personal_unlimited:${id}`),
+    ...Object.keys(GROUP_ACCESS_PLANS).map((id) => `groups:${id}`),
   ]) {
     const [candidateService, candidatePlan] = key.split(":");
     const candidate = tributeProduct(env, candidateService, candidatePlan);
-    if (candidate && (candidate.link === String(actualProduct.link || "").trim()
-      || (candidate.web_link && candidate.web_link === String(actualProduct.webLink || "").trim()))) {
+    const productLinks = [actualProduct.link, actualProduct.webLink, actualProduct.web_link]
+      .map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+    if (candidate && [candidate.link, candidate.web_link]
+      .some((value) => productLinks.includes(String(value || "").trim().toLowerCase()))) {
       serviceKey = candidateService;
       planId = candidatePlan;
       expectedProduct = candidate;
@@ -811,16 +808,33 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
     return json({ ok: true, ignored: true, reason: "product_not_mapped" });
   }
   const amount = expectedProduct.amount_rub * 100;
-  const consent = await env.DB.prepare(`SELECT 1 AS accepted FROM tribute_product_consents
-    WHERE owner_id = ? AND plan_id = ? AND service_key = ?
-      AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`)
-    .bind(ownerId, planId, serviceKey).first();
+  const consent = serviceKey === "groups"
+    ? await env.DB.prepare(`SELECT 1 AS accepted FROM service_payment_consents
+        WHERE owner_id = ? AND plan_id = ? AND service_key = 'groups'
+          AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`).bind(ownerId, planId).first()
+    : await env.DB.prepare(`SELECT 1 AS accepted FROM tribute_product_consents
+        WHERE owner_id = ? AND plan_id = ? AND service_key = ?
+          AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`).bind(ownerId, planId, serviceKey).first();
   if (!consent) return json({ ok: true, ignored: true });
   const refunded = await env.DB.prepare("SELECT 1 FROM tribute_digital_product_refunds WHERE purchase_id = ?")
     .bind(purchaseId).first();
   if (refunded) return json({ ok: true, ignored: true, reason: "purchase_already_refunded" });
 
   try {
+    if (serviceKey === "groups") {
+      const plan = GROUP_ACCESS_PLANS[planId];
+      if (!plan) return json({ error: "unknown group plan" }, 400);
+      const eventKey = `tribute:product:${purchaseId}`;
+      const inserted = await env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at, groups_limit
+      ) VALUES(?, 'tribute', ?, ?, 'groups', ?, ?, 'RUB', datetime('now', printf('+%d months', ?)), ?)`)
+        .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, plan.months, plan.groups).run();
+      if (Number(inserted.meta?.changes || 0) === 1) {
+        await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, "new_digital_product", purchaseId);
+      }
+      return json({ ok: true, handled: "new_digital_product", service: serviceKey, plan_id: planId });
+    }
+
     if (serviceKey === "personal_package") {
       const plan = PERSONAL_PACKAGE_PLANS[planId];
       if (!plan) return json({ error: "unknown package plan" }, 400);
@@ -902,6 +916,12 @@ async function notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventNa
       const expiry = subscription.expires_at ? formatPurchaseExpiry(subscription.expires_at) : "не указана";
       const action = eventName === "renewed_subscription" ? "продлена" : "активирована";
       text = `✅ Оплата получена!\n\nПодписка «Личные чаты — Безлимит на ${plan.months} ${russianMonthWord(plan.months)}» ${action}.\nДоступ действует до ${expiry}.\n\nСтатус подписки можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
+    } else if (serviceKey === "groups") {
+      const plan = GROUP_ACCESS_PLANS[planId];
+      if (!plan) return false;
+      const entitlement = await getGroupEntitlement(env.DB, ownerId);
+      const expiry = entitlement.expires_at ? formatPurchaseExpiryDateTime(entitlement.expires_at) : "не указана";
+      text = `✅ Оплата получена!\n\nДоступ к ${plan.groups} групповым чатам на 1 месяц активирован.\nЛимиты нескольких действующих пакетов складываются. Ближайший срок окончания: ${expiry}.\n\nСтатус и свободные места можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
     } else {
       return false;
     }
@@ -924,6 +944,49 @@ function formatPurchaseExpiry(value) {
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow",
   }).format(new Date(normalized));
+}
+
+function russianGroupWord(groups) {
+  const value = Math.abs(Number(groups)) % 100;
+  const lastDigit = value % 10;
+  if (value > 10 && value < 20) return "групп";
+  if (lastDigit > 1 && lastDigit < 5) return "группы";
+  return lastDigit === 1 ? "группу" : "групп";
+}
+
+async function getGroupEntitlement(db, ownerId, env = null) {
+  const row = await db.prepare(`SELECT
+      COALESCE(SUM(groups_limit), 0) AS groups_limit,
+      MIN(expires_at) AS expires_at,
+      COUNT(*) AS purchase_count,
+      (SELECT plan_id FROM payment_purchases p2 WHERE p2.owner_id = ? AND p2.service_key = 'groups'
+        AND p2.refunded_at IS NULL AND p2.expires_at > CURRENT_TIMESTAMP
+        ORDER BY p2.purchased_at DESC, p2.created_at DESC LIMIT 1) AS plan_id,
+      (SELECT COUNT(*) FROM group_chats g WHERE g.owner_id = ? AND g.active = 1) AS active_groups
+    FROM payment_purchases
+    WHERE owner_id = ? AND service_key = 'groups' AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP`)
+    .bind(String(ownerId), String(ownerId), String(ownerId)).first();
+  let groupsLimit = Number(row?.groups_limit || 0);
+  let testAccess = false;
+  if (!groupsLimit && env?.SUBSCRIPTION_TEST_OWNER_ID && String(ownerId) === String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
+    groupsLimit = 20;
+    testAccess = true;
+  }
+  const activeGroups = Number(row?.active_groups || 0);
+  const planId = row?.plan_id || null;
+  const plan = GROUP_ACCESS_PLANS[planId];
+  return {
+    active: groupsLimit > 0,
+    plan_id: planId,
+    plan_name: testAccess ? "Тестовый доступ" : plan ? `${plan.groups} ${russianGroupWord(plan.groups)} · 1 месяц` : "Группы",
+    groups_limit: groupsLimit,
+    active_groups: activeGroups,
+    groups_available: Math.max(0, groupsLimit - activeGroups),
+    expires_at: row?.expires_at ? isoUtcTimestamp(row.expires_at) : null,
+    purchase_count: Number(row?.purchase_count || 0),
+    test_access: testAccess,
+    capabilities: { group_features: groupsLimit > 0 },
+  };
 }
 
 async function notifyEntitlementReminders(env) {
@@ -1033,7 +1096,7 @@ async function handleTributeDigitalProductRefund(payload, rawBody, env) {
         VALUES(?, ?)`)
         .bind(purchaseId, eventKey),
       env.DB.prepare(`UPDATE payment_purchases SET refunded_at = CURRENT_TIMESTAMP
-        WHERE purchase_id = ? AND provider = 'tribute' AND service_key IN ('personal_package', 'personal_unlimited')`)
+        WHERE purchase_id = ? AND provider = 'tribute' AND service_key IN ('personal_package', 'personal_unlimited', 'groups')`)
         .bind(`tribute:product:${purchaseId}`),
       env.DB.prepare(`UPDATE notification_packages SET credits_remaining = 0
         WHERE purchase_id = ?`)
@@ -1096,10 +1159,18 @@ async function handleGroupMembershipUpdate(change, env) {
   const addedBy = change.from;
   if (!addedBy?.id || addedBy.is_bot) return json({ ok: true, ignored: true });
   const ownerId = String(addedBy.id);
-  if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
-    return json({ ok: true, ignored: true });
-  }
   await saveUser(env.DB, addedBy);
+  const entitlement = await getGroupEntitlement(env.DB, ownerId, env);
+  const alreadyConnected = await env.DB.prepare(`SELECT 1 FROM group_chats
+    WHERE owner_id = ? AND chat_id = ? AND active = 1 LIMIT 1`).bind(ownerId, chatId).first();
+  if (!entitlement.active || (!alreadyConnected && entitlement.groups_available <= 0)) {
+    const reason = entitlement.active
+      ? `Достигнут лимит подключённых групп (${entitlement.groups_limit}). Освободи место или выбери больший пакет в приложении SpySkaut.`
+      : `Чтобы подключить группу, сначала купи групповой тариф в приложении SpySkaut.`;
+    await callTelegramJson(env, "sendMessage", { chat_id: ownerId, text: reason });
+    await callTelegramJson(env, "leaveChat", { chat_id: chatId });
+    return json({ ok: true, ignored: true, reason: entitlement.active ? "group_limit_reached" : "group_entitlement_required" });
+  }
   await env.DB.prepare("UPDATE group_chats SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE chat_id = ?").bind(chatId).run();
   await env.DB.prepare("DELETE FROM group_message_snapshots WHERE chat_id = ?").bind(chatId).run();
   await env.DB.prepare(`
@@ -1123,6 +1194,9 @@ async function handleGroupMessageUpdate(update, telegramMessage, edited, env) {
     SELECT owner_id FROM group_chats WHERE chat_id = ? AND active = 1 LIMIT 1
   `).bind(chatId).first();
   if (!group) return json({ ok: true, ignored: true });
+  if (!(await getGroupEntitlement(env.DB, group.owner_id, env)).active) {
+    return json({ ok: true, ignored: true, reason: "group_entitlement_expired" });
+  }
 
   const latestTitle = String(chat.title || "").trim();
   if (latestTitle) {
@@ -1491,12 +1565,13 @@ async function initializeNotificationPreferences(db, ownerId, requestedPreferenc
 
 async function getUserBootstrap(env, user) {
   const ownerId = String(user.id);
-  const [profile, connections, subscription, packageBalance, notificationSettings] = await Promise.all([
+  const [profile, connections, subscription, packageBalance, groupEntitlement, notificationSettings] = await Promise.all([
     env.DB.prepare("SELECT receipt_email FROM users WHERE telegram_id = ?").bind(ownerId).first(),
     env.DB.prepare("SELECT connection_id, enabled, updated_at FROM connections WHERE owner_id = ? ORDER BY updated_at DESC")
       .bind(ownerId).all(),
     getSubscription(env.DB, ownerId),
     getNotificationPackageBalance(env.DB, ownerId),
+    getGroupEntitlement(env.DB, ownerId, env),
     getNotificationPreferences(env.DB, ownerId),
   ]);
   return {
@@ -1504,6 +1579,7 @@ async function getUserBootstrap(env, user) {
     connections: connections.results,
     subscription,
     package_balance: packageBalance,
+    group_entitlement: groupEntitlement,
     notification_preferences: notificationSettings.preferences,
     can_test_override: Boolean(env.SUBSCRIPTION_TEST_OWNER_ID && ownerId === String(env.SUBSCRIPTION_TEST_OWNER_ID)),
     payments_available: Boolean(tributePaymentsReady(env, "personal_unlimited")),
@@ -1511,8 +1587,9 @@ async function getUserBootstrap(env, user) {
     tribute_plan_availability: {
       personal_unlimited: Object.fromEntries(Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((planId) => [planId, Boolean(tributePaymentsReady(env, "personal_unlimited", planId))])),
       personal_package: Object.fromEntries(Object.keys(PERSONAL_PACKAGE_PLANS).map((planId) => [planId, Boolean(tributePaymentsReady(env, "personal_package", planId))])),
+      groups: Object.fromEntries(Object.keys(GROUP_ACCESS_PLANS).map((planId) => [planId, Boolean(tributePaymentsReady(env, "groups", planId))])),
     },
-    group_payments_available: false,
+    group_payments_available: Boolean(tributePaymentsReady(env, "groups")),
   };
 }
 
@@ -1582,8 +1659,9 @@ async function notifySavedEvents(env, ownerId, savedEvents, fallbackUpdateId = n
   if (!resolved.length) return;
 
   const subscription = await getSubscription(env.DB, ownerId);
+  const groupEntitlement = await getGroupEntitlement(env.DB, ownerId, env);
   const packageBalance = subscription.active ? null : await getNotificationPackageBalance(env.DB, ownerId);
-  if (!subscription.active && !packageBalance?.remaining) return;
+  if (!subscription.active && !packageBalance?.remaining && !groupEntitlement.active) return;
   const preferences = await getNotificationPreferences(env.DB, ownerId);
   for (const savedEvent of resolved) {
     const eventRow = await env.DB.prepare("SELECT * FROM events WHERE id = ? AND owner_id = ?")
@@ -1592,6 +1670,8 @@ async function notifySavedEvents(env, ownerId, savedEvents, fallbackUpdateId = n
     const [event] = await hydrateEventRows([eventRow], env);
     const chatType = event?.message?.chat?.type || event?.previous_message?.chat?.type || "private";
     const isGroup = chatType === "group" || chatType === "supergroup";
+    if (isGroup && !groupEntitlement.active) continue;
+    if (!isGroup && !subscription.active && !packageBalance?.remaining) continue;
     const shouldNotify = isEventEnabledForOwner(event, ownerId, preferences.preferences);
     if (!shouldNotify || (isGroup && !preferences.preferences.group_messages)) continue;
     if (!isGroup && !subscription.active && !await consumeNotificationPackageEvent(env.DB, ownerId, savedEvent.eventId)) continue;

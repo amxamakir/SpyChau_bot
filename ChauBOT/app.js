@@ -136,14 +136,15 @@ function connectCard() {
   const count = activeCount ? '1 из 2' : '0 из 2';
   const connectButton = type => `<button type="button" class="button button-blue connect-cta" data-tutorial="${type}">Подключить</button>`;
   const connectedMark = `<span class="connection-done" role="status" aria-label="Подключено">${icon('check', 20)}</span>`;
-  return `<div class="connect-card"><div class="connect-card-heading"><strong>Подключения</strong><span class="count-badge" style="border:0;background:none;padding:0;color:var(--muted)">${count}</span></div><div class="connect-row"><div class="service-icon blue home-personal">${icon('chat', 20)}</div><div class="row-copy"><strong>Личные чаты</strong><span>${personalConnected ? 'Подключение активно' : state.preview ? 'Открой приложение через Telegram' : 'Пока не подключены'}</span></div>${personalConnected ? connectedMark : connectButton('personal')}</div><div class="divider"></div><div class="connect-row"><div class="service-icon purple home-groups">${icon('people', 20)}</div><div class="row-copy"><strong>Группы</strong><span>Пока не подключены</span></div><button type="button" class="button button-purple connect-cta" data-tab="group-tariffs">Подключить</button></div></div>`;
+  const groupConnected = Number(state.groupEntitlement?.active_groups || 0);
+  return `<div class="connect-card"><div class="connect-card-heading"><strong>Подключения</strong><span class="count-badge" style="border:0;background:none;padding:0;color:var(--muted)">${count}</span></div><div class="connect-row"><div class="service-icon blue home-personal">${icon('chat', 20)}</div><div class="row-copy"><strong>Личные чаты</strong><span>${personalConnected ? 'Подключение активно' : state.preview ? 'Открой приложение через Telegram' : 'Пока не подключены'}</span></div>${personalConnected ? connectedMark : connectButton('personal')}</div><div class="divider"></div><div class="connect-row"><div class="service-icon purple home-groups">${icon('people', 20)}</div><div class="row-copy"><strong>Группы</strong><span>${state.groupEntitlement?.active ? `${groupConnected} из ${state.groupEntitlement.groups_limit} подключено` : 'Пока не подключены'}</span></div><button type="button" class="button button-purple connect-cta" data-tab="group-tariffs">${state.groupEntitlement?.active ? 'Тариф' : 'Подключить'}</button></div></div>`;
 }
 
 function connectionTutorialPage() {
   const personal = state.tutorialType !== 'groups';
   const header = `<button type="button" class="profile-detail-back" data-action="tutorial-back">${icon('chevron', 16)} Назад</button>`;
   if (personal) return `<section class="page connection-tutorial-page"><div class="tutorial-intro">${header}<div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи меня<br>к личным чатам</h1><p>Три шага, одна минута — и я начну сохранять новые изменения и события.</p></div><div class="tutorial-mascot-space" aria-hidden="true"></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Скопируй моё имя</h2><div class="tutorial-copy-row"><strong>@SpySkaut_bot</strong><button type="button" class="tutorial-copy-button" data-action="copy-bot-name">${icon('archive', 16)} Копировать</button></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Открой «Автоматизацию чатов»</h2><p>В настройках открой свой профиль, нажми «Изм.» и выбери автоматизацию чатов.</p><div class="tutorial-breadcrumb"><span>Настройки</span>${icon('chevron', 13)}<span>Изм.</span>${icon('chevron', 13)}<b>Автоматизация чатов</b></div></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Вставь имя и сохрани</h2><p>Дай доступ ко всем личным чатам — или только к нужным.</p></div></article></div><div class="tutorial-loop" role="img" aria-label="Зацикленная демонстрация подключения SpySkaut_bot в Telegram"><div class="tutorial-loop-head"><span></span><b>Как подключить SpySkaut_bot</b><small>Анимация шагов</small></div><div class="tutorial-loop-scenes"><div class="tutorial-loop-scene scene-settings"><div class="telegram-mock-top"><span>‹</span><b>Настройки</b></div><div class="telegram-mock-row">Уведомления и звуки <i>›</i></div><div class="telegram-mock-row">Конфиденциальность <i>›</i></div><div class="telegram-mock-row focus">Профиль <i>›</i></div><div class="telegram-mock-caption">Открой свой профиль в настройках</div></div><div class="tutorial-loop-scene scene-business"><div class="telegram-mock-top"><span>‹</span><b>Изменить профиль</b></div><div class="telegram-mock-row">Имя</div><div class="telegram-mock-row">Имя пользователя</div><div class="telegram-mock-row focus">Автоматизация чатов <i>›</i></div><div class="telegram-mock-caption">Нажми «Изм.» и открой автоматизацию чатов</div></div><div class="tutorial-loop-scene scene-bot"><div class="telegram-mock-top"><span>‹</span><b>Автоматизация чатов</b></div><div class="telegram-mock-bot"><span>SK</span><b>SpySkaut_bot<small>@SpySkaut_bot</small></b></div><div class="telegram-mock-action">Подключить бота</div><div class="telegram-mock-caption">Выбери нашего бота</div></div><div class="tutorial-loop-scene scene-chats"><div class="telegram-mock-top"><span>‹</span><b>Доступ к чатам</b></div><div class="telegram-mock-row">Личные чаты</div><div class="telegram-mock-row">Максим <i class="mock-check">✓</i></div><div class="telegram-mock-row">Аня <i class="mock-check">✓</i></div><div class="telegram-mock-action">Сохранить</div><div class="telegram-mock-caption">Дай доступ ко всем личным чатам или выбери нужные</div></div></div><div class="tutorial-loop-progress"><i></i><i></i><i></i><i></i></div></div><div class="tutorial-footer"><button type="button" class="button tutorial-open-settings" data-action="open-telegram-business-settings">Открыть настройки Telegram ${icon('arrow', 19)}</button><button type="button" class="tutorial-help-link" data-action="tutorial-help">${icon('help', 15)} Не получается? Помогу</button></div></section>`;
-  return `<section class="page connection-tutorial-page">${header}<div class="tutorial-intro"><div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи SpySkaut<br>к беседе</h1><p>Добавь бота в группу и назначь его администратором, чтобы Telegram передавал изменения сообщений.</p></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Добавь бота в беседу</h2><p>Выбери нужную группу и пригласи в неё @SpySkaut_bot.</p></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Назначь администратора</h2><p>Это нужно, чтобы бот видел сообщения и их изменения. Дополнительные права не выдавай.</p></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Открой архив событий</h2><p>Беседа появится здесь после подключения. Для уведомлений включи «Сообщения в группах» в настройках профиля.</p></div></article></div><div class="tutorial-note tutorial-note-pending">Сейчас сохраняются изменения сообщений в темах и обычных групповых чатах. Обычные удаления Telegram боту не передаёт; эту часть добавим позже. Оплата группового тарифа пока не подключена.</div><div class="tutorial-footer"><button type="button" class="button button-blue tutorial-open-settings" data-action="add-group-bot">Добавить SpySkaut в беседу ${icon('arrow', 19)}</button></div></section>`;
+  return `<section class="page connection-tutorial-page">${header}<div class="tutorial-intro"><div class="tutorial-heading"><span class="eyebrow">ПОДКЛЮЧЕНИЕ</span><h1>Подключи SpySkaut<br>к беседе</h1><p>Добавь бота в группу и назначь его администратором, чтобы Telegram передавал изменения сообщений.</p></div></div><div class="tutorial-step-list"><article class="tutorial-step-card"><span class="tutorial-step-number">1</span><div class="tutorial-step-content"><h2>Добавь бота в беседу</h2><p>Выбери нужную группу и пригласи в неё @SpySkaut_bot.</p></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">2</span><div class="tutorial-step-content"><h2>Назначь администратора</h2><p>Это нужно, чтобы бот видел сообщения и их изменения. Дополнительные права не выдавай.</p></div></article><article class="tutorial-step-card"><span class="tutorial-step-number">3</span><div class="tutorial-step-content"><h2>Открой архив событий</h2><p>Беседа появится здесь после подключения. Для уведомлений включи «Сообщения в группах» в настройках профиля.</p></div></article></div><div class="tutorial-note tutorial-note-pending">Групповой доступ действует до указанной в профиле даты. Здесь сохраняются изменения сообщений; обычные удаления Telegram боту не передаёт.</div><div class="tutorial-footer"><button type="button" class="button button-blue tutorial-open-settings" data-action="add-group-bot">Добавить SpySkaut в беседу ${icon('arrow', 19)}</button></div></section>`;
 }
 
 function archiveEventKind(event) {
@@ -389,7 +390,7 @@ function archiveGroupsPage() {
   if (!group) {
     const groups = state.archiveGroups.filter(item => !query || `${item.title || ''} ${item.username || ''}`.toLocaleLowerCase('ru').includes(query));
     const content = !state.archiveGroupsAvailable
-      ? `<div class="archive-state">${icon('lock', 24)}<strong>Группы пока в тестовом режиме</strong><p>Сохранение изменений уже подготовлено. Подключение и оплата группового тарифа появятся после завершения этой части.</p></div>`
+      ? `<div class="archive-state">${icon('lock', 24)}<strong>Подключи групповой тариф</strong><p>Выбери лимит групп на месяц, затем добавь SpySkaut в нужные беседы.</p><button type="button" class="button button-purple" data-tab="group-tariffs">Выбрать тариф ${icon('chevron', 15)}</button></div>`
       : groups.length
       ? groups.map(archiveGroupCard).join('')
       : `<div class="archive-state">${icon('people', 24)}<strong>${query ? 'Беседа не найдена' : 'Пока нет подключённых бесед'}</strong><p>${query ? 'Попробуй изменить запрос.' : 'Добавь SpySkaut в групповую беседу как администратора. Новые изменения будут появляться здесь; обычные удаления пока не поддерживаются Telegram Bot API.'}</p>${!query ? `<button type="button" class="button button-blue" data-tutorial="groups">Как подключить ${icon('chevron', 15)}</button>` : ''}</div>`;
@@ -551,20 +552,22 @@ function packageBalanceBreakdown(balance) {
 }
 
 const GROUP_TARIFFS = [
-  { id: 'groups3', name: '3 группы', unit: '116 ₽ за группу в месяц', stars: '219', rubles: '349 ₽' },
-  { id: 'groups10', name: '10 групп', unit: '79 ₽ за группу в месяц', stars: '496', rubles: '790 ₽', badge: 'Популярный', discount: '−32%' },
-  { id: 'groups20', name: '20 групп', unit: '54 ₽ за группу в месяц', stars: '684', rubles: '1 090 ₽', discount: '−53%' }
+  { id: 'groups3', name: '3 группы', unit: 'Доступ на 1 месяц', groups: 3, priceRub: 349 },
+  { id: 'groups10', name: '10 групп', unit: 'Доступ на 1 месяц', groups: 10, priceRub: 790, badge: 'Популярный', discount: '−32%' },
+  { id: 'groups20', name: '20 групп', unit: 'Доступ на 1 месяц', groups: 20, priceRub: 1090, discount: '−53%' }
 ];
 
 function groupTariffsPricing() {
   const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
-  const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><span>⭐ <small>${plan.stars}</small></span><strong>${plan.rubles}</strong></span></button>`).join('');
-  const benefits = ['Удалённые и изменённые сообщения', 'События из подключённых групп', 'Для подключения необходимы соответствующие права в группе'];
+  const planRows = GROUP_TARIFFS.map(plan => `<button type="button" class="tariff-plan ${selected.id === plan.id ? 'selected' : ''}" data-group-tariff="${plan.id}" aria-pressed="${selected.id === plan.id}"><span class="tariff-radio" aria-hidden="true"></span><span class="tariff-plan-copy"><strong>${plan.name}</strong>${plan.badge ? `<i class="tariff-hit">${plan.badge}</i>` : ''}${plan.discount ? `<i class="tariff-discount">${plan.discount}</i>` : ''}<small>${plan.unit}</small></span><span class="tariff-plan-price"><strong>${tariffPriceLabel(plan.priceRub)}</strong></span></button>`).join('');
+  const benefits = ['Изменения сообщений в подключённых группах', 'Лимит зависит от выбранного тарифа', 'Для подключения нужны права администратора в группе'];
   return `<div class="tariff-plan-list">${planRows}</div><div class="tariff-benefits group-tariff-benefits">${benefits.map(item => `<div><i>${icon('check', 16)}</i><strong>${item}</strong></div>`).join('')}</div>`;
 }
 
 function groupTariffsPage() {
-  return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/mascot/scout-groups.png" alt="Скаут среди групповых значков" /></div><div class="tariff-intro"><h2>Группы</h2><p>Сохраняем удалённые и изменённые сообщения в подключённых группах.</p></div>${groupEntitlementCard()}<div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
+  const connectButton = state.groupEntitlement?.active
+    ? `<button type="button" class="button button-purple group-connect-button" data-tutorial="groups">Подключить SpySkaut к группе ${icon('chevron', 16)}</button>` : '';
+  return `<section class="page tariffs-page group-tariffs-page"><div class="tariff-mascot group-tariff-mascot"><img src="./assets/mascot/scout-groups.png" alt="Скаут среди групповых значков" /></div><div class="tariff-intro"><h2>Группы</h2><p>Подключи бота к нужному числу групп на 1 месяц.</p></div>${groupEntitlementCard()}${connectButton}<div class="tariff-pricing" data-group-tariff-pricing>${groupTariffsPricing()}</div></section>`;
 }
 
 function groupEntitlementCard() {
@@ -577,17 +580,19 @@ function groupEntitlementCard() {
   const limit = Number(entitlement.groups_limit || 0);
   const activeGroups = Number(entitlement.active_groups || 0);
   const percent = limit ? Math.min(100, activeGroups / limit * 100) : 0;
-  return `<div class="package-balance-card group-entitlement-card" role="status"><div class="package-balance-heading"><strong>Тариф ${escapeHtml(entitlement.plan_name || 'Группы')}</strong><b>${Number(entitlement.groups_available || 0)} свободно</b></div><div class="package-balance-track" aria-label="Подключено ${activeGroups} из ${limit} групп"><i style="width:${percent}%"></i></div><small>${activeGroups} из ${limit} групп · доступ до ${escapeHtml(expiryLabel)}</small></div>`;
+  return `<div class="package-balance-card group-entitlement-card" role="status"><div class="package-balance-heading"><strong>Тариф ${escapeHtml(entitlement.plan_name || 'Группы')}</strong><b>${Number(entitlement.groups_available || 0)} свободно</b></div><div class="package-balance-track" aria-label="Подключено ${activeGroups} из ${limit} групп"><i style="width:${percent}%"></i></div><small>${activeGroups} из ${limit} групп · ${entitlement.test_access ? 'тестовый доступ' : `ближайшее окончание ${escapeHtml(expiryLabel)}`}</small></div>`;
 }
 
 function tariffPaymentDock() {
   if (state.tab === 'tariffs') {
     const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
     const isSubscription = state.tariffMode === 'unlimited';
-    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="${isSubscription ? 'open-payment-sheet' : 'open-package-payment-sheet'}" data-sticky-tariff-payment ${state.paymentLoading ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${selected.price}`}</button><p class="tariff-dock-note">${isSubscription ? 'Оплата звёздами разовая. Автопродление подключим для карт и СБП через CloudPayments.' : 'Пакет событий не сгорает. Архив личных чатов в пакет не входит.'}</p></div>`;
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="${isSubscription ? 'open-payment-sheet' : 'open-package-payment-sheet'}" data-sticky-tariff-payment ${state.paymentLoading ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${selected.price}`}</button><p class="tariff-dock-note">${isSubscription ? 'Разовая покупка Tribute. Доступ на выбранный срок, без автопродления.' : 'Пакет событий не сгорает. Архив личных чатов в пакет не входит.'}</p></div>`;
   }
   if (state.tab === 'group-tariffs') {
-    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-sticky-tariff-payment disabled>Оплата скоро</button><p class="tariff-dock-note">Групповой тариф подключим после проверки личных тарифов.</p></div>`;
+    const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
+    const ready = tributePlanAvailable('groups', selected.id);
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-action="open-group-payment-sheet" data-sticky-tariff-payment ${state.paymentLoading || !ready ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${tariffPriceLabel(selected.priceRub)}`}</button><p class="tariff-dock-note">Доступ к выбранному числу групп на 1 месяц. После покупки лимит появится в профиле.</p></div>`;
   }
   return '';
 }
@@ -598,17 +603,23 @@ function tributePlanAvailable(serviceKey, planId) {
 
 function paymentSheet() {
   const selection = state.paymentSelection || {
-    service_key: state.tariffMode === 'package' ? 'personal_package' : 'personal_unlimited',
-    plan_id: state.selectedTariff,
+    service_key: state.tab === 'group-tariffs' ? 'groups' : state.tariffMode === 'package' ? 'personal_package' : 'personal_unlimited',
+    plan_id: state.tab === 'group-tariffs' ? state.selectedGroupTariff : state.selectedTariff,
   };
   const isPackage = selection.service_key === 'personal_package';
-  const plans = tariffPlans(isPackage ? 'package' : 'unlimited');
+  const isGroup = selection.service_key === 'groups';
+  const plans = isGroup ? GROUP_TARIFFS.map(plan => ({ ...plan, price: tariffPriceLabel(plan.priceRub), quantity: plan.groups }))
+    : tariffPlans(isPackage ? 'package' : 'unlimited');
   const selected = plans.find(plan => plan.id === selection.plan_id) || plans[0];
   const tributeReady = tributePlanAvailable(selection.service_key, selection.plan_id);
   const detail = isPackage
     ? 'Покупка активируется после подтверждения оплаты. Пакет не сгорает. Доступные способы оплаты покажет Tribute.'
-    : 'Покупка активируется после подтверждения оплаты. Доступные способы оплаты покажет Tribute. Автопродление подписки можно отменить на странице Tribute.';
-  const orderDetails = isPackage
+    : isGroup
+      ? 'Доступ к выбранному числу групп действует 1 месяц с момента подтверждения платежа. Способы оплаты отобразит Tribute.'
+      : 'Это разовая покупка товара Tribute. Доступ активируется после подтверждения и действует выбранный срок. Автопродления нет.';
+  const orderDetails = isGroup
+    ? ['Групповые чаты', `Доступ к ${selected.groups} группам`, 'Срок действия · 1 месяц']
+    : isPackage
     ? [
         'Личные чаты',
         `${selected.quantity} уведомлений`,
@@ -621,7 +632,7 @@ function paymentSheet() {
       ];
   const orderRows = orderDetails.map(detail => `<div class="payment-order-feature"><span aria-hidden="true">${icon('check', 13)}</span><span>${escapeHtml(detail)}</span></div>`).join('');
   const continueDisabled = !state.paymentTermsAccepted || state.selectedPaymentMethod !== 'tribute' || state.paymentLoading || !tributeReady;
-  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet"><span aria-hidden="true">×</span></button><header class="payment-sheet-header"><div class="payment-sheet-heading"><h2 id="payment-sheet-title">Оплата</h2><p>Выбери удобный способ оплаты</p></div><img class="payment-sheet-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут" /></header><div class="payment-order-card"><div class="payment-order-features">${orderRows}</div><b class="payment-order-price">${escapeHtml(selected.price)}</b></div><p class="payment-method-label">Выбери способ оплаты</p><div class="payment-method-list"><button type="button" class="payment-method-card payment-method-stub" data-action="cloudpayments-stub" aria-label="СБП и оплата картой — скоро" aria-disabled="true"><span class="payment-method-icon payment-method-card-icon">${icon('card', 21)}</span><span><strong>СБП и оплата картой</strong><small>CloudPayments · подключим позже</small></span><span class="payment-method-soon">Скоро</span></button><button type="button" class="payment-method-card payment-method-tribute ${state.selectedPaymentMethod === 'tribute' ? 'selected' : ''}" data-action="select-tribute-method" aria-pressed="${state.selectedPaymentMethod === 'tribute'}" ${state.paymentLoading || !tributeReady ? 'disabled' : ''}><span class="payment-method-icon payment-method-stars-icon" aria-hidden="true">⭐</span><span><strong>Telegram Stars</strong><small>${state.paymentLoading ? 'Открываем Tribute…' : tributeReady ? 'Способ оплаты Tribute' : 'Оплата пока настраивается'}</small></span><span class="payment-method-selection" aria-hidden="true"></span></button></div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оплаты</a>.</span></label><button type="button" class="button button-blue payment-continue" data-action="continue-payment" ${continueDisabled ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : 'Перейти к оплате'}</button><p class="payment-sheet-note">${detail}</p></section></div>`;
+  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet"><span aria-hidden="true">×</span></button><header class="payment-sheet-header"><div class="payment-sheet-heading"><h2 id="payment-sheet-title">Оплата</h2><p>Выбери удобный способ оплаты</p></div><img class="payment-sheet-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут" /></header><div class="payment-order-card"><div class="payment-order-features">${orderRows}</div><b class="payment-order-price">${escapeHtml(selected.price)}</b></div><p class="payment-method-label">Выбери способ оплаты</p><div class="payment-method-list"><button type="button" class="payment-method-card payment-method-stub" data-action="robokassa-stub" aria-label="СБП и оплата картой — скоро" aria-disabled="true"><span class="payment-method-icon payment-method-card-icon">${icon('card', 21)}</span><span><strong>СБП и оплата картой</strong><small>Robokassa · подключим позже</small></span><span class="payment-method-soon">Скоро</span></button><button type="button" class="payment-method-card payment-method-tribute ${state.selectedPaymentMethod === 'tribute' ? 'selected' : ''}" data-action="select-tribute-method" aria-pressed="${state.selectedPaymentMethod === 'tribute'}" ${state.paymentLoading || !tributeReady ? 'disabled' : ''}><span class="payment-method-icon payment-method-stars-icon" aria-hidden="true">⭐</span><span><strong>Tribute</strong><small>${state.paymentLoading ? 'Открываем Tribute…' : tributeReady ? 'Доступные способы оплаты покажет Tribute' : 'Оплата пока настраивается'}</small></span><span class="payment-method-selection" aria-hidden="true"></span></button></div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оплаты</a>.</span></label><button type="button" class="button button-blue payment-continue" data-action="continue-payment" ${continueDisabled ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : 'Перейти к оплате'}</button><p class="payment-sheet-note">${detail}</p></section></div>`;
 }
 
 function telegramSettingsDock() {
@@ -652,8 +663,16 @@ function refreshTariffPaymentButton() {
     button.disabled = state.paymentLoading;
     const note = app.querySelector('.tariff-dock-note');
     if (note) note.textContent = isSubscription
-      ? 'Автопродление оформляется в Tribute. Отменить его можно в подписке Tribute.'
+      ? 'Разовая покупка товара Tribute. Доступ на выбранный срок, без автопродления.'
       : 'Пакет событий не сгорает. Архив личных чатов в пакет не входит.';
+  } else if (state.tab === 'group-tariffs') {
+    const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
+    const ready = tributePlanAvailable('groups', selected.id);
+    button.dataset.action = 'open-group-payment-sheet';
+    button.textContent = `Оплатить ${tariffPriceLabel(selected.priceRub)}`;
+    button.disabled = state.paymentLoading || !ready;
+    const note = app.querySelector('.tariff-dock-note');
+    if (note) note.textContent = 'Доступ к выбранному числу групп на 1 месяц. После покупки лимит появится в профиле.';
   }
 }
 function archive() {
@@ -796,7 +815,7 @@ function supportPage() {
   const questions = [
     ['Как работает SpySkaut?', { intro: 'Я сохраняю события из выбранных тобой личных чатов. Это не копия всей переписки.', bullets: ['Фиксирую удаление и изменение сообщений.', 'Сохраняю переданные Telegram текст и поддерживаемые вложения.', 'Показываю события в архиве; уведомления отправляю в Telegram, если они включены.'] }],
     ['Как подключить личные чаты?', { intro: 'Подключение настраивается в Telegram:', path: ['Настройки', 'Профиль', 'Изм.', 'Автоматизация чатов'], steps: [['Открой экран подключения', 'На главной нажми «Подключить» в карточке личных чатов.'], ['Добавь бота', 'В автоматизации чатов выбери бота SpySkaut.'], ['Выбери переписки', 'Разреши доступ ко всем личным чатам или отметь только нужные и сохрани выбор.']], username: true }],
-    ['Как подключить группы?', { intro: 'Группы пока доступны только владельцу приложения в тестовом режиме. Для остальных пользователей подключение и оплата группового тарифа ещё не открыты.', bullets: ['В тестовом режиме сохраняются изменения сообщений; обычные удаления Telegram Bot API не передаёт.', 'Если участвуешь в тесте, следуй инструкции в приложении и не выдавай боту дополнительных прав.'] }],
+    ['Как подключить группы?', { intro: 'Выбери групповой тариф в разделе «Сервисы», затем добавь SpySkaut в нужные беседы.', bullets: ['Лимит зависит от покупки: 3, 10 или 20 групп на месяц.', 'Сохраняются изменения сообщений; обычные удаления Telegram Bot API не передаёт.', 'Назначь бота администратором, чтобы Telegram передавал изменения.'] }],
     ['Какие сообщения сохраняет SpySkaut?', { intro: 'В подключённых личных чатах сохраняются события:', bullets: ['об удалении сообщений;', 'об изменении сообщений;', 'о вложениях, которые Telegram передал боту.'], note: 'Обычные новые сообщения не архивируются как полная история переписки.' }],
     ['Почему не сохраняются удалённые и изменённые сообщения?', { intro: 'Проверь основные настройки:', steps: [['Убедись, что нужный чат подключён в Telegram.', ''], ['Проверь, что подписка активна.', ''], ['Открой настройки уведомлений и включи нужные события.', '']], path: ['Профиль', 'Уведомления'], bullets: ['События до подключения не поступают.', 'Telegram может не передать некоторые типы сообщений или вложений.'] }],
     ['Можно ли восстановить сообщения до подключения?', { intro: 'Нет. Telegram не передаёт SpySkaut историю чатов, поэтому содержание сообщений до подключения восстановить нельзя.', bullets: ['Сохраняются только подходящие события после подключения.', 'Если Telegram не передал текст или файл, восстановить его тоже не получится.'] }],
@@ -946,26 +965,27 @@ async function api(path, options = {}) {
   return result;
 }
 
-const PAYMENT_TERMS_VERSION = '2026-11-02';
+const PAYMENT_TERMS_VERSION = '2026-11-04';
 
 async function purchaseSelectedPlan() {
   const selection = state.paymentSelection || {
     service_key: state.tariffMode === 'package' ? 'personal_package' : 'personal_unlimited',
     plan_id: state.selectedTariff,
   };
-  if (!state.authenticated || !state.telegram?.openTelegramLink) { toast('Открой приложение через Telegram.'); return; }
+  if (!state.authenticated || (!state.telegram?.openLink && !state.telegram?.openTelegramLink)) { toast('Открой приложение через Telegram.'); return; }
   if (!state.paymentTermsAccepted) { toast('Сначала прими условия оплаты.'); return; }
-  if (state.selectedPaymentMethod !== 'tribute') { toast('Выбери Telegram Stars.'); return; }
+  if (state.selectedPaymentMethod !== 'tribute') { toast('Выбери оплату через Tribute.'); return; }
   if (state.paymentLoading) return;
-  const previous = `${state.subscription?.expires_at || ''}|${state.packageBalance?.remaining ?? ''}`;
+  const previous = JSON.stringify([state.subscription?.expires_at || '', state.packageBalance?.remaining ?? '', state.groupEntitlement?.purchase_count ?? 0, state.groupEntitlement?.expires_at || '']);
   state.paymentLoading = true;
   render();
   try {
     const result = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({
       service_key: selection.service_key, plan_id: selection.plan_id, terms_accepted: true, terms_version: PAYMENT_TERMS_VERSION
     }) });
-    const mode = selection.service_key === 'personal_package' ? 'package' : 'unlimited';
-    const expected = tariffPlans(mode).find(plan => plan.id === selection.plan_id);
+    const expected = selection.service_key === 'groups'
+      ? GROUP_TARIFFS.find(plan => plan.id === selection.plan_id)
+      : tariffPlans(selection.service_key === 'personal_package' ? 'package' : 'unlimited').find(plan => plan.id === selection.plan_id);
     if (!expected || result.service_key !== selection.service_key || result.plan_id !== selection.plan_id
       || Number(result.amount) !== expected.priceRub || String(result.currency).toUpperCase() !== 'RUB') {
       throw new Error('Цена или тариф не совпали. Закрой оплату и попробуй ещё раз.');
@@ -975,7 +995,13 @@ async function purchaseSelectedPlan() {
     state.tributeCheckoutPending = true;
     state.tributeCheckoutPreviousEntitlements = previous;
     render();
-    state.telegram.openTelegramLink(result.checkout_url);
+    if (/^https:\/\/web\.tribute\.tg\//i.test(result.checkout_url) && state.telegram?.openLink) {
+      state.telegram.openLink(result.checkout_url);
+    } else if (state.telegram?.openTelegramLink) {
+      state.telegram.openTelegramLink(result.checkout_url);
+    } else {
+      window.open(result.checkout_url, '_blank', 'noopener');
+    }
   } catch (error) {
     state.paymentLoading = false;
     state.paymentSheetOpen = true;
@@ -1104,7 +1130,7 @@ async function refreshAfterTributeCheckout() {
     try {
       const latest = await api('/api/me');
       const changed = applyLatestPaymentState(latest);
-      const current = `${state.subscription?.expires_at || ''}|${state.packageBalance?.remaining ?? ''}`;
+      const current = JSON.stringify([state.subscription?.expires_at || '', state.packageBalance?.remaining ?? '', state.groupEntitlement?.purchase_count ?? 0, state.groupEntitlement?.expires_at || '']);
       if (current !== previous) {
         state.tributeCheckoutPending = false;
         state.tributeCheckoutPreviousEntitlements = '';
@@ -1232,6 +1258,17 @@ async function loadArchive({ append = false } = {}) {
 async function loadGroupArchive({ append = false } = {}) {
   state.tab = 'archive';
   if (state.preview) { render(); return; }
+  if (!state.groupEntitlement?.active) {
+    state.archiveGroupsAvailable = false;
+    state.groupArchiveError = '';
+    state.archiveGroups = [];
+    state.archiveTopics = [];
+    state.groupArchiveEvents = [];
+    state.groupArchiveCursor = null;
+    state.groupArchiveHasMore = false;
+    render();
+    return;
+  }
   if (append && (state.groupArchiveLoadingMore || !state.groupArchiveHasMore || !state.groupArchiveCursor)) return;
   if (append) {
     state.groupArchiveLoadingMore = true;
@@ -1247,8 +1284,12 @@ async function loadGroupArchive({ append = false } = {}) {
   try {
     const cursor = append ? state.groupArchiveCursor : null;
     const result = await api(`/api/archive/groups${cursor ? `?before_id=${encodeURIComponent(cursor)}` : ''}`);
-    if (!state.subscription?.active) {
-      clearPersonalArchiveCache();
+    if (!state.groupEntitlement?.active) {
+      state.archiveGroups = [];
+      state.archiveTopics = [];
+      state.groupArchiveEvents = [];
+      state.groupArchiveCursor = null;
+      state.groupArchiveHasMore = false;
       return;
     }
     state.archiveGroupsAvailable = Boolean(result.available);
@@ -1267,8 +1308,8 @@ async function loadGroupArchive({ append = false } = {}) {
       state.archiveTopicId = null;
     }
   } catch (error) {
-    if (error.message === 'subscription_required') {
-      state.subscription = { ...state.subscription, active: false };
+    if (error.message === 'group_entitlement_required') {
+      state.groupEntitlement = { ...state.groupEntitlement, active: false };
       state.archiveGroups = [];
       state.archiveGroupsAvailable = false;
       state.archiveTopics = [];
@@ -1378,7 +1419,12 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.action === 'open-group-payment-sheet') {
-    toast('Оплата групповых тарифов в Telegram Stars ещё подключается. Списаний не будет.');
+    if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
+    state.paymentTermsAccepted = false;
+    state.selectedPaymentMethod = 'tribute';
+    state.paymentSelection = { service_key: 'groups', plan_id: state.selectedGroupTariff };
+    state.paymentSheetOpen = true;
+    render();
     return;
   }
   if (target.dataset.action === 'close-payment-sheet') {
@@ -1395,8 +1441,8 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.action === 'continue-payment') { await purchaseSelectedPlan(); return; }
-  if (target.dataset.action === 'cloudpayments-stub') {
-    toast('Оплата картой и через СБП появится после подключения CloudPayments. Сейчас списаний не будет.');
+  if (target.dataset.action === 'robokassa-stub') {
+    toast('Robokassa подключим позже. Сейчас списаний не будет.');
     return;
   }
   if (target.dataset.contactId) {
@@ -1563,7 +1609,7 @@ app.addEventListener('click', async event => {
   }
   const action = target.dataset.action;
   if (action === 'tariff-pay') { await purchaseSelectedPlan(); return; }
-  if (action === 'group-tariff-pay') { toast('Оплата групп пока не подключена — деньги не списаны.'); return; }
+  if (action === 'group-tariff-pay') { toast('Выбери групповой тариф и продолжи оплату через Tribute.'); return; }
   if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
   if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
