@@ -144,7 +144,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.16" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.17" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -255,7 +255,10 @@ export default {
               VALUES(?, ?, ?, ?, ?)`)
               .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
           }
-          return json({ checkout_url: product.checkout_url, amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
+          const checkoutUrl = serviceKey === "personal_unlimited" && planId === "month"
+            ? product.link
+            : product.checkout_url;
+          return json({ checkout_url: checkoutUrl, amount: plan.rubles, currency: "RUB", service_key: serviceKey, plan_id: planId });
         }
 
         if (route === "/api/home/events" && request.method === "GET") {
