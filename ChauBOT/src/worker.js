@@ -144,7 +144,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.15" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.16" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -645,17 +645,13 @@ async function handleTelegramWebhook(request, env) {
         : [];
       for (const [mediaIndex, replied] of repliedMedia.entries()) {
         const { source, media, kind } = replied;
-        const sourceMessage = {
-          ...source,
-          chat: source.chat || message.chat,
-          from: source.from || message.reply_to_message?.from || message.external_reply?.from || {},
-        };
-        if (sourceMessage.from?.id != null && String(sourceMessage.from.id) === String(connectionRow.owner_id)) continue;
-        if (isClearlyOrdinaryMessage(sourceMessage)) continue;
+        if (source.from?.id != null && String(source.from.id) === String(connectionRow.owner_id)) continue;
         const originalId = source.message_id == null ? "unknown" : String(source.message_id);
         const syntheticMessageId = `reply-media:${chatId}:${originalId}:${messageId}:${kind}:${mediaIndex}`;
         const syntheticMessage = {
-          ...sourceMessage,
+          ...source,
+          chat: source.chat || message.chat,
+          from: source.from || message.reply_to_message?.from || message.external_reply?.from || {},
           __spychau_one_time_saved: true,
         };
         for (const field of ONE_TIME_MEDIA_FIELDS) delete syntheticMessage[field];
@@ -672,13 +668,6 @@ async function handleTelegramWebhook(request, env) {
         savedEvents.push({ eventId: replyMediaEventId, messageId: syntheticMessageId, eventType: "new" });
       }
 
-      const isOneTimeMessage = eventType === "new"
-        && isIncomingOneTimeMessage(message, connectionRow.owner_id);
-      const archivedMessage = eventType !== "new"
-        ? { ...message }
-        : isOneTimeMessage
-          ? { ...message, __spychau_one_time_saved: true }
-          : { ...message, __spychau_hidden_ordinary: true };
       const eventId = await storeBusinessEvent(env, {
         updateId,
         ownerId: connectionRow.owner_id,
@@ -686,7 +675,7 @@ async function handleTelegramWebhook(request, env) {
         chatId,
         messageId,
         eventType,
-        message: archivedMessage,
+        message: { ...message },
       });
       savedEvents.push({ eventId, messageId, eventType });
     }
@@ -1861,66 +1850,30 @@ function constantTimeEqual(left, right) {
 
 function isEventEnabledForOwner(event, ownerId, preferences) {
   if (event?.pending_expires_at_ms != null) return false;
-
   const message = event?.message || {};
   const chat = message.chat || event?.previous_message?.chat || {};
+  if ((chat.type === "group" || chat.type === "supergroup") && !preferences.group_messages) return false;
 
-  // Обычные сообщения не должны вызывать уведомления.
-  if (message.__spychau_hidden_ordinary === true) return false;
-
-  // Учитываем настройку уведомлений для групп.
-  if (
-    (chat.type === "group" || chat.type === "supergroup")
-    && !preferences.group_messages
-  ) {
-    return false;
-  }
-
-  // Уведомления об удалении и редактировании.
-  if (
-    event?.event_type === "deleted"
-    || event?.event_type === "edited"
-  ) {
+  if (event?.event_type === "deleted" || event?.event_type === "edited") {
     const senderId = message.from?.id;
     if (senderId == null) return false;
-
     const isOwnerAuthored = String(senderId) === String(ownerId);
     const preferenceKey = event.event_type === "deleted"
       ? (isOwnerAuthored ? "deleted_by_owner" : "deleted_messages")
       : (isOwnerAuthored ? "edited_by_owner" : "edited_messages");
-
     return Boolean(preferences[preferenceKey]);
   }
 
-  // Новые события разрешены только для входящих одноразовых сообщений.
-  if (event?.event_type === "new") {
-    return (
-      isIncomingOneTimeMessage(message, ownerId)
-      && Boolean(preferences.one_time_messages)
-    );
-  }
-
-  return false;
+  return event?.event_type === "new"
+    && isIncomingOneTimeMessage(message, ownerId)
+    && Boolean(preferences.one_time_messages);
 }
 
 function isOneTimeMessage(message) {
   return message?.__spychau_one_time_saved === true
     || Number(message?.ephemeral_message_id) > 0
     || Number(message?.receiver_user?.id) > 0
-    || Number(message?.ttl_period) > 0
-    || (
-      message?.message_id != null
-      && Number(message.message_id) === 0
-      && message?.chat?.type === "private"
-    );
-}
-
-function isClearlyOrdinaryMessage(message) {
-  return Number(message?.message_id) > 0
-    && message?.__spychau_one_time_saved !== true
-    && !(Number(message?.ephemeral_message_id) > 0)
-    && !(Number(message?.receiver_user?.id) > 0)
-    && !(Number(message?.ttl_period) > 0);
+    || Number(message?.ttl_period) > 0;
 }
 
 function isIncomingOneTimeMessage(message, ownerId) {

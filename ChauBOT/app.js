@@ -165,7 +165,6 @@ function isEventVisibleByNotificationPreferences(event) {
   if (event?.group_event) return true;
   const preferences = state.notificationPreferences || {};
   const message = event?.message || {};
-  if (message.__spychau_hidden_ordinary === true) return false;
   const chat = message.chat || event?.previous_message?.chat || {};
   if ((chat.type === 'group' || chat.type === 'supergroup') && !preferences.group_messages) return false;
 
