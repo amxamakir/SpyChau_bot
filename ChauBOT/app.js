@@ -38,7 +38,7 @@ const state = {
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
   notificationPreferencesSaving: false,
-  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentPurchaseMode: 'recurring', paymentSelection: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
+  loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentProvider: null, paymentSelection: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData
 };
 
@@ -595,12 +595,12 @@ function tariffPaymentDock() {
   if (state.tab === 'tariffs') {
     const selected = tariffPlans(state.tariffMode).find(plan => plan.id === state.selectedTariff) || tariffPlans(state.tariffMode)[0];
     const isSubscription = state.tariffMode === 'unlimited';
-    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="${isSubscription ? 'open-payment-sheet' : 'open-package-payment-sheet'}" data-sticky-tariff-payment ${state.paymentLoading ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${selected.price}`}</button><p class="tariff-dock-note">${isSubscription ? 'В окне оплаты выбери разовую покупку или автопродление.' : 'Разовый пакет событий без срока действия. Архив личных чатов в пакет не входит.'}</p></div>`;
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button" data-action="${isSubscription ? 'open-payment-sheet' : 'open-package-payment-sheet'}" data-sticky-tariff-payment ${state.paymentLoading ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${selected.price}`}</button><p class="tariff-dock-note">${isSubscription ? 'Для тарифа включено автопродление; условия нужно подтвердить перед оплатой.' : 'Разовый пакет событий без срока действия. Архив личных чатов в пакет не входит.'}</p></div>`;
   }
   if (state.tab === 'group-tariffs') {
     const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
     const ready = tributePlanAvailable('groups', selected.id);
-    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-action="open-group-payment-sheet" data-sticky-tariff-payment ${state.paymentLoading || !ready ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${tariffPriceLabel(selected.priceRub)}`}</button><p class="tariff-dock-note">Доступ к выбранному числу групп на 1 месяц. В окне оплаты можно включить автопродление.</p></div>`;
+    return `<div class="tariff-dock"><button type="button" class="button tariff-pay-button group-tariff-pay-button" data-action="open-group-payment-sheet" data-sticky-tariff-payment ${state.paymentLoading || !ready ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : `Оплатить ${tariffPriceLabel(selected.priceRub)}`}</button><p class="tariff-dock-note">Доступ к выбранному числу групп на 1 месяц с автопродлением.</p></div>`;
   }
   return '';
 }
@@ -616,9 +616,8 @@ function paymentSheet() {
   };
   const isPackage = selection.service_key === 'personal_package';
   const isGroup = selection.service_key === 'groups';
-  const isRecurring = state.paymentPurchaseMode === 'recurring';
+  const isRecurring = !isPackage;
   const allowsStarsForPeriod = !isRecurring || selection.plan_id === 'month' || isGroup;
-  const canAutoRenew = !isPackage;
   const plans = isGroup ? GROUP_TARIFFS.map(plan => ({ ...plan, price: tariffPriceLabel(plan.priceRub), quantity: plan.groups }))
     : tariffPlans(isPackage ? 'package' : 'unlimited');
   const selected = plans.find(plan => plan.id === selection.plan_id) || plans[0];
@@ -642,18 +641,14 @@ function paymentSheet() {
         'Архив переписки включён',
       ];
   const orderRows = orderDetails.map(detail => `<div class="payment-order-feature"><span aria-hidden="true">${icon('check', 13)}</span><span>${escapeHtml(detail)}</span></div>`).join('');
-  const continueDisabled = !state.paymentTermsAccepted || state.paymentLoading || !tributeReady;
+  const continueDisabled = !state.paymentTermsAccepted || state.paymentProvider !== 'tribute' || state.paymentLoading || !tributeReady;
   const displayedStars = allowsStarsForPeriod ? selected.starsLabel || new Intl.NumberFormat('ru-RU').format(selected.stars) : '';
   const price = `${displayedStars ? `⭐ ${displayedStars} · ` : ''}${selected.price}`;
-  const paymentMethods = allowsStarsForPeriod
-    ? [['СБП', isRecurring ? 'Привязка счёта для продления' : 'Разовая оплата по QR-коду'], ['Банковская карта', isRecurring ? 'Автоматическое списание за продление' : 'Разовая оплата'], ['Telegram Stars', isRecurring ? 'Ежемесячное списание Stars' : 'Разовая оплата']]
-    : [['СБП', isRecurring ? 'Привязка счёта, если рекуррентный СБП включён' : 'Разовая оплата по QR-коду'], ['Банковская карта', isRecurring ? 'Автоматическое списание за продление' : 'Разовая оплата']];
-  const methodRows = paymentMethods.map(([title, note]) => `<div class="payment-method-card"><span class="payment-method-icon ${title === 'Telegram Stars' ? 'payment-method-stars-icon' : 'payment-method-card-icon'}" aria-hidden="true">${title === 'Telegram Stars' ? '⭐' : icon('card', 20)}</span><span><strong>${title}</strong><small>${note}</small></span></div>`).join('');
-  const recurringOptions = canAutoRenew ? `<div class="payment-cycle-options" role="group" aria-label="Режим оплаты"><button type="button" class="payment-cycle-option ${!isRecurring ? 'selected' : ''}" data-purchase-mode="one_time" aria-pressed="${!isRecurring}"><strong>Разово</strong><small>Без автопродления</small></button><button type="button" class="payment-cycle-option ${isRecurring ? 'selected' : ''}" data-purchase-mode="recurring" aria-pressed="${isRecurring}"><strong>С автопродлением</strong><small>Списание раз в ${selected.months || 1} ${russianMonthWord(selected.months || 1)}</small></button></div>` : '';
+  const providerCards = `<button type="button" class="payment-method-card payment-method-stub" disabled aria-disabled="true"><span class="payment-method-icon payment-method-card-icon" aria-hidden="true">${icon('card', 20)}</span><span><strong>Оплата картой, СБП</strong><small>Платёжная система приложения</small></span><span class="payment-method-soon">Скоро</span></button><button type="button" class="payment-method-card payment-method-tribute ${state.paymentProvider === 'tribute' ? 'selected' : ''}" data-payment-provider="tribute" aria-pressed="${state.paymentProvider === 'tribute'}"><span class="payment-method-icon payment-method-stars-icon" aria-hidden="true">⭐</span><span><strong>Оплата картой, СБП, Stars</strong><small>Перейти в приложение Tribute</small></span><span class="payment-method-selection" aria-hidden="true"></span></button>`;
   const consentText = isRecurring
-    ? `Согласен на автоматическое списание ${selected.price}${allowsStarsForPeriod ? ` / ⭐ ${displayedStars}` : ''} за продление раз в ${selected.months || 1} ${russianMonthWord(selected.months || 1)}. Отменить автопродление можно в Tribute.`
-    : 'Принимаю';
-  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet"><span aria-hidden="true">×</span></button><header class="payment-sheet-header"><div class="payment-sheet-heading"><h2 id="payment-sheet-title">Оплата</h2><p>Подтверди условия и продолжи в Tribute</p></div><img class="payment-sheet-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут" /></header><div class="payment-order-card"><div class="payment-order-features">${orderRows}</div><b class="payment-order-price">${escapeHtml(price)}</b></div>${recurringOptions}<p class="payment-method-label">Способы оплаты в Tribute</p><div class="payment-method-list">${methodRows}</div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>${consentText} <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">· условия оплаты</a>.</span></label><button type="button" class="button button-blue payment-continue" data-action="continue-payment" ${continueDisabled ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : 'Перейти к оплате'}</button><p class="payment-sheet-note">${detail} СБП доступен при включении для магазина Tribute.</p></section></div>`;
+    ? `Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оферты</a> и соглашаюсь на автоматическое списание ${selected.price}${allowsStarsForPeriod ? ` / ⭐ ${displayedStars}` : ''} каждые ${selected.months || 1} ${russianMonthWord(selected.months || 1)}. Автопродление можно отменить в Tribute.`
+    : `Принимаю <a href="https://t.me/SpySkaut_bot?start=terms" target="_blank" rel="noopener">условия оферты</a>.`;
+  return `<div class="payment-sheet-backdrop" data-action="close-payment-sheet"><section class="payment-sheet" role="dialog" aria-modal="true" aria-labelledby="payment-sheet-title" data-payment-sheet><div class="payment-sheet-handle"></div><button type="button" class="payment-sheet-close" aria-label="Закрыть" data-action="close-payment-sheet"><span aria-hidden="true">×</span></button><header class="payment-sheet-header"><div class="payment-sheet-heading"><h2 id="payment-sheet-title">Оплата</h2><p>Выбери платёжный сервис и подтверди условия</p></div><img class="payment-sheet-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут" /></header><div class="payment-order-card"><div class="payment-order-features">${orderRows}</div><b class="payment-order-price">${escapeHtml(price)}</b></div><p class="payment-method-label">Способ оплаты</p><div class="payment-method-list">${providerCards}</div><label class="payment-terms-consent"><input type="checkbox" data-terms-consent ${state.paymentTermsAccepted ? 'checked' : ''}><span>${consentText}</span></label><button type="button" class="button button-blue payment-continue" data-action="continue-payment" ${continueDisabled ? 'disabled' : ''}>${state.paymentLoading ? 'Открываем Tribute…' : 'Перейти к оплате'}</button><p class="payment-sheet-note">${detail} В Tribute будут показаны доступные способы оплаты и сумма.</p></section></div>`;
 }
 
 function telegramSettingsDock() {
@@ -684,7 +679,7 @@ function refreshTariffPaymentButton() {
     button.disabled = state.paymentLoading;
     const note = app.querySelector('.tariff-dock-note');
     if (note) note.textContent = isSubscription
-      ? 'В окне оплаты выбери разовую покупку или автопродление.'
+      ? 'Для тарифа включено автопродление; условия нужно подтвердить перед оплатой.'
       : 'Разовый пакет событий без срока действия. Архив личных чатов в пакет не входит.';
   } else if (state.tab === 'group-tariffs') {
     const selected = GROUP_TARIFFS.find(plan => plan.id === state.selectedGroupTariff) || GROUP_TARIFFS[1];
@@ -693,7 +688,7 @@ function refreshTariffPaymentButton() {
     button.textContent = `Оплатить ${tariffPriceLabel(selected.priceRub)}`;
     button.disabled = state.paymentLoading || !ready;
     const note = app.querySelector('.tariff-dock-note');
-    if (note) note.textContent = 'Доступ к выбранному числу групп на 1 месяц. В окне оплаты можно включить автопродление.';
+    if (note) note.textContent = 'Доступ к выбранному числу групп на 1 месяц с автопродлением.';
   }
 }
 function archive() {
@@ -986,7 +981,7 @@ async function api(path, options = {}) {
   return result;
 }
 
-const PAYMENT_TERMS_VERSION = '2026-11-04-shop-v1';
+const PAYMENT_TERMS_VERSION = '2026-11-04-shop-v2';
 
 async function purchaseSelectedPlan() {
   const selection = state.paymentSelection || {
@@ -994,8 +989,9 @@ async function purchaseSelectedPlan() {
     plan_id: state.selectedTariff,
   };
   if (!state.authenticated || (!state.telegram?.openLink && !state.telegram?.openTelegramLink)) { toast('Открой приложение через Telegram.'); return; }
+  if (state.paymentProvider !== 'tribute') { toast('Сначала выбери оплату через Tribute.'); return; }
   if (!state.paymentTermsAccepted) { toast('Сначала прими условия оплаты.'); return; }
-  if (state.paymentPurchaseMode === 'recurring' && selection.service_key === 'personal_package') { toast('Пакеты уведомлений оплачиваются один раз.'); return; }
+  const purchaseMode = selection.service_key === 'personal_package' ? 'one_time' : 'recurring';
   if (state.paymentLoading) return;
   const previous = JSON.stringify([state.subscription?.expires_at || '', state.packageBalance?.remaining ?? '', state.groupEntitlement?.purchase_count ?? 0, state.groupEntitlement?.expires_at || '']);
   state.paymentLoading = true;
@@ -1003,18 +999,18 @@ async function purchaseSelectedPlan() {
   try {
     const result = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({
       service_key: selection.service_key, plan_id: selection.plan_id,
-      purchase_mode: state.paymentPurchaseMode,
+      purchase_mode: purchaseMode,
       terms_accepted: true,
-      autorenew_accepted: state.paymentPurchaseMode === 'recurring' && state.paymentTermsAccepted,
+      autorenew_accepted: purchaseMode === 'recurring' && state.paymentTermsAccepted,
       terms_version: PAYMENT_TERMS_VERSION
     }) });
     const expected = selection.service_key === 'groups'
       ? GROUP_TARIFFS.find(plan => plan.id === selection.plan_id)
       : tariffPlans(selection.service_key === 'personal_package' ? 'package' : 'unlimited').find(plan => plan.id === selection.plan_id);
-    const expectedStars = state.paymentPurchaseMode === 'recurring' && selection.service_key === 'personal_unlimited' && selection.plan_id !== 'month'
+    const expectedStars = purchaseMode === 'recurring' && selection.service_key === 'personal_unlimited' && selection.plan_id !== 'month'
       ? 0 : Number(expected?.stars || 0);
     if (!expected || result.service_key !== selection.service_key || result.plan_id !== selection.plan_id
-      || result.purchase_mode !== state.paymentPurchaseMode
+      || result.purchase_mode !== purchaseMode
       || Number(result.amount) !== expected.priceRub || Number(result.stars) !== expectedStars
       || String(result.currency).toUpperCase() !== 'RUB') {
       throw new Error('Цена или тариф не совпали. Закрой оплату и попробуй ещё раз.');
@@ -1391,12 +1387,12 @@ app.addEventListener('change', event => {
   state.paymentTermsAccepted = event.target.checked;
   const button = app.querySelector('[data-action="continue-payment"]');
   const selection = state.paymentSelection;
-  const canContinue = Boolean(selection && !state.paymentLoading && tributePlanAvailable(selection.service_key, selection.plan_id));
+  const canContinue = Boolean(selection && state.paymentProvider === 'tribute' && !state.paymentLoading && tributePlanAvailable(selection.service_key, selection.plan_id));
   if (button) button.disabled = !state.paymentTermsAccepted || !canContinue;
 });
 
 app.addEventListener('click', async event => {
-  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-archive-mode], [data-archive-group], [data-archive-topic], [data-contact-id], [data-notification-toggle], [data-tariff-mode], [data-tariff-option], [data-group-tariff], [data-purchase-mode]');
+  const target = event.target.closest('[data-action], [data-tab], [data-tutorial], [data-archive-filter], [data-archive-mode], [data-archive-group], [data-archive-topic], [data-contact-id], [data-notification-toggle], [data-tariff-mode], [data-tariff-option], [data-group-tariff], [data-payment-provider]');
   if (!target) return;
   try {
     if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
@@ -1424,10 +1420,9 @@ app.addEventListener('click', async event => {
     refreshTariffPaymentButton();
     return;
   }
-  if (target.dataset.purchaseMode) {
-    if (!(target.dataset.purchaseMode === 'one_time' || target.dataset.purchaseMode === 'recurring')) return;
-    state.paymentPurchaseMode = target.dataset.purchaseMode;
-    state.paymentTermsAccepted = false;
+  if (target.dataset.paymentProvider) {
+    if (target.dataset.paymentProvider !== 'tribute') return;
+    state.paymentProvider = 'tribute';
     render();
     return;
   }
@@ -1435,7 +1430,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.action === 'open-payment-sheet') {
     if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
-    state.paymentPurchaseMode = 'recurring';
+    state.paymentProvider = null;
     state.paymentSelection = { service_key: 'personal_unlimited', plan_id: state.selectedTariff };
     state.paymentSheetOpen = true;
     render();
@@ -1444,7 +1439,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.action === 'open-package-payment-sheet') {
     if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
-    state.paymentPurchaseMode = 'one_time';
+    state.paymentProvider = null;
     state.paymentSelection = { service_key: 'personal_package', plan_id: state.selectedTariff };
     state.paymentSheetOpen = true;
     render();
@@ -1453,7 +1448,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.action === 'open-group-payment-sheet') {
     if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
-    state.paymentPurchaseMode = 'recurring';
+    state.paymentProvider = null;
     state.paymentSelection = { service_key: 'groups', plan_id: state.selectedGroupTariff };
     state.paymentSheetOpen = true;
     render();
@@ -1462,6 +1457,7 @@ app.addEventListener('click', async event => {
   if (target.dataset.action === 'close-payment-sheet') {
     if (target.classList.contains('payment-sheet-backdrop') && event.target !== target) return;
     state.paymentSheetOpen = false;
+    state.paymentProvider = null;
     state.paymentSelection = null;
     render();
     return;
