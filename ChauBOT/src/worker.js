@@ -205,7 +205,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.23" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.24" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -235,6 +235,7 @@ export default {
         await saveUser(env.DB, user);
         await trackAppVisitor(env.DB, user);
         await initializeNotificationPreferences(env.DB, String(user.id), body.notification_preferences);
+        await upgradeNotificationControlMessage(env, String(user.id));
         return json({ ...(await getUserBootstrap(env, user)), authenticated: true });
       } catch (error) {
         return json({ error: publicError(error) }, 401);
@@ -549,6 +550,13 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
+      const pendingControlMessage = await env.DB.prepare(
+        "SELECT 1 AS pending FROM notification_control_messages WHERE keyboard_version < 2 LIMIT 1",
+      ).first();
+      if (pendingControlMessage) {
+        const callbackUpdatesReady = await ensureTelegramCallbackUpdates(env);
+        if (callbackUpdatesReady) await upgradePendingNotificationControlMessages(env);
+      }
       const promotedReplies = await expirePendingReplyEvents(env);
       const repliesByOwner = new Map();
       for (const reply of promotedReplies) {
@@ -585,6 +593,14 @@ async function handleTelegramWebhook(request, env) {
   logBusinessMediaDiagnostic(update);
 
   try {
+    if (update.callback_query) {
+      if (update.callback_query.data === "toggle_one_time_messages") {
+        return await handleNotificationToggleCallback(update.callback_query, env);
+      }
+      await callTelegramJson(env, "answerCallbackQuery", { callback_query_id: update.callback_query.id });
+      return json({ ok: true, ignored: "unknown_callback" });
+    }
+
     const incomingMessage = update.message;
     const commandText = typeof incomingMessage?.text === "string" ? incomingMessage.text.trim() : "";
     const startMatch = commandText.match(/^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{1,64}))?$/i);
@@ -612,6 +628,7 @@ async function handleTelegramWebhook(request, env) {
       const ownerId = String(incomingMessage.from?.id || incomingMessage.chat.id);
       let hasEnabledConnection = false;
       let oneTimeMessagesEnabled = true;
+      let callbackUpdatesReady = false;
       if (!isHelp) {
         await saveUser(env.DB, incomingMessage.from || { id: incomingMessage.chat.id });
         hasEnabledConnection = Boolean(await env.DB.prepare(
@@ -619,6 +636,7 @@ async function handleTelegramWebhook(request, env) {
         ).bind(ownerId).first());
         const notificationSettings = await getNotificationPreferences(env.DB, ownerId);
         oneTimeMessagesEnabled = notificationSettings.preferences.one_time_messages;
+        if (hasEnabledConnection) callbackUpdatesReady = await ensureTelegramCallbackUpdates(env);
       }
       const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
@@ -627,13 +645,13 @@ async function handleTelegramWebhook(request, env) {
           chat_id: incomingMessage.chat.id,
           text: isHelp
             ? "Я SpySkaut — архив изменений в подключённых чатах Telegram.\n\n/start — открыть приложение и начать\n/connect — получить инструкцию по подключению личных чатов\n/terms — условия оплаты\n/paysupport — помощь по платежам\n/help — показать эту справку\n\nЯ сохраняю только новые события, которые Telegram присылает после подключения выбранного чата. Историю сообщений до подключения восстановить нельзя."
-            : "Привет! Я Скаут, помощник SpySkaut 🕵️\n\n✏️ Показывает изменения сообщений и сохранённый исходный текст.\n🗑️ Фиксирует удаления, о которых Telegram сообщил боту.\n🔔 Присылает уведомления о событиях — их можно настроить в приложении.\n📎 Сохраняет доступные фото, видео, голосовые и документы.\n🗂️ Хранит архив до 7 дней.\n\n<b>Как начать:</b>\n1. Подключи SpySkaut через настройки Telegram.\n2. В «Автоматизации чатов» добавь @SpySkaut_bot и выбери нужные чаты.\n3. Открой приложение и смотри историю событий.\n\nСохраняются события, которые Telegram присылает после подключения выбранных чатов. Исчезающие медиа могут быть недоступны.",
+            : "Привет! Я Скаут, помощник SpySkaut 🕵️\n\n✏️ Показывает изменения сообщений и сохранённый исходный текст.\n🗑️ Фиксирует удаления, о которых Telegram сообщил боту.\n🔔 Присылает уведомления о событиях — одноразовые сообщения можно включать кнопкой ниже.\n📎 Сохраняет доступные фото, видео, голосовые и документы.\n🗂️ Хранит архив до 7 дней.\n\n<b>Как начать:</b>\n1. Подключи SpySkaut через настройки Telegram.\n2. В «Автоматизации чатов» добавь @SpySkaut_bot и выбери нужные чаты.\n3. Открой приложение и смотри историю событий.\n\nСохраняются события, которые Telegram присылает после подключения выбранных чатов. Исчезающие медиа могут быть недоступны.",
           parse_mode: isHelp ? undefined : "HTML",
           reply_markup: {
             inline_keyboard: isHelp
               ? [[{ text: "Открыть SpySkaut", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]]
               : [
-                  [notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled)],
+                  [notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled, callbackUpdatesReady)],
                   [{ text: "Открыть приложение", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }],
                 ],
           },
@@ -642,7 +660,13 @@ async function handleTelegramWebhook(request, env) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result.ok !== true) return json({ error: "Telegram could not send the start message" }, 502);
       if (startMatch && Number.isInteger(result.result?.message_id)) {
-        await saveNotificationControlMessage(env.DB, ownerId, incomingMessage.chat.id, result.result.message_id);
+        await saveNotificationControlMessage(
+          env.DB,
+          ownerId,
+          incomingMessage.chat.id,
+          result.result.message_id,
+          callbackUpdatesReady ? 2 : 1,
+        );
       }
       return json({ ok: true, handled: isHelp ? "help" : "start" });
     }
@@ -1809,38 +1833,79 @@ const defaultNotificationPreferences = Object.freeze({
   edited_by_owner: false,
 });
 
-function notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled) {
+function notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled, callbackUpdatesReady = true) {
   if (!hasEnabledConnection) {
     return { text: "Подключить личные чаты", url: "https://t.me/SpySkaut_bot?start=connect" };
   }
   return {
-    text: `🔔 Одноразовые: ${oneTimeMessagesEnabled ? "Вкл" : "Выкл"}`,
-    web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=notifications" },
+    text: `${oneTimeMessagesEnabled ? "🔔" : "🔕"} Одноразовые: ${oneTimeMessagesEnabled ? "Вкл" : "Выкл"}`,
+    ...(callbackUpdatesReady
+      ? { callback_data: "toggle_one_time_messages" }
+      : { web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=notifications" } }),
   };
 }
 
-function notificationControlReplyMarkup(hasEnabledConnection, oneTimeMessagesEnabled) {
+function notificationControlReplyMarkup(hasEnabledConnection, oneTimeMessagesEnabled, callbackUpdatesReady = true) {
   return {
     inline_keyboard: [
-      [notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled)],
+      [notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled, callbackUpdatesReady)],
       [{ text: "Открыть приложение", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }],
     ],
   };
 }
 
-async function saveNotificationControlMessage(db, ownerId, chatId, messageId) {
+async function ensureTelegramCallbackUpdates(env) {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_WEBHOOK_SECRET) return false;
+  try {
+    const infoResponse = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+    const infoPayload = await infoResponse.json().catch(() => ({}));
+    const webhookInfo = infoPayload.result;
+    if (!infoResponse.ok || infoPayload.ok !== true || typeof webhookInfo?.url !== "string") return false;
+
+    const webhookUrl = new URL(webhookInfo.url);
+    if (webhookUrl.protocol !== "https:" || webhookUrl.pathname !== "/webhooks/telegram") return false;
+    if (webhookInfo.has_custom_certificate === true) return false;
+
+    const allowedUpdates = webhookInfo.allowed_updates;
+    if (!Array.isArray(allowedUpdates) || allowedUpdates.length === 0 || allowedUpdates.includes("callback_query")) return true;
+
+    const setWebhookPayload = {
+      url: webhookInfo.url,
+      secret_token: env.TELEGRAM_WEBHOOK_SECRET,
+      allowed_updates: [...new Set([...allowedUpdates, "callback_query"])],
+      drop_pending_updates: false,
+    };
+    if (typeof webhookInfo.ip_address === "string") setWebhookPayload.ip_address = webhookInfo.ip_address;
+    if (Number.isInteger(webhookInfo.max_connections)) setWebhookPayload.max_connections = webhookInfo.max_connections;
+    const setResponse = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(setWebhookPayload),
+    });
+    const setPayload = await setResponse.json().catch(() => ({}));
+    return setResponse.ok && setPayload.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+async function saveNotificationControlMessage(db, ownerId, chatId, messageId, keyboardVersion = 2) {
   await db.prepare(`
-    INSERT INTO notification_control_messages(owner_id, chat_id, message_id, updated_at)
-    VALUES(?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO notification_control_messages(owner_id, chat_id, message_id, keyboard_version, updated_at)
+    VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(owner_id) DO UPDATE SET
       chat_id = excluded.chat_id,
       message_id = excluded.message_id,
+      keyboard_version = excluded.keyboard_version,
       updated_at = CURRENT_TIMESTAMP
-  `).bind(String(ownerId), String(chatId), Number(messageId)).run();
+  `).bind(String(ownerId), String(chatId), Number(messageId), Number(keyboardVersion)).run();
 }
 
-async function refreshNotificationControlMessage(env, ownerId) {
+async function refreshNotificationControlMessage(env, ownerId, callbackUpdatesReady = null) {
   if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const callbacksReady = callbackUpdatesReady == null
+    ? await ensureTelegramCallbackUpdates(env)
+    : callbackUpdatesReady;
   const savedMessage = await env.DB.prepare(
     "SELECT chat_id, message_id FROM notification_control_messages WHERE owner_id = ?",
   ).bind(String(ownerId)).first();
@@ -1851,18 +1916,115 @@ async function refreshNotificationControlMessage(env, ownerId) {
       .bind(String(ownerId)).first(),
     getNotificationPreferences(env.DB, ownerId),
   ]);
-  return callTelegramJson(env, "editMessageReplyMarkup", {
+  const updated = await editNotificationControlMarkup(env, {
     chat_id: savedMessage.chat_id,
     message_id: savedMessage.message_id,
     reply_markup: notificationControlReplyMarkup(
       Boolean(activeConnection),
       notificationSettings.preferences.one_time_messages,
+      callbacksReady,
     ),
   });
+  if (updated) {
+    await env.DB.prepare("UPDATE notification_control_messages SET keyboard_version = ?, updated_at = CURRENT_TIMESTAMP WHERE owner_id = ?")
+      .bind(callbacksReady ? 2 : 1, String(ownerId)).run();
+  }
+  return updated;
+}
+
+async function upgradeNotificationControlMessage(env, ownerId) {
+  const savedMessage = await env.DB.prepare(
+    "SELECT keyboard_version FROM notification_control_messages WHERE owner_id = ?",
+  ).bind(String(ownerId)).first();
+  if (!savedMessage || Number(savedMessage.keyboard_version) >= 2) return false;
+  return refreshNotificationControlMessage(env, ownerId);
+}
+
+async function upgradePendingNotificationControlMessages(env) {
+  const pending = await env.DB.prepare(
+    "SELECT owner_id FROM notification_control_messages WHERE keyboard_version < 2 ORDER BY updated_at LIMIT 25",
+  ).all();
+  for (const row of pending.results || []) {
+    const updated = await refreshNotificationControlMessage(env, String(row.owner_id), true);
+    if (!updated) {
+      await env.DB.prepare("UPDATE notification_control_messages SET updated_at = CURRENT_TIMESTAMP WHERE owner_id = ?")
+        .bind(String(row.owner_id)).run();
+    }
+  }
+}
+
+async function editNotificationControlMarkup(env, payload) {
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageReplyMarkup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    return (response.ok && result.ok === true)
+      || (Number(result.error_code) === 400 && /message is not modified/i.test(String(result.description || "")));
+  } catch {
+    return false;
+  }
+}
+
+async function handleNotificationToggleCallback(callbackQuery, env) {
+  const ownerId = callbackQuery.from?.id == null ? "" : String(callbackQuery.from.id);
+  const message = callbackQuery.message;
+  const chat = message?.chat;
+  const messageId = Number(message?.message_id);
+  const answer = (payload) => callTelegramJson(env, "answerCallbackQuery", {
+    callback_query_id: callbackQuery.id,
+    ...payload,
+  });
+
+  if (!ownerId || chat?.type !== "private" || String(chat.id) !== ownerId || !Number.isInteger(messageId)) {
+    await answer({ text: "Открой кнопку в личном чате со SpySkaut.", show_alert: true });
+    return json({ ok: true, ignored: "invalid_notification_control_context" });
+  }
+
+  const savedMessage = await env.DB.prepare(
+    "SELECT 1 AS saved FROM notification_control_messages WHERE owner_id = ? AND chat_id = ? AND message_id = ?",
+  ).bind(ownerId, String(chat.id), messageId).first();
+  if (!savedMessage) {
+    await answer({ text: "Отправь /start, чтобы получить актуальное управление уведомлениями.", show_alert: true });
+    return json({ ok: true, ignored: "stale_notification_control" });
+  }
+
+  const activeConnection = await env.DB.prepare(
+    "SELECT 1 AS connected FROM connections WHERE owner_id = ? AND enabled = 1 LIMIT 1",
+  ).bind(ownerId).first();
+  if (!activeConnection) {
+    await answer({ text: "Сначала подключи SpySkaut к личным чатам.", show_alert: true });
+    await refreshNotificationControlMessage(env, ownerId, true);
+    return json({ ok: true, ignored: "connection_disabled" });
+  }
+
+  await initializeNotificationPreferences(env.DB, ownerId, null);
+  await env.DB.prepare(`
+    UPDATE notification_preferences
+    SET one_time_messages = 1 - one_time_messages, updated_at = CURRENT_TIMESTAMP
+    WHERE owner_id = ?
+  `).bind(ownerId).run();
+  let enabled = null;
+  try {
+    const notificationSettings = await getNotificationPreferences(env.DB, ownerId);
+    enabled = notificationSettings.preferences.one_time_messages;
+  } catch {}
+  await answer({
+    text: enabled == null
+      ? "Настройка одноразовых уведомлений обновлена."
+      : `Уведомления об одноразовых сообщениях ${enabled ? "включены" : "выключены"}.`,
+  });
+  try {
+    await refreshNotificationControlMessage(env, ownerId, true);
+  } catch {}
+  return json({ ok: true, handled: "notification_toggle", enabled });
 }
 
 async function sendNotificationControlMessage(env, ownerId) {
   if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const callbacksReady = await ensureTelegramCallbackUpdates(env);
   const notificationSettings = await getNotificationPreferences(env.DB, ownerId);
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -1870,13 +2032,13 @@ async function sendNotificationControlMessage(env, ownerId) {
     body: JSON.stringify({
       chat_id: ownerId,
       text: "✅ SpySkaut подключён к личным чатам. Управляй уведомлениями об одноразовых сообщениях здесь:",
-      reply_markup: notificationControlReplyMarkup(true, notificationSettings.preferences.one_time_messages),
+      reply_markup: notificationControlReplyMarkup(true, notificationSettings.preferences.one_time_messages, callbacksReady),
     }),
   }).catch(() => null);
   if (!response?.ok) return false;
   const result = await response.json().catch(() => ({}));
   if (result.ok !== true || !Number.isInteger(result.result?.message_id)) return false;
-  await saveNotificationControlMessage(env.DB, ownerId, ownerId, result.result.message_id);
+  await saveNotificationControlMessage(env.DB, ownerId, ownerId, result.result.message_id, callbacksReady ? 2 : 1);
   return true;
 }
 

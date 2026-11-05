@@ -101,6 +101,7 @@ deleted_business_messages
 message
 edited_message
 my_chat_member
+callback_query
 ```
 
 Test with a Telegram Business connection that you control before inviting users. Confirm the consent screen, archive behavior, revocation behavior, deletion, and privacy text before enabling real use.
