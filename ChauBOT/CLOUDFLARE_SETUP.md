@@ -119,24 +119,30 @@ Keep the existing Worker `spychau-bot`, its URL, production D1 database, private
 
 ## Prepare Tribute payments
 
-1. Apply the payment migrations to the intended database before deploying the Worker:
+The application uses Tribute Creator subscriptions for «Безлимит» and «Группы», and Tribute Digital Products for notification packages. The Tribute Shop API is not used to start new checkouts.
 
-   ```powershell
-   npx wrangler d1 migrations apply spychau-bot-dev --remote
-   npx wrangler d1 migrations apply spychau-bot-production --remote --env production
+1. Create recurring subscriptions in the Tribute Creator Dashboard for the unlimited periods (1, 6, and 12 months) and group plans (3, 10, and 20 groups, billed monthly). Make sure the price and billing period for each option match the values in `src/worker.js`. Copy each Telegram or web checkout link. Tribute's creator subscriptions can be configured with different billing periods, including monthly, half-yearly, and yearly. A linked bank card is needed for automatic renewal; without one, Tribute asks the subscriber to renew manually.
+
+2. Set the production Worker variable `TRIBUTE_SUBSCRIPTIONS` to a JSON object with one entry per purchasable subscription. Use the keys `personal_unlimited:month`, `personal_unlimited:half-year`, `personal_unlimited:year`, `groups:groups3`, `groups:groups10`, and `groups:groups20`. Each entry must contain `amount_rub` and at least one valid `telegram_link` or `web_link`. Copy the subscription link from Tribute Creator Dashboard → Channels & Groups → select the channel and subscription → Links. Product links such as `https://web.tribute.tg/p/...` and Telegram links whose `startapp` starts with `p` are digital products and are rejected for subscriptions. The same Tribute subscription link may be used for several periods if it offers those exact periods and prices. The checkout is enabled only for a tariff with a configured subscription link and matching price.
+
+   Example shape (replace the sample link with the actual link from Tribute):
+
+   ```json
+   {
+     "personal_unlimited:month": {
+       "telegram_link": "https://t.me/tribute/app?startapp=ep_REPLACE_ME",
+       "amount_rub": 249
+     }
+   }
    ```
 
-2. After deploying the Tribute webhook route, set the API key as a Worker secret. Run Wrangler from the project folder; it will prompt for the value so it does not enter shell history:
+3. Keep the three `personal_package` entries in `TRIBUTE_PRODUCTS` for packs of 100, 300, and 500 notifications. The six older unlimited/group entries remain only to recognize delayed webhooks from old digital-product purchases; the app no longer sends buyers to them. In Tribute, set the package prices to 189 ₽, 499 ₽, and 699 ₽, enable card payment, and leave Telegram Stars disabled for now. Before redirecting a buyer, the Worker checks the product's current approval, price, and payment settings through the Tribute Products API.
 
-   ```powershell
-   npx wrangler secret put TRIBUTE_API_KEY --name spychau-bot
-   ```
+4. In Tribute Creator Dashboard → Settings → API Keys, set the webhook URL to `https://spychau-bot.senba11.workers.dev/webhooks/tribute` and send a test request. The webhook uses the existing `TRIBUTE_API_KEY` Worker secret to verify the signature and process subscription lifecycle events and Digital Product purchases/refunds. Shop API events are still accepted only to finish handling any old orders that were created before the switch.
 
-3. In Tribute Creator Dashboard → Settings → API Keys, set the webhook URL to `https://spychau-bot.senba11.workers.dev/webhooks/tribute`, save it, and use **Send test request** to check signed delivery. The handler supports both legacy Digital Product events and Shop API order, renewal, cancellation, and refund events.
+5. Apply migration `0014_tribute_recurring_subscriptions.sql` to the intended D1 database before deploying Worker code that uses it. The existing D1, R2 bucket, and encryption key must remain unchanged.
 
-4. Confirm in Tribute that the API key can read an active standard Shop (`onlyStars` disabled), recurring orders are enabled, and Telegram Stars are enabled (`tokenCharging` disabled). Tribute Shop API accepts both the RUB and Stars prices sent by the Worker; one-time orders support SBP when enabled for the seller, and recurring SBP must be enabled separately by Tribute support. Stars are available for one-time and monthly orders; six- and twelve-month auto-renewal therefore use card/SBP, while their one-time checkout also offers Stars.
-
-5. Keep `TRIBUTE_SHOP_API_ENABLED` set to `false` until the signed webhook and a non-charged Shop API order have been verified, then enable it for production. The checkout endpoint checks Shop status and recurring support before creating an order. The Shop API `preferredPaymentMethods` setting is a preference, not a restriction; Tribute controls which enabled methods are shown to each buyer.
+Tribute chooses which payment methods it shows to a buyer. The application labels this option as «Оплата через Tribute» and does not promise a particular method such as SBP or Telegram Stars. Automatic renewal requires a payment method that Tribute can charge again, currently a linked bank card. If SBP is offered but does not support recurring charging for that subscription, Tribute handles the next renewal manually.
 
 Do not change the D1/R2 bindings or `JOURNAL_ENCRYPTION_KEY`: user IDs stay the same between bots, so existing archive rows, subscriptions, and encrypted journal objects remain available after the user opens the app through the new bot.
 

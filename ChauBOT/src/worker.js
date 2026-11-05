@@ -36,62 +36,23 @@ function tributePaymentsConfigured(env) {
     && typeof env.PAYMENTS_TERMS_VERSION === "string" && env.PAYMENTS_TERMS_VERSION.trim()
     && typeof env.PAYMENTS_TERMS_TEXT === "string" && env.PAYMENTS_TERMS_TEXT.trim()
     && typeof env.PAYMENTS_SUPPORT_URL === "string"
-    && (/^https:\/\/\S+$/i.test(env.PAYMENTS_SUPPORT_URL) || /^mailto:[^\s@]+@[^\s@]+$/i.test(env.PAYMENTS_SUPPORT_URL))
-    && env.TRIBUTE_SHOP_API_ENABLED === "true";
+    && (/^https:\/\/\S+$/i.test(env.PAYMENTS_SUPPORT_URL) || /^mailto:[^\s@]+@[^\s@]+$/i.test(env.PAYMENTS_SUPPORT_URL));
 }
 
 function tributePaymentsReady(env, serviceKey = null, planId = null) {
   if (!tributePaymentsConfigured(env)) return false;
-  if (["personal_unlimited", "personal_package", "groups"].includes(serviceKey)) {
-    const plans = serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS
-      : serviceKey === "personal_package" ? PERSONAL_PACKAGE_PLANS : GROUP_ACCESS_PLANS;
-    if (planId) return Object.hasOwn(plans, planId);
-    return Object.keys(plans).length > 0;
-  }
-  return serviceKey === null;
-}
-
-function tributeBillingPeriod(serviceKey, planId) {
-  if (serviceKey === "personal_package") return "onetime";
-  const plan = serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId] : GROUP_ACCESS_PLANS[planId];
-  if (plan?.months === 1) return "monthly";
-  if (plan?.months === 6) return "halfyearly";
-  if (plan?.months === 12) return "yearly";
-  return null;
-}
-
-async function getTributeShop(env) {
-  const query = env.TRIBUTE_SHOP_ID ? `?shopId=${encodeURIComponent(String(env.TRIBUTE_SHOP_ID))}` : "";
-  let response;
-  try {
-    response = await fetch(`https://tribute.tg/api/v1/shop${query}`, {
-      headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), Accept: "application/json" },
-    });
-  } catch { return { shop: null, issue: "api_unavailable" }; }
-  if (!response.ok) return { shop: null, issue: response.status === 404 ? "shop_not_found" : "api_unavailable" };
-  try {
-    const shop = await response.json();
-    if (!shop || Number(shop.status) !== 1) return { shop: null, issue: "shop_inactive" };
-    return { shop, issue: null };
-  } catch { return { shop: null, issue: "invalid_response" }; }
-}
-
-async function createTributeShopOrder(env, body) {
-  let response;
-  try {
-    response = await fetch("https://tribute.tg/api/v1/shop/orders", {
-      method: "POST",
-      headers: { "Api-Key": String(env.TRIBUTE_API_KEY || ""), "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ ...(env.TRIBUTE_SHOP_ID ? { shopId: Number(env.TRIBUTE_SHOP_ID) } : {}), ...body }),
-    });
-  } catch { return { order: null, issue: "api_unavailable" }; }
-  if (!response.ok) {
-    const issue = response.status === 401 || response.status === 403 ? "shop_api_access_denied"
-      : response.status === 404 ? "shop_not_found" : "shop_order_rejected";
-    return { order: null, issue };
-  }
-  try { return { order: await response.json(), issue: null }; }
-  catch { return { order: null, issue: "invalid_response" }; }
+  if (serviceKey === "personal_package") return planId
+    ? Boolean(tributeProduct(env, serviceKey, planId))
+    : Object.keys(PERSONAL_PACKAGE_PLANS).some((id) => Boolean(tributeProduct(env, serviceKey, id)));
+  if (["personal_unlimited", "groups"].includes(serviceKey)) return planId
+    ? Boolean(tributeSubscription(env, serviceKey, planId))
+    : Object.keys(serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS : GROUP_ACCESS_PLANS)
+      .some((id) => Boolean(tributeSubscription(env, serviceKey, id)));
+  return serviceKey === null && (
+    Object.keys(PERSONAL_PACKAGE_PLANS).some((id) => Boolean(tributeProduct(env, "personal_package", id)))
+    || Object.keys(PERSONAL_SUBSCRIPTION_PLANS).some((id) => Boolean(tributeSubscription(env, "personal_unlimited", id)))
+    || Object.keys(GROUP_ACCESS_PLANS).some((id) => Boolean(tributeSubscription(env, "groups", id)))
+  );
 }
 
 async function cancelTributeShopOrder(env, orderUuid) {
@@ -102,13 +63,6 @@ async function cancelTributeShopOrder(env, orderUuid) {
     });
     return response.ok;
   } catch { return false; }
-}
-
-function tributePlanLabel(serviceKey, planId) {
-  if (serviceKey === "personal_package") return `Пакет уведомлений · ${PERSONAL_PACKAGE_PLANS[planId]?.events || 0} событий`;
-  if (serviceKey === "groups") return `SpySkaut · ${GROUP_ACCESS_PLANS[planId]?.groups || 0} групп`;
-  const months = PERSONAL_SUBSCRIPTION_PLANS[planId]?.months || 0;
-  return `Личные чаты — Безлимит · ${months} ${russianMonthWord(months)}`;
 }
 
 function tributeProductMap(env) {
@@ -133,6 +87,53 @@ function tributeProduct(env, serviceKey, planId) {
   if (!plan || !Number.isFinite(expected) || Number(spec?.amount_rub) !== expected
     || !webMatch || !telegramMatch) return null;
   return { key, link: rawLink, web_link: rawWebLink, checkout_url: rawWebLink, amount_rub: expected, ...plan };
+}
+
+function tributeSubscriptionMap(env) {
+  try {
+    const value = JSON.parse(String(env.TRIBUTE_SUBSCRIPTIONS || "{}"));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch { return null; }
+}
+
+function tributeSubscription(env, serviceKey, planId) {
+  const subscriptions = tributeSubscriptionMap(env);
+  const spec = subscriptions?.[`${serviceKey}:${planId}`];
+  const plan = serviceKey === "personal_unlimited" ? PERSONAL_SUBSCRIPTION_PLANS[planId]
+    : serviceKey === "groups" ? GROUP_ACCESS_PLANS[planId] : null;
+  const expected = plan?.rubles;
+  const telegramLink = String(spec?.telegram_link || spec?.link || "").trim();
+  const webLink = String(spec?.web_link || "").trim();
+  const isTributeLink = (value) => {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.toLowerCase();
+      if (url.protocol !== "https:") return false;
+      if (["t.me", "telegram.me", "www.telegram.me"].includes(host)) {
+        const startParameter = url.searchParams.get("startapp") || url.searchParams.get("start") || "";
+        return /^\/(?:tribute|tribute_bot)(?:\/app)?\/?$/i.test(url.pathname)
+          && Boolean(startParameter)
+          && !/^p[\w-]+$/i.test(startParameter);
+      }
+      return host === "web.tribute.tg" && url.pathname !== "/"
+        && !/^\/p\/[\w-]+\/?$/i.test(url.pathname);
+    } catch { return false; }
+  };
+  const subscriptionId = String(spec?.subscription_id || "").trim();
+  if (!plan || Number(spec?.amount_rub) !== expected
+    || ![telegramLink, webLink].some(isTributeLink)
+    || (subscriptionId && !/^[\w-]{1,100}$/.test(subscriptionId))) return null;
+  return {
+    key: `${serviceKey}:${planId}`,
+    service_key: serviceKey,
+    plan_id: planId,
+    subscription_id: subscriptionId,
+    telegram_link: isTributeLink(telegramLink) ? telegramLink : "",
+    web_link: isTributeLink(webLink) ? webLink : "",
+    checkout_url: isTributeLink(telegramLink) ? telegramLink : webLink,
+    amount_rub: expected,
+    ...plan,
+  };
 }
 
 async function getTributeProduct(productId, env) {
@@ -205,7 +206,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.24" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.25" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -275,47 +276,40 @@ export default {
           const ownerId = String(user.id);
           if (!plan) return json({ error: "plan_unavailable" }, 400);
           if (!tributePaymentsReady(env, serviceKey, planId)) return json({ error: "plan_unavailable" }, 503);
-          const purchaseMode = String(body.purchase_mode || "one_time");
-          if (!(purchaseMode === "one_time" || purchaseMode === "recurring")) return json({ error: "invalid_purchase_mode" }, 400);
-          if (purchaseMode === "recurring" && body.autorenew_accepted !== true) return json({ error: "autorenew_consent_required" }, 400);
-          if (purchaseMode === "recurring" && serviceKey === "personal_package") return json({ error: "package_cannot_auto_renew" }, 400);
-          const billingPeriod = purchaseMode === "one_time" ? "onetime" : tributeBillingPeriod(serviceKey, planId);
-          if (!billingPeriod) return json({ error: "plan_unavailable" }, 400);
-          const shopLookup = await getTributeShop(env);
-          if (!shopLookup.shop) return json({ error: `tribute_${shopLookup.issue || "shop_unavailable"}` }, 503);
-          const shop = shopLookup.shop;
-          if (shop.onlyStars === true) return json({ error: "tribute_shop_must_support_rub" }, 503);
-          if (shop.tokenCharging === true) return json({ error: "tribute_stars_not_enabled" }, 503);
-          if (purchaseMode === "recurring" && shop.recurrent !== true) return json({ error: "tribute_recurring_not_enabled" }, 503);
-          const starsAmount = (billingPeriod === "onetime" || billingPeriod === "monthly") ? Number(plan.stars) : 0;
-          if (starsAmount <= 0 && billingPeriod !== "halfyearly" && billingPeriod !== "yearly") {
-            return json({ error: "tribute_stars_not_enabled" }, 503);
+          const isPackage = serviceKey === "personal_package";
+          const purchaseMode = isPackage ? "one_time" : "recurring";
+          if (!isPackage && body.autorenew_accepted !== true) return json({ error: "autorenew_consent_required" }, 400);
+
+          if (!isPackage) {
+            const existing = serviceKey === "personal_unlimited"
+              ? await env.DB.prepare(`SELECT 1 AS active FROM subscriptions
+                  WHERE owner_id = ? AND auto_renew = 1 AND expires_at > CURRENT_TIMESTAMP LIMIT 1`)
+                .bind(ownerId).first()
+              : (await getGroupEntitlement(env.DB, ownerId)).auto_renew
+                ? { active: 1 } : null;
+            if (existing) return json({ error: "active_subscription_exists" }, 409);
           }
-          const preferredPaymentMethods = ["sbp", "card", ...(starsAmount > 0 ? ["stars"] : [])].map(type => ({ type }));
-          const orderResult = await createTributeShopOrder(env, {
-            amount: Number(plan.rubles) * 100,
-            currency: "rub",
-            title: tributePlanLabel(serviceKey, planId),
-            description: purchaseMode === "recurring"
-              ? `SpySkaut: доступ на ${plan.months} ${russianMonthWord(plan.months)} с автоматическим продлением. Отменить продление можно в Tribute.`
-              : `SpySkaut: ${tributePlanLabel(serviceKey, planId)}. Разовая покупка без автопродления.`,
-            customerId: ownerId,
-            period: billingPeriod,
-            ...(starsAmount > 0 ? { starsAmount } : {}),
-            preferredPaymentMethods,
-          });
-          if (!orderResult.order) return json({ error: `tribute_${orderResult.issue || "shop_order_failed"}` }, 503);
-          const order = orderResult.order;
-          const checkoutUrl = String(order.webappPaymentUrl || "").trim();
-          const orderLink = (() => { try { const url = new URL(checkoutUrl); return ["t.me", "telegram.me", "www.telegram.me"].includes(url.hostname.toLowerCase()) && /^\/(?:tribute|tribute_bot)\/app$/i.test(url.pathname) && Boolean(url.searchParams.get("startapp")); } catch { return false; } })();
-          if (!/^[0-9a-f-]{36}$/i.test(String(order.uuid || "")) || !orderLink
-            || Number(order.amount) !== Number(plan.rubles) * 100
-            || String(order.currency || "").toLowerCase() !== "rub"
-            || Number(order.starsAmount || 0) !== starsAmount
-            || String(order.period || "") !== billingPeriod) {
-            console.warn("Tribute Shop order validation failed", JSON.stringify({ plan_id: planId, service_key: serviceKey, mode: purchaseMode }));
-            return json({ error: "tribute_shop_order_mismatch" }, 502);
+
+          let checkoutUrl = "";
+          if (isPackage) {
+            const product = tributeProduct(env, serviceKey, planId);
+            if (!product) return json({ error: "tribute_product_not_configured" }, 503);
+            const lookup = await getTributeProductByWebLink(product.web_link, env);
+            const actualProduct = lookup.product;
+            if (!actualProduct || actualProduct.type !== "digital" || actualProduct.status !== "approved"
+              || String(actualProduct.currency || "").toUpperCase() !== "RUB"
+              || Number(actualProduct.amount) !== product.amount_rub * 100) {
+              return json({ error: `tribute_product_${lookup.issue || "not_approved"}` }, 503);
+            }
+            if (actualProduct.acceptCards !== true) return json({ error: "tribute_product_cards_not_enabled" }, 503);
+            if (actualProduct.starsAmountEnabled === true) return json({ error: "tribute_product_stars_must_be_disabled" }, 503);
+            checkoutUrl = product.web_link;
+          } else {
+            const subscription = tributeSubscription(env, serviceKey, planId);
+            if (!subscription) return json({ error: "tribute_subscription_not_configured" }, 503);
+            checkoutUrl = subscription.checkout_url;
           }
+
           if (serviceKey === "groups") {
             await env.DB.prepare(`INSERT INTO service_payment_consents(consent_id, owner_id, service_key, plan_id, terms_version)
               VALUES(?, ?, 'groups', ?, ?)`)
@@ -325,13 +319,7 @@ export default {
               VALUES(?, ?, ?, ?, ?)`)
               .bind(crypto.randomUUID(), ownerId, planId, env.PAYMENTS_TERMS_VERSION, serviceKey).run();
           }
-          await env.DB.prepare(`INSERT INTO tribute_shop_orders(
-            order_uuid, owner_id, service_key, plan_id, amount_minor, stars_amount, currency, billing_period,
-            purchase_mode, autorenew_accepted_at
-          ) VALUES(?, ?, ?, ?, ?, ?, 'rub', ?, ?, CASE WHEN ? = 'recurring' THEN CURRENT_TIMESTAMP ELSE NULL END)`)
-            .bind(order.uuid, ownerId, serviceKey, planId, Number(plan.rubles) * 100, starsAmount,
-              billingPeriod, purchaseMode, purchaseMode).run();
-          return json({ checkout_url: checkoutUrl, amount: plan.rubles, stars: starsAmount, currency: "RUB", service_key: serviceKey, plan_id: planId, purchase_mode: purchaseMode, billing_period: billingPeriod });
+          return json({ checkout_url: checkoutUrl, amount: plan.rubles, stars: 0, currency: "RUB", service_key: serviceKey, plan_id: planId, purchase_mode: purchaseMode });
         }
 
         if (route === "/api/home/events" && request.method === "GET") {
@@ -850,54 +838,128 @@ async function handleTributeWebhook(request, env) {
   if (!["new_subscription", "renewed_subscription", "cancelled_subscription"].includes(eventName)) {
     return json({ ok: true, ignored: true });
   }
+  return handleTributeSubscriptionWebhook(eventName, event, payload, env);
+}
 
+async function handleTributeSubscriptionWebhook(eventName, event, payload, env) {
   const ownerId = String(payload.telegram_user_id || "");
-  if (!/^\d{1,20}$/.test(ownerId)) return json({ ok: true, ignored: true });
   const subscriptionId = String(payload.subscription_id || payload.subscriptionId || "");
-  if (env.TRIBUTE_SUBSCRIPTION_ID && subscriptionId !== String(env.TRIBUTE_SUBSCRIPTION_ID)) return json({ ok: true, ignored: true });
+  if (!/^\d{1,20}$/.test(ownerId) || !subscriptionId) return json({ ok: true, ignored: true });
+
   if (eventName === "cancelled_subscription") {
-    await env.DB.prepare("UPDATE subscriptions SET auto_renew = 0, updated_at = CURRENT_TIMESTAMP WHERE owner_id = ?")
-      .bind(ownerId).run();
-    return json({ ok: true, handled: "cancellation" });
+    const [personal, groups] = await Promise.all([
+      env.DB.prepare(`SELECT plan_id FROM subscriptions
+        WHERE owner_id = ? AND tribute_subscription_id = ? LIMIT 1`).bind(ownerId, subscriptionId).first(),
+      env.DB.prepare(`SELECT plan_id FROM group_entitlements
+        WHERE owner_id = ? AND provider_subscription_id = ? LIMIT 1`).bind(ownerId, subscriptionId).first(),
+    ]);
+    const serviceKey = personal ? "personal_unlimited" : groups ? "groups" : null;
+    const planId = personal?.plan_id || groups?.plan_id || "";
+    if (!serviceKey) return json({ ok: true, ignored: true, reason: "subscription_not_linked" });
+    const eventKey = await tributeSubscriptionEventKey(eventName, event, payload, ownerId, subscriptionId);
+    try {
+      const update = serviceKey === "personal_unlimited"
+        ? env.DB.prepare(`UPDATE subscriptions SET auto_renew = 0, updated_at = CURRENT_TIMESTAMP
+            WHERE owner_id = ? AND tribute_subscription_id = ? AND changes() = 1`).bind(ownerId, subscriptionId)
+        : env.DB.prepare(`UPDATE group_entitlements SET auto_renew = 0, updated_at = CURRENT_TIMESTAMP
+            WHERE owner_id = ? AND provider_subscription_id = ? AND changes() = 1`).bind(ownerId, subscriptionId);
+      const results = await env.DB.batch([
+        env.DB.prepare(`INSERT OR IGNORE INTO tribute_subscription_events(
+          event_key, owner_id, event_name, subscription_id, service_key, plan_id, amount_minor, currency
+        ) VALUES(?, ?, 'cancelled_subscription', ?, ?, ?, 0, 'RUB')`)
+          .bind(eventKey, ownerId, subscriptionId, serviceKey, planId),
+        update,
+      ]);
+      return json({ ok: true, handled: Number(results?.[0]?.meta?.changes || 0) === 1 ? "cancellation" : "duplicate" });
+    } catch {
+      return json({ error: "Tribute subscription cancellation could not be recorded" }, 500);
+    }
   }
+
   if (payload.type && payload.type !== "regular") return json({ ok: true, ignored: true });
-  const planEntry = tributeSubscriptionPlan(payload);
-  if (!planEntry) return json({ error: "subscription amount is not a configured tariff" }, 400);
-  const [planId, plan] = planEntry;
-  if (eventName === "new_subscription") {
-    const consent = await env.DB.prepare(`SELECT 1 AS accepted FROM payment_consents
-      WHERE owner_id = ? AND plan_id = ? AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`)
-      .bind(ownerId, planId).first();
-    if (!consent) return json({ ok: true, ignored: true });
+  const planEntry = tributeSubscriptionPlan(payload, env);
+  if (!planEntry) return json({ ok: true, ignored: true, reason: "subscription_not_mapped" });
+  const { service_key: serviceKey, plan_id: planId, plan } = planEntry;
+  const rawAmount = Number(payload.amount);
+  const amountRub = rawAmount > 3000 ? rawAmount / 100 : rawAmount;
+  const amountMinor = Math.round(amountRub * 100);
+  if (String(payload.currency || "").toUpperCase() !== "RUB" || Math.round(amountRub * 100) !== plan.rubles * 100) {
+    console.warn("Tribute subscription amount does not match configured tariff", { serviceKey, planId, subscriptionId });
+    return json({ ok: true, ignored: true, reason: "subscription_amount_mismatch" });
   }
-  const eventKey = await sha256Hex(rawBody);
-  let purchaseRecorded = false;
-  try {
-    const results = await env.DB.batch([
-      env.DB.prepare(`INSERT OR IGNORE INTO tribute_payment_events(event_key, owner_id, event_name, subscription_id, months)
-        VALUES(?, ?, ?, ?, ?)`)
-        .bind(eventKey, ownerId, eventName, subscriptionId, plan.months),
-      env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+
+  if (eventName === "new_subscription") {
+    const consent = serviceKey === "groups"
+      ? await env.DB.prepare(`SELECT 1 AS accepted FROM service_payment_consents
+          WHERE owner_id = ? AND service_key = 'groups' AND plan_id = ?
+            AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`).bind(ownerId, planId).first()
+      : await env.DB.prepare(`SELECT 1 AS accepted FROM tribute_product_consents
+          WHERE owner_id = ? AND service_key = 'personal_unlimited' AND plan_id = ?
+            AND accepted_at >= datetime('now', '-24 hours') LIMIT 1`).bind(ownerId, planId).first();
+    if (!consent) return json({ ok: true, ignored: true, reason: "autorenew_consent_not_found" });
+  } else {
+    const linked = serviceKey === "groups"
+      ? await env.DB.prepare(`SELECT 1 AS linked FROM group_entitlements
+          WHERE owner_id = ? AND provider_subscription_id = ? LIMIT 1`).bind(ownerId, subscriptionId).first()
+      : await env.DB.prepare(`SELECT 1 AS linked FROM subscriptions
+          WHERE owner_id = ? AND tribute_subscription_id = ? LIMIT 1`).bind(ownerId, subscriptionId).first();
+    if (!linked) return json({ ok: true, ignored: true, reason: "subscription_not_linked" });
+  }
+
+  const eventKey = await tributeSubscriptionEventKey(eventName, event, payload, ownerId, subscriptionId);
+  const purchaseId = `tribute:subscription:${subscriptionId}:${eventKey}`;
+  const statements = [env.DB.prepare(`INSERT OR IGNORE INTO tribute_subscription_events(
+      event_key, owner_id, event_name, subscription_id, service_key, plan_id, amount_minor, currency
+    ) VALUES(?, ?, ?, ?, ?, ?, ?, 'RUB')`)
+    .bind(eventKey, ownerId, eventName, subscriptionId, serviceKey, planId, amountMinor)];
+
+  if (serviceKey === "personal_unlimited") {
+    statements.push(env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
         purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at
-      ) SELECT ?, 'tribute', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime(
+      ) SELECT ?, 'tribute_subscription', ?, ?, 'personal_unlimited', ?, ?, 'RUB', datetime(
         CASE WHEN julianday((SELECT expires_at FROM subscriptions WHERE owner_id = ?)) > julianday('now')
           THEN (SELECT expires_at FROM subscriptions WHERE owner_id = ?) ELSE 'now' END,
         printf('+%d months', ?)
       ) WHERE changes() = 1`)
-        .bind(`subscription:${eventKey}`, eventKey, ownerId, planId, Number(payload.amount), ownerId, ownerId, plan.months),
-      env.DB.prepare(`INSERT INTO subscriptions(owner_id, expires_at, plan_id, auto_renew)
-        SELECT ?, datetime('now', printf('+%d months', ?)), ?, 1 WHERE changes() = 1
-        ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
-          CASE WHEN julianday(subscriptions.expires_at) > julianday('now')
-            THEN subscriptions.expires_at ELSE 'now' END,
-          printf('+%d months', ?)
-        ), plan_id = excluded.plan_id, auto_renew = 1`)
-        .bind(ownerId, plan.months, planId, plan.months),
-    ]);
-    purchaseRecorded = Number(results?.[0]?.meta?.changes || 0) === 1;
-  } catch { return json({ error: "Tribute subscription event processing failed" }, 500); }
-  if (purchaseRecorded) await notifyPurchaseConfirmed(env, ownerId, "personal_unlimited", planId, eventName);
-  return json({ ok: true, handled: eventName, plan_id: planId });
+      .bind(purchaseId, eventKey, ownerId, planId, amountMinor, ownerId, ownerId, plan.months));
+    statements.push(env.DB.prepare(`INSERT INTO subscriptions(
+        owner_id, expires_at, plan_id, auto_renew, tribute_subscription_id
+      ) SELECT ?, datetime('now', printf('+%d months', ?)), ?, 1, ? WHERE changes() = 1
+      ON CONFLICT(owner_id) DO UPDATE SET expires_at = datetime(
+        CASE WHEN julianday(subscriptions.expires_at) > julianday('now')
+          THEN subscriptions.expires_at ELSE 'now' END,
+        printf('+%d months', ?)
+      ), plan_id = excluded.plan_id, auto_renew = 1,
+      tribute_subscription_id = excluded.tribute_subscription_id,
+      updated_at = CURRENT_TIMESTAMP`)
+      .bind(ownerId, plan.months, planId, subscriptionId, plan.months));
+  } else {
+    statements.push(env.DB.prepare(`INSERT INTO group_entitlements(
+        owner_id, plan_id, groups_limit, starts_at, expires_at, provider_subscription_id, auto_renew, updated_at
+      ) SELECT ?, ?, ?, CURRENT_TIMESTAMP,
+        datetime(CASE WHEN julianday((SELECT expires_at FROM group_entitlements WHERE owner_id = ?)) > julianday('now')
+          THEN (SELECT expires_at FROM group_entitlements WHERE owner_id = ?) ELSE 'now' END,
+          printf('+%d months', ?)), ?, 1, CURRENT_TIMESTAMP WHERE changes() = 1
+      ON CONFLICT(owner_id) DO UPDATE SET plan_id = excluded.plan_id,
+        groups_limit = excluded.groups_limit,
+        starts_at = CASE WHEN julianday(group_entitlements.expires_at) > julianday('now')
+          THEN group_entitlements.starts_at ELSE excluded.starts_at END,
+        expires_at = datetime(CASE WHEN julianday(group_entitlements.expires_at) > julianday('now')
+          THEN group_entitlements.expires_at ELSE 'now' END, printf('+%d months', ?)),
+        provider_subscription_id = excluded.provider_subscription_id,
+        auto_renew = 1, updated_at = CURRENT_TIMESTAMP`)
+      .bind(ownerId, planId, plan.groups, ownerId, ownerId, plan.months, subscriptionId, plan.months));
+  }
+
+  try {
+    const results = await env.DB.batch(statements);
+    const eventRecorded = Number(results?.[0]?.meta?.changes || 0) === 1;
+    if (eventRecorded) await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventName);
+    return json({ ok: true, handled: eventName, service_key: serviceKey, plan_id: planId, duplicate: !eventRecorded });
+  } catch (error) {
+    console.error("Tribute subscription event processing failed", { serviceKey, planId, error: String(error?.message || error) });
+    return json({ error: "Tribute subscription event processing failed" }, 500);
+  }
 }
 
 async function handleTributeShopWebhook(eventName, event, payload, rawBody, env) {
@@ -1205,8 +1267,8 @@ async function notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventNa
       if (!plan) return false;
       const entitlement = await getGroupEntitlement(env.DB, ownerId);
       const expiry = entitlement.expires_at ? formatPurchaseExpiryDateTime(entitlement.expires_at) : "не указана";
-      const action = eventName === "shop_order_charge_success" ? "продлён" : "активирован";
-      text = `✅ Оплата получена!\n\nДоступ к ${plan.groups} групповым чатам на 1 месяц ${action}.\nЛимиты нескольких действующих пакетов складываются. Ближайший срок окончания: ${expiry}.\n\nСтатус и свободные места можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
+      const action = ["shop_order_charge_success", "renewed_subscription"].includes(eventName) ? "продлён" : "активирован";
+      text = `✅ Оплата получена!\n\nПодписка на ${plan.groups} групповых чатов ${action}.\nБлижайший срок окончания: ${expiry}. Автопродление можно отменить в Tribute.\n\nСтатус и свободные места можно посмотреть в приложении SpySkaut, в разделе «Профиль».`;
     } else {
       return false;
     }
@@ -1240,22 +1302,23 @@ function russianGroupWord(groups) {
 }
 
 async function getGroupEntitlement(db, ownerId, env = null) {
-  const row = await db.prepare(`SELECT
-      COALESCE(SUM(groups_limit), 0) AS groups_limit,
+  const row = await db.prepare(`WITH active_entitlements AS (
+      SELECT groups_limit, expires_at, plan_id, 0 AS auto_renew
+      FROM payment_purchases
+      WHERE owner_id = ? AND service_key = 'groups' AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+      UNION ALL
+      SELECT groups_limit, expires_at, plan_id, auto_renew
+      FROM group_entitlements
+      WHERE owner_id = ? AND expires_at > CURRENT_TIMESTAMP
+    )
+    SELECT COALESCE(SUM(groups_limit), 0) AS groups_limit,
       MIN(expires_at) AS expires_at,
       COUNT(*) AS purchase_count,
-      (SELECT plan_id FROM payment_purchases p2 WHERE p2.owner_id = ? AND p2.service_key = 'groups'
-        AND p2.refunded_at IS NULL AND p2.expires_at > CURRENT_TIMESTAMP
-        ORDER BY p2.purchased_at DESC, p2.created_at DESC LIMIT 1) AS plan_id,
-      (SELECT COUNT(*) FROM tribute_shop_orders shop
-        JOIN payment_purchases purchase ON purchase.provider_order_uuid = shop.order_uuid
-        WHERE shop.owner_id = ? AND shop.service_key = 'groups' AND shop.purchase_mode = 'recurring'
-          AND shop.status = 'paid' AND shop.cancelled_at IS NULL
-          AND purchase.refunded_at IS NULL AND purchase.expires_at > CURRENT_TIMESTAMP) AS auto_renew,
+      (SELECT plan_id FROM active_entitlements ORDER BY expires_at ASC LIMIT 1) AS plan_id,
+      COALESCE(SUM(auto_renew), 0) AS auto_renew,
       (SELECT COUNT(*) FROM group_chats g WHERE g.owner_id = ? AND g.active = 1) AS active_groups
-    FROM payment_purchases
-    WHERE owner_id = ? AND service_key = 'groups' AND refunded_at IS NULL AND expires_at > CURRENT_TIMESTAMP`)
-    .bind(String(ownerId), String(ownerId), String(ownerId), String(ownerId)).first();
+    FROM active_entitlements`)
+    .bind(String(ownerId), String(ownerId), String(ownerId)).first();
   let groupsLimit = Number(row?.groups_limit || 0);
   let testAccess = false;
   if (!groupsLimit && env?.SUBSCRIPTION_TEST_OWNER_ID && String(ownerId) === String(env.SUBSCRIPTION_TEST_OWNER_ID)) {
@@ -1408,16 +1471,45 @@ async function handleTributeDigitalProductRefund(payload, rawBody, env) {
   return json({ ok: true, handled: "digital_product_refunded" });
 }
 
-function tributeSubscriptionPlan(payload) {
+function tributeSubscriptionPlan(payload, env) {
   if (String(payload.currency || "").toUpperCase() !== "RUB") return null;
   const amount = Number(payload.amount);
   if (!Number.isFinite(amount) || amount <= 0) return null;
   const rubles = amount > 3000 ? amount / 100 : amount;
-  const prices = { month: [249, 199.2], "half-year": [1190, 952], year: [1790, 1611] };
-  for (const [planId, plan] of Object.entries(PERSONAL_SUBSCRIPTION_PLANS)) {
-    if (prices[planId].some((price) => Math.round(rubles * 100) === Math.round(price * 100))) return [planId, plan];
+  const subscriptionId = String(payload.subscription_id || payload.subscriptionId || "");
+  const subscriptions = tributeSubscriptionMap(env) || {};
+  const configured = [
+    ...Object.keys(PERSONAL_SUBSCRIPTION_PLANS).map((planId) => tributeSubscription(env, "personal_unlimited", planId)),
+    ...Object.keys(GROUP_ACCESS_PLANS).map((planId) => tributeSubscription(env, "groups", planId)),
+  ].filter(Boolean);
+  for (const spec of configured) {
+    const rawSpec = subscriptions[spec.key];
+    if (rawSpec?.subscription_id && String(rawSpec.subscription_id) === subscriptionId
+      && Math.round(rubles * 100) === spec.rubles * 100) {
+      return { service_key: spec.service_key, plan_id: spec.plan_id, plan: spec };
+    }
+  }
+
+  const matches = configured.filter((spec) => Math.round(rubles * 100) === spec.rubles * 100);
+  if (matches.length === 1) {
+    const plan = matches[0];
+    return { service_key: plan.service_key, plan_id: plan.plan_id, plan };
   }
   return null;
+}
+
+async function tributeSubscriptionEventKey(eventName, event, payload, ownerId, subscriptionId) {
+  const identity = {
+    event_name: eventName,
+    created_at: String(event?.created_at || payload.purchase_created_at || payload.created_at || ""),
+    owner_id: ownerId,
+    subscription_id: subscriptionId,
+    amount: payload.amount == null ? "" : String(payload.amount),
+    currency: String(payload.currency || "").toUpperCase(),
+    period_id: String(payload.period_id || payload.periodId || ""),
+    transaction_id: String(payload.transaction_id || payload.transactionId || payload.payment_id || ""),
+  };
+  return sha256Hex(JSON.stringify(identity));
 }
 
 async function validTributeSignature(rawBody, signature, apiKey) {
