@@ -1016,12 +1016,14 @@ async function purchaseSelectedPlan() {
     state.tributeCheckoutPending = true;
     state.tributeCheckoutPreviousEntitlements = previous;
     render();
-    if (state.telegram?.openTelegramLink) {
-      state.telegram.openTelegramLink(result.checkout_url);
+    const checkoutUrl = new URL(result.checkout_url);
+    const telegramHosts = ['t.me', 'telegram.me', 'www.telegram.me'];
+    if (telegramHosts.includes(checkoutUrl.hostname.toLowerCase()) && state.telegram?.openTelegramLink) {
+      state.telegram.openTelegramLink(checkoutUrl.href);
     } else if (state.telegram?.openLink) {
-      state.telegram.openLink(result.checkout_url);
+      state.telegram.openLink(checkoutUrl.href);
     } else {
-      window.open(result.checkout_url, '_blank', 'noopener');
+      window.open(checkoutUrl.href, '_blank', 'noopener');
     }
   } catch (error) {
     state.paymentLoading = false;
