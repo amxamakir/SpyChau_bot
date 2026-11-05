@@ -32,8 +32,9 @@ const icon = (name, size = 20) => {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
 };
 
+const initialOpenTab = new URLSearchParams(window.location.search).get('open');
 const state = {
-  tab: new URLSearchParams(window.location.search).get('open') === 'archive' ? 'archive' : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null, groupEntitlement: null,
+  tab: ['archive', 'notifications'].includes(initialOpenTab) ? initialOpenTab : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null, groupEntitlement: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),

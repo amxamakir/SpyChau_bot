@@ -205,7 +205,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.20" });
+      return json({ status: "ok", service: "spychau-api", version: "0.11.23" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -426,6 +426,7 @@ export default {
               edited_by_owner = excluded.edited_by_owner,
               updated_at = CURRENT_TIMESTAMP
           `).bind(String(user.id), ...keys.map((key) => Number(preferences[key]))).run();
+          await refreshNotificationControlMessage(env, String(user.id));
           return json({ configured: true, preferences });
         }
 
@@ -608,6 +609,17 @@ async function handleTelegramWebhook(request, env) {
       }
 
       const isHelp = Boolean(helpMatch);
+      const ownerId = String(incomingMessage.from?.id || incomingMessage.chat.id);
+      let hasEnabledConnection = false;
+      let oneTimeMessagesEnabled = true;
+      if (!isHelp) {
+        await saveUser(env.DB, incomingMessage.from || { id: incomingMessage.chat.id });
+        hasEnabledConnection = Boolean(await env.DB.prepare(
+          "SELECT 1 AS connected FROM connections WHERE owner_id = ? AND enabled = 1 LIMIT 1",
+        ).bind(ownerId).first());
+        const notificationSettings = await getNotificationPreferences(env.DB, ownerId);
+        oneTimeMessagesEnabled = notificationSettings.preferences.one_time_messages;
+      }
       const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -621,13 +633,17 @@ async function handleTelegramWebhook(request, env) {
             inline_keyboard: isHelp
               ? [[{ text: "Открыть SpySkaut", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }]]
               : [
-                  [{ text: "Подключить личные чаты", url: "https://t.me/SpySkaut_bot?start=connect" }],
+                  [notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled)],
                   [{ text: "Открыть приложение", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }],
                 ],
           },
         }),
       });
-      if (!response.ok) return json({ error: "Telegram could not send the start message" }, 502);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.ok !== true) return json({ error: "Telegram could not send the start message" }, 502);
+      if (startMatch && Number.isInteger(result.result?.message_id)) {
+        await saveNotificationControlMessage(env.DB, ownerId, incomingMessage.chat.id, result.result.message_id);
+      }
       return json({ ok: true, handled: isHelp ? "help" : "start" });
     }
 
@@ -653,6 +669,17 @@ async function handleTelegramWebhook(request, env) {
           payload_json = excluded.payload_json,
           updated_at = CURRENT_TIMESTAMP
       `).bind(connection.id, ownerId, Number(Boolean(connection.is_enabled)), JSON.stringify(connection)).run();
+      const activeConnection = await env.DB.prepare(
+        "SELECT 1 AS connected FROM connections WHERE owner_id = ? AND enabled = 1 LIMIT 1",
+      ).bind(ownerId).first();
+      const controlMessage = await env.DB.prepare(
+        "SELECT 1 AS exists_flag FROM notification_control_messages WHERE owner_id = ?",
+      ).bind(ownerId).first();
+      if (activeConnection && !controlMessage) {
+        await sendNotificationControlMessage(env, ownerId);
+      } else if (controlMessage) {
+        await refreshNotificationControlMessage(env, ownerId);
+      }
       return json({ ok: true });
     }
 
@@ -1781,6 +1808,77 @@ const defaultNotificationPreferences = Object.freeze({
   deleted_by_owner: false,
   edited_by_owner: false,
 });
+
+function notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled) {
+  if (!hasEnabledConnection) {
+    return { text: "Подключить личные чаты", url: "https://t.me/SpySkaut_bot?start=connect" };
+  }
+  return {
+    text: `🔔 Одноразовые: ${oneTimeMessagesEnabled ? "Вкл" : "Выкл"}`,
+    web_app: { url: "https://spychau-bot.senba11.workers.dev/?open=notifications" },
+  };
+}
+
+function notificationControlReplyMarkup(hasEnabledConnection, oneTimeMessagesEnabled) {
+  return {
+    inline_keyboard: [
+      [notificationControlButton(hasEnabledConnection, oneTimeMessagesEnabled)],
+      [{ text: "Открыть приложение", web_app: { url: "https://spychau-bot.senba11.workers.dev/" } }],
+    ],
+  };
+}
+
+async function saveNotificationControlMessage(db, ownerId, chatId, messageId) {
+  await db.prepare(`
+    INSERT INTO notification_control_messages(owner_id, chat_id, message_id, updated_at)
+    VALUES(?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(owner_id) DO UPDATE SET
+      chat_id = excluded.chat_id,
+      message_id = excluded.message_id,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(String(ownerId), String(chatId), Number(messageId)).run();
+}
+
+async function refreshNotificationControlMessage(env, ownerId) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const savedMessage = await env.DB.prepare(
+    "SELECT chat_id, message_id FROM notification_control_messages WHERE owner_id = ?",
+  ).bind(String(ownerId)).first();
+  if (!savedMessage) return false;
+
+  const [activeConnection, notificationSettings] = await Promise.all([
+    env.DB.prepare("SELECT 1 AS connected FROM connections WHERE owner_id = ? AND enabled = 1 LIMIT 1")
+      .bind(String(ownerId)).first(),
+    getNotificationPreferences(env.DB, ownerId),
+  ]);
+  return callTelegramJson(env, "editMessageReplyMarkup", {
+    chat_id: savedMessage.chat_id,
+    message_id: savedMessage.message_id,
+    reply_markup: notificationControlReplyMarkup(
+      Boolean(activeConnection),
+      notificationSettings.preferences.one_time_messages,
+    ),
+  });
+}
+
+async function sendNotificationControlMessage(env, ownerId) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false;
+  const notificationSettings = await getNotificationPreferences(env.DB, ownerId);
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: ownerId,
+      text: "✅ SpySkaut подключён к личным чатам. Управляй уведомлениями об одноразовых сообщениях здесь:",
+      reply_markup: notificationControlReplyMarkup(true, notificationSettings.preferences.one_time_messages),
+    }),
+  }).catch(() => null);
+  if (!response?.ok) return false;
+  const result = await response.json().catch(() => ({}));
+  if (result.ok !== true || !Number.isInteger(result.result?.message_id)) return false;
+  await saveNotificationControlMessage(env.DB, ownerId, ownerId, result.result.message_id);
+  return true;
+}
 
 async function getNotificationPreferences(db, ownerId) {
   const row = await db.prepare("SELECT * FROM notification_preferences WHERE owner_id = ?").bind(String(ownerId)).first();
