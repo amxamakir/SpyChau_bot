@@ -206,7 +206,30 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.13.4" });
+      return json({ status: "ok", service: "spychau-api", version: "0.14.0" });
+    }
+
+    const partnerReferralLinkMatch = route.match(/^\/r\/([A-F0-9]{12})$/i);
+    if (partnerReferralLinkMatch && request.method === "GET") {
+      const referralCode = partnerReferralLinkMatch[1].toUpperCase();
+      const account = await env.DB.prepare("SELECT owner_id FROM partner_accounts WHERE referral_code = ?")
+        .bind(referralCode).first();
+      if (!account) return new Response("Referral link not found", { status: 404 });
+
+      const userAgent = String(request.headers.get("user-agent") || "").toLowerCase();
+      const isLinkPreview = /bot|crawler|spider|preview|facebookexternalhit|slackbot|discordbot|whatsapp|telegrambot|skypeuripreview|linkcheck/.test(userAgent);
+      if (!isLinkPreview) {
+        await incrementPartnerLinkClick(env.DB, String(account.owner_id));
+      }
+
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `https://t.me/SpySkaut_bot?start=ref_${referralCode}_t`,
+          "Cache-Control": "no-store",
+          "Referrer-Policy": "no-referrer",
+        },
+      });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -266,7 +289,7 @@ export default {
           const partnerId = String(user.id);
           const account = await ensurePartnerAccount(env.DB, partnerId);
           if (!account) return json({ error: "partner_account_unavailable" }, 503);
-          return json(await getPartnerDashboard(env.DB, partnerId, account.referral_code));
+          return json(await getPartnerDashboard(env.DB, partnerId, account.referral_code, url.origin));
         }
 
         if (route === "/api/owner/partner-withdrawals" && request.method === "GET") {
@@ -657,8 +680,9 @@ async function handleTelegramWebhook(request, env) {
       let callbackUpdatesReady = false;
       if (!isHelp) {
         await saveUser(env.DB, incomingMessage.from || { id: incomingMessage.chat.id });
-        const referralStartMatch = startMatch?.[1]?.match(/^ref_([A-Za-z0-9]{12})$/i);
+        const referralStartMatch = startMatch?.[1]?.match(/^ref_([A-Za-z0-9]{12})(?:_(t))?$/i);
         if (referralStartMatch) {
+          if (!referralStartMatch[2]) await recordLegacyPartnerLinkClick(env.DB, referralStartMatch[1]);
           await attributePartnerReferral(env.DB, ownerId, referralStartMatch[1]);
         }
         hasEnabledConnection = Boolean(await env.DB.prepare(
@@ -2251,9 +2275,28 @@ async function ensurePartnerAccount(db, ownerId) {
   return null;
 }
 
-async function getPartnerDashboard(db, partnerId, referralCode) {
-  const [referrals, earnings, withdrawals, pending] = await Promise.all([
+async function incrementPartnerLinkClick(db, partnerId) {
+  await db.prepare(`INSERT INTO partner_link_clicks(partner_id, click_day, click_count)
+    VALUES(?, ?, 1)
+    ON CONFLICT(partner_id, click_day) DO UPDATE SET click_count = partner_link_clicks.click_count + 1`)
+    .bind(String(partnerId), new Date().toISOString().slice(0, 10)).run();
+}
+
+async function recordLegacyPartnerLinkClick(db, referralCode) {
+  const account = await db.prepare("SELECT owner_id FROM partner_accounts WHERE referral_code = ?")
+    .bind(String(referralCode || "").trim().toUpperCase()).first();
+  if (account?.owner_id) await incrementPartnerLinkClick(db, String(account.owner_id));
+}
+
+async function getPartnerDashboard(db, partnerId, referralCode, appOrigin) {
+  const [referrals, clicks, purchases, earnings, withdrawals, pending] = await Promise.all([
     db.prepare("SELECT COUNT(*) AS total FROM partner_referrals WHERE partner_id = ?").bind(String(partnerId)).first(),
+    db.prepare("SELECT COALESCE(SUM(click_count), 0) AS total FROM partner_link_clicks WHERE partner_id = ?").bind(String(partnerId)).first(),
+    db.prepare(`SELECT COUNT(*) AS total_payments, COUNT(DISTINCT purchase.owner_id) AS paying_referrals
+      FROM payment_purchases purchase
+      JOIN partner_referrals referral ON referral.referred_id = purchase.owner_id
+      WHERE referral.partner_id = ? AND purchase.amount_minor > 0 AND purchase.refunded_at IS NULL`)
+      .bind(String(partnerId)).first(),
     db.prepare(`SELECT COALESCE(SUM(commission.amount_minor), 0) AS total
       FROM partner_commissions commission
       JOIN payment_purchases purchase ON purchase.purchase_id = commission.purchase_id
@@ -2268,8 +2311,11 @@ async function getPartnerDashboard(db, partnerId, referralCode) {
   const minimumWithdrawalMinor = 500000;
   return {
     referral_code: referralCode,
-    share_link: `https://t.me/SpySkaut_bot?start=ref_${referralCode}`,
+    share_link: `${appOrigin}/r/${referralCode}`,
     referral_count: Number(referrals?.total || 0),
+    link_click_count: Number(clicks?.total || 0),
+    paying_referral_count: Number(purchases?.paying_referrals || 0),
+    payment_count: Number(purchases?.total_payments || 0),
     total_earned_minor: totalEarnedMinor,
     payout_progress_minor: Math.max(0, totalEarnedMinor - Number(withdrawals?.paid || 0)),
     withdrawn_minor: Number(withdrawals?.paid || 0),
