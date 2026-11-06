@@ -837,7 +837,6 @@ function partnerQrPage() {
     <header class="partner-qr-page-heading"><span class="partner-qr-heading-icon">${icon('qr', 24)}</span><div><h1 id="partner-qr-title">Приглашай друзей</h1><p>Покажи QR-код или отправь ссылку — друг откроет SpySkaut по твоему приглашению.</p></div></header>
     <section class="partner-qr-info-card"><div class="partner-qr-info-icon">${icon('spark', 19)}</div><p>Друг закрепится за тобой навсегда. Ты получишь <strong>20%</strong> с его первой оплаты и <strong>10%</strong> со всех следующих.</p></section>
     ${qrError ? `<p class="partner-state-message partner-state-error">${escapeHtml(qrError)}</p>` : `<section class="partner-qr-card"><div class="partner-qr-art">${qrMarkup}</div><p>Твой персональный QR-код</p><span>Друг может отсканировать его камерой телефона</span></section>`}
-    <section class="partner-qr-link-card"><span>Твоя пригласительная ссылка</span><div class="partner-qr-link">${escapeHtml(link)}</div></section>
     <div class="partner-qr-actions"><button type="button" class="partner-qr-share" data-action="share-partner-qr" ${qrError ? 'disabled' : ''}>${icon('external', 17)}<span>Поделиться QR-кодом</span></button><button type="button" class="partner-qr-copy" data-action="copy-partner-link">${icon('copy', 17)}<span>Скопировать ссылку</span></button><button type="button" class="partner-qr-link-share" data-action="share-partner-link">${icon('link', 17)}<span>Поделиться ссылкой</span></button></div>
   </section>`;
 }

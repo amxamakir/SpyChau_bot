@@ -482,9 +482,6 @@ html,body{touch-action:pan-x pan-y}
 .partner-qr-art svg{display:block;width:100%;height:auto;max-width:100%;shape-rendering:crispEdges}
 .partner-qr-card p{margin:2px 0 0;color:#f7f8ff;font-size:14px;font-weight:750}
 .partner-qr-card>span{color:#aab7d7;font-size:11px;text-align:center}
-.partner-qr-link-card{display:grid;gap:8px;padding:14px;border:1px solid rgba(166,185,244,.13);border-radius:17px;background:rgba(255,255,255,.035)}
-.partner-qr-link-card>span{color:#aab7d7;font-size:12px;font-weight:700}
-.partner-qr-link{padding:11px 12px;overflow-wrap:anywhere;border:1px solid rgba(166,185,244,.12);border-radius:13px;background:rgba(255,255,255,.04);color:#cbd5ed;font-size:11px;line-height:1.45;user-select:text}
 .partner-qr-actions{display:grid;gap:8px}
 .partner-qr-share,.partner-qr-copy,.partner-qr-link-share{min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:14px;font:inherit;font-size:13px;font-weight:750;cursor:pointer}
 .partner-qr-share{background:linear-gradient(110deg,#ff9980,#f06b85);color:#17142b}
@@ -509,6 +506,7 @@ html,body{touch-action:pan-x pan-y}
 @media(max-width:600px){
   .app-shell.has-partner-page{padding-left:0;padding-right:0}
   .app-shell.has-partner-page .partner-page{width:100%;max-width:none}
+  .app-shell.has-partner-page .partner-qr-page{width:calc(100% - max(12px,env(safe-area-inset-left)) - max(12px,env(safe-area-inset-right)));max-width:450px}
   .app-shell.has-partner-page .partner-hero{border-radius:26px}
   .app-shell.has-partner-page .partner-content{margin-left:max(12px,env(safe-area-inset-left));margin-right:max(12px,env(safe-area-inset-right))}
 }
