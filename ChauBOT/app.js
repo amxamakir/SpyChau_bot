@@ -748,17 +748,12 @@ function profile() {
 function partnerProgramPage() {
   return `<section class="page profile-page partner-page">
     <div class="partner-hero">
-      <div class="partner-brand"><span aria-hidden="true">✦</span><strong>SpySkaut</strong></div>
-      <span class="partner-hero-badge">${icon('link', 15)}Партнёрская программа</span>
+      <span class="partner-hero-badge">Партнёрская программа</span>
       <div class="partner-hero-copy">
         <h1>Приводи друзей — зарабатывай</h1>
         <p>Получай 30% с первой оплаты друга и 10% со всех последующих. Навсегда</p>
       </div>
       <img class="partner-hero-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут с планшетом">
-      <span class="partner-hero-orbit" aria-hidden="true"></span>
-      <span class="partner-hero-community" aria-hidden="true">${icon('people', 26)}</span>
-      <span class="partner-spark partner-spark-one" aria-hidden="true">✦</span>
-      <span class="partner-spark partner-spark-two" aria-hidden="true">✧</span>
     </div>
 
     <div class="partner-content">
