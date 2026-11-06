@@ -46,7 +46,7 @@ const state = {
   notificationPreferencesSaving: false,
   loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentProvider: null, paymentSelection: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
   authenticated: false, preview: !window.Telegram?.WebApp?.initData,
-  partnerData: null, partnerLoading: false, partnerError: '',
+  partnerData: null, partnerLoading: false, partnerError: '', partnerQrOpen: false,
   partnerAdminRequests: [], partnerAdminLoading: false, partnerAdminActionLoading: ''
 };
 
@@ -807,7 +807,7 @@ function partnerProgramPage() {
 
       <div class="partner-invite-actions">
         <button class="partner-share-button" type="button" data-action="share-partner-link" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('link', 19)}<span>Поделиться ссылкой</span></button>
-        <button class="partner-copy-button" type="button" data-action="copy-partner-link" aria-label="Скопировать ссылку" title="Скопировать ссылку" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('copy', 21)}</button>
+        <button class="partner-copy-button" type="button" data-action="open-partner-qr" aria-label="Показать QR-код приглашения" title="Показать QR-код приглашения" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('qr', 21)}</button>
       </div>
       ${state.partnerLoading ? '<p class="partner-state-message">Загружаю статистику партнёра…</p>' : ''}
       ${state.partnerError ? `<p class="partner-state-message partner-state-error">${escapeHtml(state.partnerError)} <button type="button" data-action="refresh-partner">Повторить</button></p>` : ''}
@@ -815,6 +815,83 @@ function partnerProgramPage() {
       ${state.subscription?.can_test_override ? `<section class="partner-admin-card"><strong>Выплаты к обработке</strong>${state.partnerAdminLoading ? '<p>Загрузка…</p>' : adminRows || '<p>Ожидающих выплат нет.</p>'}</section>` : ''}
     </div>
   </section>`;
+}
+
+function createPartnerQrSvg(link) {
+  if (typeof window.qrcode !== 'function') throw new Error('QR-код пока недоступен. Обнови приложение и попробуй ещё раз.');
+  const qr = window.qrcode(0, 'M');
+  qr.addData(link, 'Byte');
+  qr.make();
+  return qr.createSvgTag({ cellSize: 8, margin: 4, scalable: false });
+}
+
+function partnerQrModal() {
+  if (!state.partnerQrOpen) return '';
+  const link = state.partnerData?.share_link;
+  if (!link) return '';
+  let qrMarkup = '';
+  let qrError = '';
+  try { qrMarkup = createPartnerQrSvg(link); }
+  catch (error) { qrError = error.message || 'Не удалось создать QR-код.'; }
+  return `<div class="partner-qr-backdrop" data-action="close-partner-qr">
+    <section class="partner-qr-dialog" role="dialog" aria-modal="true" aria-labelledby="partner-qr-title">
+      <header class="partner-qr-heading"><div><span>Партнёрская программа</span><h2 id="partner-qr-title">Твой QR-код</h2></div><button type="button" class="icon-button" data-action="close-partner-qr" aria-label="Закрыть">${icon('close', 19)}</button></header>
+      <p class="partner-qr-caption">Покажи его другу или отправь изображение — ссылка откроет бота и закрепит друга за тобой.</p>
+      ${qrError ? `<p class="partner-state-message partner-state-error">${escapeHtml(qrError)}</p>` : `<div class="partner-qr-art">${qrMarkup}</div>`}
+      <div class="partner-qr-link">${escapeHtml(link)}</div>
+      <div class="partner-qr-actions"><button type="button" class="partner-qr-share" data-action="share-partner-qr" ${qrError ? 'disabled' : ''}>${icon('external', 17)}<span>Поделиться QR-кодом</span></button><button type="button" class="partner-qr-copy" data-action="copy-partner-link">Скопировать ссылку</button></div>
+    </section>
+  </div>`;
+}
+
+async function createPartnerQrFile() {
+  const link = state.partnerData?.share_link;
+  if (!link) throw new Error('Партнёрская ссылка не загружена.');
+  const svg = createPartnerQrSvg(link);
+  const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('Не удалось подготовить изображение QR-кода.'));
+      image.src = svgUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 800;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Не удалось сохранить QR-код как изображение.');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = false;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Не удалось сохранить QR-код как изображение.');
+    return new File([blob], 'SpySkaut-QR.png', { type: 'image/png' });
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+async function sharePartnerQr() {
+  const file = await createPartnerQrFile();
+  if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+    try {
+      await navigator.share({ files: [file], title: 'Мой QR-код SpySkaut' });
+      return 'shared';
+    } catch (error) {
+      if (error?.name === 'AbortError') return 'cancelled';
+    }
+  }
+  const fileUrl = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = file.name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1500);
+  return 'downloaded';
 }
 
 function partnerRubles(amountMinor) {
@@ -1059,7 +1136,7 @@ function render() {
   const tariffDockActive = ['tariffs', 'group-tariffs'].includes(state.tab);
   const partnerPageActive = state.tab === 'partner';
   const telegramSettingsDockActive = state.tab === 'connection-tutorial' && state.tutorialType !== 'groups';
-  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${partnerPageActive ? 'has-partner-page' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.paymentSheetOpen ? paymentSheet() : ''}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${partnerPageActive ? 'has-partner-page' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.paymentSheetOpen ? paymentSheet() : ''}${partnerQrModal()}<div class="toast" role="status" aria-live="polite"></div></div>`;
   const settingsButton = app.querySelector('.tutorial-open-settings');
   const settingsHelp = app.querySelector('.tutorial-help-link');
   const settingsDock = app.querySelector('.telegram-settings-dock');
@@ -1751,6 +1828,25 @@ app.addEventListener('click', async event => {
     return;
   }
   const action = target.dataset.action;
+  if (action === 'open-partner-qr') {
+    if (!state.partnerData?.share_link) { toast('Сначала загрузи свою партнёрскую ссылку.'); return; }
+    state.partnerQrOpen = true;
+    render();
+    return;
+  }
+  if (action === 'close-partner-qr') {
+    if (target.classList.contains('partner-qr-backdrop') && event.target !== target) return;
+    state.partnerQrOpen = false;
+    render();
+    return;
+  }
+  if (action === 'share-partner-qr') {
+    try {
+      const result = await sharePartnerQr();
+      if (result === 'downloaded') toast('QR-код сохранён. Отправь изображение другу.');
+    } catch (error) { toast(error.message || 'Не удалось подготовить QR-код.'); }
+    return;
+  }
   if (action === 'about') { pushNavigation(); state.tab = 'about'; render(); return; }
   if (action === 'refresh-partner') { await loadPartnerProgram(); return; }
   if (action === 'copy-partner-link') {
@@ -1817,6 +1913,12 @@ app.addEventListener('click', async event => {
 
 let archiveSearchTimer = null;
 
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !state.partnerQrOpen) return;
+  state.partnerQrOpen = false;
+  render();
+});
+
 app.addEventListener('input', event => {
   if (event.target.id === 'support-search') {
     const query = event.target.value.trim().toLocaleLowerCase('ru');
@@ -1856,7 +1958,12 @@ app.addEventListener('error', event => {
 }, true);
 
 if (state.telegram) {
-  state.telegram.BackButton?.onClick?.(goBack);
+  state.telegram.BackButton?.onClick?.(() => {
+    if (state.partnerQrOpen) {
+      state.partnerQrOpen = false;
+      render();
+    } else goBack();
+  });
   syncTelegramSafeArea();
   state.telegram.onEvent?.('safeAreaChanged', syncTelegramSafeArea);
   state.telegram.onEvent?.('contentSafeAreaChanged', syncTelegramSafeArea);
