@@ -406,14 +406,14 @@ html,body{touch-action:pan-x pan-y}
 .privacy-point-icon.coral{color:#ff7966}
 
 /* Partner program preview */
-.app-shell.has-partner-page{padding-top:30px}
+.app-shell.has-partner-page{padding-top:0}
 .partner-page{padding-bottom:30px}
 .profile-row .partner-profile-icon{background:rgba(255,165,151,.14);color:#ffa993}
-.partner-hero{position:relative;isolation:isolate;min-height:282px;overflow:hidden;padding:14px 22px 24px;border:1px solid rgba(61,38,56,.1);border-top:0;border-radius:0 0 27px 27px;background:#f3a087;color:#392631}
-.partner-hero-badge{position:relative;z-index:2;display:inline-flex;align-items:center;min-height:31px;padding:6px 11px;border:1px solid rgba(61,38,56,.1);border-radius:999px;background:rgba(255,255,255,.38);color:#392631;font-size:11px;font-weight:750;letter-spacing:.15px}
+.partner-hero{position:relative;isolation:isolate;min-height:312px;overflow:hidden;padding:74px 22px 24px;border:1px solid rgba(255,255,255,.12);border-top:0;border-radius:0 0 27px 27px;background:linear-gradient(118deg,#ff9980 0%,#f16e80 52%,#d74791 100%);color:#fff}
+.partner-hero-badge{position:relative;z-index:2;display:inline-flex;align-items:center;min-height:31px;padding:6px 11px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(91,33,54,.34);color:#fff;font-size:11px;font-weight:750;letter-spacing:.15px}
 .partner-hero-copy{position:relative;z-index:2;width:62%;max-width:295px;margin-top:13px}
-.partner-hero-copy h1{margin:0;color:#392631;font-size:30px;line-height:1.08;letter-spacing:-.9px}
-.partner-hero-copy p{max-width:285px;margin:9px 0 0;color:rgba(57,38,49,.88);font-size:13px;line-height:1.48;font-weight:550}
+.partner-hero-copy h1{margin:0;color:#fff;font-size:30px;line-height:1.08;letter-spacing:-.9px}
+.partner-hero-copy p{max-width:285px;margin:9px 0 0;color:rgba(255,255,255,.94);font-size:13px;line-height:1.48;font-weight:550}
 .partner-hero-mascot{position:absolute;z-index:1;right:-7px;bottom:-7px;width:202px;height:auto;object-fit:contain;pointer-events:none}
 .partner-content{display:grid;gap:14px;margin-top:17px}
 .partner-reward-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
@@ -450,7 +450,7 @@ html,body{touch-action:pan-x pan-y}
 .partner-qr-button{border:1px solid rgba(255,255,255,.1);border-radius:19px;background:linear-gradient(145deg,#292447,#1c1b38);color:#f2edff;box-shadow:none}
 .partner-share-button svg,.partner-qr-button svg{flex:none}
 @media(max-width:430px){
-  .partner-hero{min-height:270px;padding:12px 17px 20px}
+  .partner-hero{min-height:300px;padding:72px 17px 20px}
   .partner-hero-copy{width:62%;margin-top:11px}
   .partner-hero-copy h1{font-size:26px}
   .partner-hero-copy p{font-size:12px;line-height:1.43}
