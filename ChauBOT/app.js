@@ -798,14 +798,14 @@ function partnerProgramPage() {
       </div>
 
       <p class="partner-explainer">${icon('link', 16)}<span>Друг закрепляется за тобой навсегда — процент идёт с каждой его оплаты.</span></p>
-      <section class="partner-metrics-grid" aria-label="Статистика партнёрской программы">${partnerStats}</section>
-      <p class="partner-metrics-note">Считаются открытия пригласительной ссылки; повторные переходы тоже учитываются.</p>
 
       <section class="partner-balance-card" aria-label="Баланс партнёрской программы">
         <div class="partner-balance-top">
           <span class="partner-wallet-icon">${icon('wallet', 21)}</span>
           <span class="partner-balance-main"><span class="partner-balance-label">Не выплачено</span><strong class="partner-balance-value">${partnerRubles(payoutProgressMinor)}</strong></span>
         </div>
+        <section class="partner-metrics-grid" aria-label="Статистика партнёрской программы">${partnerStats}</section>
+        <p class="partner-metrics-note">Считаются открытия пригласительной ссылки; повторные переходы тоже учитываются.</p>
         <div class="partner-progress" role="progressbar" aria-label="Прогресс до порога выплаты" aria-valuemin="0" aria-valuemax="${minimumMinor / 100}" aria-valuenow="${Math.min(payoutProgressMinor / 100, minimumMinor / 100)}"><span style="width:${progress}%"></span></div>
         <div class="partner-progress-copy"><span>${escapeHtml(progressText)}</span><strong>от ${partnerRubles(minimumMinor)}</strong></div>
         <p class="partner-balance-note">${icon('info', 19)}<span>При достижении ${partnerRubles(minimumMinor)} выплата автоматически ставится в очередь. Сам перевод сейчас выполняется владельцем вручную.</span></p>
