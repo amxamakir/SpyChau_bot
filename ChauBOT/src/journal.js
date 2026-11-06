@@ -1,7 +1,6 @@
 const textEncoder = new TextEncoder();
 const JOURNAL_CHUNK_SIZE = 100;
 const MESSAGE_LIMIT = 5000;
-const RETENTION_DAYS = 7;
 const MAX_TELEGRAM_FILE_BYTES = 20 * 1024 * 1024;
 
 export async function storeBusinessEvent(env, input) {

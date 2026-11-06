@@ -17,3 +17,12 @@ CLOUDFLARE_SETUP.md
 README.md
 RELEASES.md
 TELEGRAM_POLICY.md
+
+# Large artwork not referenced by the current interface; keep the source files locally.
+assets/cat-groups.png
+assets/cat-horse.png
+assets/mcqueen*.png
+assets/spy-chau-happy*.png
+assets/mascot/kchau-driving-road.png
+assets/mascot/knight-kitten*.png
+assets/mascot/spy-chau-searching.png

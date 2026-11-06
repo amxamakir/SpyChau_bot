@@ -206,7 +206,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.11.26" });
+      return json({ status: "ok", service: "spychau-api", version: "0.12.0" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -799,17 +799,6 @@ async function handleTelegramWebhook(request, env) {
     return json({ ok: true });
   } catch {
     return json({ error: "webhook processing failed" }, 500);
-  }
-}
-
-async function hasNotificationPackageCredits(db, ownerId) {
-  try {
-    const row = await db.prepare("SELECT 1 FROM notification_packages WHERE owner_id = ? AND credits_remaining > 0 LIMIT 1")
-      .bind(String(ownerId)).first();
-    return Boolean(row);
-  } catch (error) {
-    if (/no such table: notification_packages/i.test(String(error?.message || error))) return false;
-    throw error;
   }
 }
 

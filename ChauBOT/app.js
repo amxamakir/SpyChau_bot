@@ -11,14 +11,18 @@ const icon = (name, size = 20) => {
     bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.6 1.4c-.8 1.1-2.2 1.3-2.2 3M12 17h.01"/>',
     shield: '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/>',
-    gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9M12 8v13M12 8H8.5a2.5 2.5 0 1 1 2.5-2.5V8Zm0 0h3.5A2.5 2.5 0 1 0 13 5.5V8Z"/>',
     card: '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M7 15h3"/>',
+    wallet: '<path d="M4 6.5h15a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-12a3 3 0 0 1 3-3h12"/><path d="M15 13h6"/><circle cx="15.5" cy="13" r=".5"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"/>',
+    qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm5 0h2m-7 5v2m4-4h2v4h-4"/>',
+    crown: '<path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8Z"/><path d="M6 22h12"/>',
+    bolt: '<path d="M13 2 4 14h7l-1 8 10-13h-7l1-7Z"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
     mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     check: '<path d="m5 12 4 4L19 6"/>',
     lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    'eye-off': '<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5 0 9 4 10 7a11.7 11.7 0 0 1-3.1 4.4M6.2 6.2C4.1 7.5 2.6 9.4 2 12c1 3 5 7 10 7 1.2 0 2.3-.2 3.3-.7"/>',
     refresh: '<path d="M20 7v5h-5"/><path d="M4.8 9A8 8 0 0 1 18.6 6L20 7M4 17v-5h5"/><path d="M19.2 15A8 8 0 0 1 5.4 18L4 17"/>',
     external: '<path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     close: '<path d="m18 6-12 12M6 6l12 12"/>',
@@ -34,7 +38,7 @@ const icon = (name, size = 20) => {
 
 const initialOpenTab = new URLSearchParams(window.location.search).get('open');
 const state = {
-  tab: ['archive', 'notifications'].includes(initialOpenTab) ? initialOpenTab : 'home', modal: null, query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null, groupEntitlement: null,
+  tab: ['archive', 'notifications'].includes(initialOpenTab) ? initialOpenTab : 'home', query: '', archiveMode: 'contacts', archiveContactId: null, archiveGroupId: null, archiveTopicId: null, archiveGroupsAvailable: true, archiveGroups: [], archiveTopics: [], groupArchiveEvents: [], archiveFilter: 'all', archiveCursor: null, archiveHasMore: false, archiveLoadingMore: false, archiveLoadMoreError: '', groupArchiveCursor: null, groupArchiveHasMore: false, groupArchiveLoadingMore: false, groupArchiveLoadMoreError: '', groupArchiveEventCounts: {}, groupArchiveTopicEventCounts: {}, user: null, connections: [], events: [], subscription: null, groupEntitlement: null,
   tutorialType: null, tutorialReturnTab: 'home', navigationStack: [],
   tariffMode: 'unlimited', selectedTariff: 'month', selectedGroupTariff: 'groups10',
   notificationPreferences: loadNotificationPreferences(),
@@ -71,7 +75,6 @@ function goBack() {
   }
   else if (state.tab === 'connection-tutorial') state.tab = state.tutorialReturnTab || 'home';
   else state.tab = 'home';
-  state.modal = null;
   render();
 }
 
@@ -739,7 +742,56 @@ function profile() {
   const secondary = user?.username ? `@${user.username}` : 'Аккаунт Telegram';
   const telegramId = state.authenticated && user?.id ? String(user.id) : null;
   const photoUrl = state.authenticated && typeof user?.photo_url === 'string' && /^https:\/\//i.test(user.photo_url) ? user.photo_url : null;
-  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">МОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="subscription"><span class="service-icon purple">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="notifications"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Уведомления</strong></span>${icon('chevron', 18)}</button><button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button></div>${state.subscription?.can_test_override ? `<span class="list-label">ХОЗЯЙСКИЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Хозяйская подписка</strong></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button><button type="button" class="profile-row" data-tab="owner-statistics"><span class="service-icon yellow">${icon('chart', 19)}</span><span class="row-copy"><strong>Статистика</strong></span>${icon('chevron', 18)}</button><button type="button" class="profile-row" data-tab="owner-test-group"><span class="service-icon purple">${icon('people', 19)}</span><span class="row-copy"><strong>Тестовая группа</strong></span>${icon('chevron', 18)}</button></div>` : ''}<span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-tab="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="support"><span class="service-icon green">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpySkaut · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
+  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">МОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="subscription"><span class="service-icon purple">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="notifications"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Уведомления</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="partner"><span class="service-icon partner-profile-icon">${icon('link', 19)}</span><span class="row-copy"><strong>Партнёрская программа</strong></span>${icon('chevron', 18)}</button><button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button></div>${state.subscription?.can_test_override ? `<span class="list-label">ХОЗЯЙСКИЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Хозяйская подписка</strong></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button><button type="button" class="profile-row" data-tab="owner-statistics"><span class="service-icon yellow">${icon('chart', 19)}</span><span class="row-copy"><strong>Статистика</strong></span>${icon('chevron', 18)}</button><button type="button" class="profile-row" data-tab="owner-test-group"><span class="service-icon purple">${icon('people', 19)}</span><span class="row-copy"><strong>Тестовая группа</strong></span>${icon('chevron', 18)}</button></div>` : ''}<span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-tab="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="support"><span class="service-icon green">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpySkaut · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
+}
+
+function partnerProgramPage() {
+  return `<section class="page profile-page partner-page">
+    <div class="partner-hero">
+      <div class="partner-brand"><span aria-hidden="true">✦</span><strong>SpySkaut</strong></div>
+      <span class="partner-hero-badge">${icon('link', 15)}Партнёрская программа</span>
+      <div class="partner-hero-copy">
+        <h1>Приводи друзей — зарабатывай</h1>
+        <p>Получай 30% с первой оплаты друга и 10% со всех последующих. Навсегда</p>
+      </div>
+      <img class="partner-hero-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут с планшетом">
+      <span class="partner-hero-orbit" aria-hidden="true"></span>
+      <span class="partner-hero-community" aria-hidden="true">${icon('people', 26)}</span>
+      <span class="partner-spark partner-spark-one" aria-hidden="true">✦</span>
+      <span class="partner-spark partner-spark-two" aria-hidden="true">✧</span>
+    </div>
+
+    <div class="partner-content">
+      <div class="partner-reward-grid" aria-label="Вознаграждение партнёра">
+        <article class="partner-reward-card partner-reward-first">
+          <span class="partner-reward-icon">${icon('crown', 25)}</span>
+          <span class="partner-reward-copy"><strong>30%</strong><span>С первой оплаты друга</span></span>
+        </article>
+        <article class="partner-reward-card partner-reward-next">
+          <span class="partner-reward-icon">${icon('bolt', 24)}</span>
+          <span class="partner-reward-copy"><strong>10%</strong><span>Со всех следующих оплат</span></span>
+        </article>
+      </div>
+
+      <p class="partner-explainer">${icon('link', 16)}<span>Друг закрепляется за тобой навсегда — процент идёт с каждой его оплаты.</span></p>
+
+      <section class="partner-balance-card" aria-label="Баланс партнёрской программы">
+        <div class="partner-balance-top">
+          <span class="partner-wallet-icon">${icon('wallet', 21)}</span>
+          <span class="partner-balance-main"><span class="partner-balance-label">Баланс</span><strong class="partner-balance-value">0 ₽</strong></span>
+          <button class="partner-withdraw" type="button" disabled>${icon('lock', 15)}Вывести</button>
+        </div>
+        <div class="partner-progress" role="progressbar" aria-label="Прогресс до минимальной суммы вывода" aria-valuemin="0" aria-valuemax="5000" aria-valuenow="0"><span></span></div>
+        <div class="partner-progress-copy"><span>До вывода осталось 5 000 ₽</span><strong>от 5 000 ₽</strong></div>
+        <p class="partner-balance-note">${icon('info', 19)}<span>Баланс можно потратить на свою подписку при оплате</span>${icon('chevron', 17)}</p>
+      </section>
+
+      <div class="partner-invite-actions">
+        <button class="partner-share-button" type="button" disabled>${icon('link', 19)}<span>Поделиться ссылкой</span></button>
+        <button class="partner-qr-button" type="button" aria-label="QR-код" disabled>${icon('qr', 21)}</button>
+      </div>
+    </div>
+  </section>`;
 }
 
 function ownerStatisticsPage() {
@@ -900,19 +952,7 @@ function subscriptionPage() {
 
 function nav() {
   const items = [['home', 'home', 'Главная'], ['services', 'grid', 'Сервисы'], ['profile', 'user', 'Профиль']];
-  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'services' && ['tariffs', 'group-tariffs'].includes(state.tab)) || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
-}
-
-function modal() {
-  if (!state.modal) return '';
-  let body = '';
-  if (state.modal === 'connect') body = `<div class="modal-icon blue">${icon('chat', 23)}</div><span class="eyebrow">ПОДКЛЮЧЕНИЕ TELEGRAM BUSINESS</span><h2>Подключение пока не выполняем</h2><p>Сначала собираем и проверяем приложение. Позже добавим безопасный сценарий подключения и покажем точные разрешения Telegram перед подтверждением.</p><div class="modal-callout">${icon('lock', 16)} Подключай только свой аккаунт и только те чаты, на обработку которых у тебя есть разрешение.</div><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
-  if (state.modal === 'telegram') body = `<div class="modal-icon blue">${icon('user', 23)}</div><span class="eyebrow">TELEGRAM MINI APP</span><h2>Как открыть приложение в Telegram</h2><p>Сейчас Mini App ещё не привязана к кнопке бота. После загрузки обновлённого приложения настроим кнопку запуска через BotFather.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
-  if (state.modal === 'privacy' || state.modal === 'about') body = `<div class="modal-icon green">${icon('shield', 23)}</div><span class="eyebrow">${state.modal === 'about' ? 'О SPYCHAU' : 'ПРОЗРАЧНОСТЬ'}</span><h2>${state.modal === 'about' ? 'Архив событий подключённых чатов' : 'Доступ и данные под твоим контролем'}</h2><p>Бот может получать только те события и сообщения, которые Telegram передаёт после того, как владелец аккаунта подключил бизнес-бота и выбрал чаты.</p><div class="privacy-points"><div>${icon('check', 16)}<span>Секретные чаты не доступны официальному Bot API</span></div><div>${icon('check', 16)}<span>Содержимое до подключения не появится в архиве</span></div><div>${icon('check', 16)}<span>Для фото используется сохранённый снимок сообщения Telegram</span></div><div>${icon('check', 16)}<span>Удалить профиль и сохранённые события можно из раздела «Профиль»</span></div></div><button class="button button-blue modal-primary" data-action="close">Закрыть ${icon('chevron', 16)}</button>`;
-  if (state.modal === 'groups') body = `<div class="modal-icon purple">${icon('people', 23)}</div><span class="eyebrow">ГРУППОВЫЕ ЧАТЫ</span><h2>Это отдельная функция</h2><p>Подключение Telegram Business работает с разрешёнными личными чатами. Для группового режима нужно отдельно добавить бота в группу и корректно настроить его права. Этот сценарий пока не реализован.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
-  if (state.modal === 'subscription') body = `<div class="modal-icon blue">${icon('lock', 23)}</div><span class="eyebrow">ПОДПИСКА</span><h2>Подключение подписки</h2><p>Покупка подписки пока не подключена. Сейчас её статус проверяется на сервере, а переключатель хозяйского режима доступен владельцу приложения в профиле.</p><button class="button button-blue modal-primary" data-action="close">Понятно ${icon('chevron', 16)}</button>`;
-  if (state.modal === 'receipt-email') body = `<div class="modal-icon blue">${icon('mail', 23)}</div><span class="eyebrow">ЧЕКИ О ПОКУПКАХ</span><h2>Почта для чеков</h2><p>Укажи адрес, на который отправлять чеки о покупке. Его можно изменить в любой момент.</p><form id="receipt-email-form"><label for="receipt-email" style="display:block;font-size:12px;color:var(--muted);margin-bottom:7px">Электронная почта</label><input id="receipt-email" class="receipt-email-input" name="email" type="email" value="${escapeHtml(state.user?.receipt_email || '')}" placeholder="name@example.com" autocomplete="email" maxlength="254" required><button class="button button-blue modal-primary" type="submit" ${state.receiptEmailSaving ? 'disabled' : ''}>${state.receiptEmailSaving ? 'Сохраняем…' : 'Сохранить'}</button></form>`;
-  return `<div class="modal-backdrop" data-action="backdrop"><div class="modal">${body}<button class="modal-close" data-action="close" aria-label="Закрыть">${icon('close', 18)}</button></div></div>`;
+  return `<nav class="bottom-nav" aria-label="Основная навигация">${items.map(([id, ico, label]) => `<button class="${state.tab === id || (state.tab === 'connection-tutorial' && state.tutorialReturnTab === id) || (id === 'services' && ['tariffs', 'group-tariffs'].includes(state.tab)) || (id === 'profile' && ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group', 'partner'].includes(state.tab)) ? 'active' : ''}" data-tab="${id}">${icon(ico, 21)}<span>${label}</span></button>`).join('')}</nav>`;
 }
 
 function syncTelegramTheme() {
@@ -926,11 +966,12 @@ function syncTelegramTheme() {
 
 function render() {
   syncTelegramTheme();
-  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'group-tariffs' ? groupTariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'owner-test-group' ? ownerTestGroupPage() : state.tab === 'about' ? aboutPage() : profile();
+  const page = state.tab === 'home' ? home() : state.tab === 'services' ? services() : state.tab === 'tariffs' ? tariffsPage() : state.tab === 'group-tariffs' ? groupTariffsPage() : state.tab === 'archive' ? archive() : state.tab === 'connection-tutorial' ? connectionTutorialPage() : state.tab === 'subscription' ? subscriptionPage() : state.tab === 'notifications' ? notificationsPage() : state.tab === 'support' ? supportPage() : state.tab === 'privacy' ? privacyPage() : state.tab === 'receipt-email' ? receiptEmailPage() : state.tab === 'delete-data' ? deleteDataPage() : state.tab === 'owner-statistics' ? ownerStatisticsPage() : state.tab === 'owner-test-group' ? ownerTestGroupPage() : state.tab === 'partner' ? partnerProgramPage() : state.tab === 'about' ? aboutPage() : profile();
   const mainTabs = ['home', 'services', 'profile'];
   const tariffDockActive = ['tariffs', 'group-tariffs'].includes(state.tab);
+  const partnerPageActive = state.tab === 'partner';
   const telegramSettingsDockActive = state.tab === 'connection-tutorial' && state.tutorialType !== 'groups';
-  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.tab === 'about' ? '' : modal()}${state.paymentSheetOpen ? paymentSheet() : ''}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${partnerPageActive ? 'has-partner-page' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.paymentSheetOpen ? paymentSheet() : ''}<div class="toast" role="status" aria-live="polite"></div></div>`;
   const settingsButton = app.querySelector('.tutorial-open-settings');
   const settingsHelp = app.querySelector('.tutorial-help-link');
   const settingsDock = app.querySelector('.telegram-settings-dock');
@@ -1424,7 +1465,6 @@ app.addEventListener('click', async event => {
     render();
     return;
   }
-  if (target.dataset.action === 'backdrop' && event.target !== target) return;
   if (target.dataset.action === 'open-payment-sheet') {
     if (!state.authenticated) { toast('Открой приложение через Telegram.'); return; }
     state.paymentTermsAccepted = false;
@@ -1544,7 +1584,6 @@ app.addEventListener('click', async event => {
   }
   if (target.dataset.tutorial) {
     pushNavigation();
-    state.modal = null;
     state.tutorialType = target.dataset.tutorial;
     state.tutorialReturnTab = state.tab;
     state.tab = 'connection-tutorial';
@@ -1553,12 +1592,11 @@ app.addEventListener('click', async event => {
     return;
   }
   if (target.dataset.tab) {
-    state.modal = null;
     if (target.dataset.tab === 'tariffs' && target.dataset.openPackage === 'true' && state.packageBalance?.has_purchases) {
       state.tariffMode = 'package';
       if (!tariffPlans('package').some(plan => plan.id === state.selectedTariff)) state.selectedTariff = 'pack300';
     }
-    const profileDetailTabs = ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group'];
+    const profileDetailTabs = ['subscription', 'notifications', 'support', 'privacy', 'receipt-email', 'delete-data', 'owner-statistics', 'owner-test-group', 'partner'];
     if (target.dataset.tab === 'profile' && profileDetailTabs.includes(state.tab)) {
       if (state.navigationStack.length) goBack();
       else { state.tab = 'profile'; render(); }
@@ -1624,10 +1662,7 @@ app.addEventListener('click', async event => {
     return;
   }
   const action = target.dataset.action;
-  if (action === 'tariff-pay') { await purchaseSelectedPlan(); return; }
-  if (action === 'group-tariff-pay') { toast('Выбери групповой тариф и продолжи оплату через Tribute.'); return; }
-  if (action === 'about') { pushNavigation(); state.modal = null; state.tab = 'about'; render(); return; }
-  if (action === 'close' || action === 'backdrop') { state.modal = null; render(); return; }
+  if (action === 'about') { pushNavigation(); state.tab = 'about'; render(); return; }
   if (action === 'refresh') { await loadMe(); return; }
   if (action === 'refresh-home-events') { await loadHomeEvents(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }
@@ -1648,7 +1683,6 @@ app.addEventListener('click', async event => {
     }
     return;
   }
-  if (action === 'subscription-info') { state.modal = 'subscription'; render(); return; }
   if (action === 'delete-data-confirm') {
     if (!state.authenticated) { toast('Открой Mini App из Telegram для управления данными.'); return; }
     if (!window.confirm('Удалить профиль, архивные сообщения и медиа, а также настройки аккаунта? Уже отправленные ботом сообщения в Telegram останутся в чате. Это действие нельзя отменить.')) return;
@@ -1666,8 +1700,6 @@ app.addEventListener('click', async event => {
     } catch (error) { toast(error.message || 'Не удалось удалить данные.'); }
     return;
   }
-  state.modal = action;
-  render();
 });
 
 let archiveSearchTimer = null;
@@ -1709,10 +1741,6 @@ app.addEventListener('error', event => {
   image.parentElement?.classList.remove('has-photo');
   image.remove();
 }, true);
-
-app.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && state.modal) { state.modal = null; render(); }
-});
 
 if (state.telegram) {
   state.telegram.BackButton?.onClick?.(goBack);
