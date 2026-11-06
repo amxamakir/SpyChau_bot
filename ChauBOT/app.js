@@ -751,7 +751,7 @@ function partnerProgramPage() {
       <span class="partner-hero-badge">Партнёрская программа</span>
       <div class="partner-hero-copy">
         <h1>Приводи друзей — зарабатывай</h1>
-        <p>Получай 30% с первой оплаты друга и 10% со всех последующих. Навсегда</p>
+        <p>Получай 20% с первой оплаты друга и 10% со всех последующих. Навсегда</p>
       </div>
       <img class="partner-hero-mascot" src="./assets/mascot/scout-tablet.png" alt="Скаут с планшетом">
     </div>
@@ -760,7 +760,7 @@ function partnerProgramPage() {
       <div class="partner-reward-grid" aria-label="Вознаграждение партнёра">
         <article class="partner-reward-card partner-reward-first">
           <span class="partner-reward-icon">${icon('crown', 25)}</span>
-          <span class="partner-reward-copy"><strong>30%</strong><span>С первой оплаты друга</span></span>
+          <span class="partner-reward-copy"><strong>20%</strong><span>С первой оплаты друга</span></span>
         </article>
         <article class="partner-reward-card partner-reward-next">
           <span class="partner-reward-icon">${icon('bolt', 24)}</span>
