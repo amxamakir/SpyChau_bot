@@ -433,8 +433,7 @@ html,body{touch-action:pan-x pan-y}
 .partner-metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .partner-metric-card{min-width:0;min-height:92px;display:grid;align-content:space-between;gap:9px;padding:12px;border:1px solid rgba(166,185,244,.13);border-radius:17px;background:linear-gradient(145deg,#141e3d,#10172f)}
 .partner-metric-top{display:flex;align-items:center;gap:7px;min-width:0;color:#aab7d7}
-.partner-metric-top>span:first-child{width:27px;height:27px;flex:none;display:grid;place-items:center;border-radius:9px;background:rgba(255,174,150,.1);color:#ffad96}
-.partner-metric-top>span:last-child{font-size:11px;line-height:1.25;font-weight:650}
+.partner-metric-top>span{font-size:11px;line-height:1.25;font-weight:650}
 .partner-metric-card>strong{overflow-wrap:anywhere;color:#f7f8ff;font-size:21px;line-height:1.05;font-weight:800;letter-spacing:-.3px}
 .partner-metrics-note{margin:-7px 2px 0;color:#929fbe;font-size:10px;line-height:1.4}
 .partner-balance-card{padding:16px;border:1px solid rgba(166,185,244,.13);border-radius:20px;background:linear-gradient(145deg,#141e3d,#10172f)}
@@ -1659,3 +1658,42 @@ body{background:#101827;color:#f4f6f9}
 :root[data-theme="light"] .payment-order-card small,:root[data-theme="light"] .payment-method-card small,:root[data-theme="light"] .payment-terms-consent,:root[data-theme="light"] .payment-method-label,:root[data-theme="light"] .payment-sheet-note{color:#596986}
 :root[data-theme="light"] .payment-progress-overlay{background:#f4f6fb;color:#17233c}
 :root[data-theme="light"] .payment-progress-overlay p{color:#596986}
+
+/* Information panels rely on their surfaces and shadows, not thin outlines. */
+:root .hero-card,
+:root .connect-card,
+:root .profile-card,
+:root .empty-events,
+:root .service-card,
+:root .coming-card,
+:root .modal,
+:root .modal-callout,
+:root .events-list,
+:root .archive-state,
+:root .archive-empty,
+:root .identity-card,
+:root .contact-list,
+:root .contact-row.archive-contact-card,
+:root .tutorial-note,
+:root .tutorial-step-card,
+:root .tutorial-loop,
+:root .tutorial-loop-scenes,
+:root .tutorial-breadcrumb b,
+:root .partner-hero,
+:root .partner-reward-card,
+:root .partner-metric-card,
+:root .partner-balance-card,
+:root .partner-balance-note,
+:root .partner-admin-card,
+:root .partner-admin-request,
+:root .partner-qr-info-card,
+:root .partner-qr-card,
+:root .partner-qr-empty,
+:root .profile-detail-card,
+:root .connection-tutorial-card,
+:root .archive-group-card,
+:root .tariff-benefits,
+:root .support-faq-list,
+:root .payment-sheet,
+:root .payment-order-card,
+:root .package-balance-card{border-color:transparent!important}

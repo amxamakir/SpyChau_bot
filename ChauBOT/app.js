@@ -757,11 +757,11 @@ function partnerProgramPage() {
   const progress = Math.min(100, Math.max(0, payoutProgressMinor / Math.max(1, minimumMinor) * 100));
   const remainingMinor = Math.max(0, minimumMinor - payoutProgressMinor);
   const partnerStats = [
-    { icon: 'external', label: 'Перешли по ссылке', value: new Intl.NumberFormat('ru-RU').format(Number(partner.link_click_count || 0)) },
-    { icon: 'people', label: 'Оплатили', value: new Intl.NumberFormat('ru-RU').format(Number(partner.paying_referral_count || 0)) },
-    { icon: 'card', label: 'Всего оплат', value: new Intl.NumberFormat('ru-RU').format(Number(partner.payment_count || 0)) },
-    { icon: 'wallet', label: 'Всего заработано', value: partnerRubles(earnedMinor) },
-  ].map(item => `<article class="partner-metric-card"><div class="partner-metric-top"><span>${icon(item.icon, 16)}</span><span>${item.label}</span></div><strong>${item.value}</strong></article>`).join('');
+    { label: 'Перешли по ссылке', value: new Intl.NumberFormat('ru-RU').format(Number(partner.link_click_count || 0)) },
+    { label: 'Оплатили', value: new Intl.NumberFormat('ru-RU').format(Number(partner.paying_referral_count || 0)) },
+    { label: 'Всего оплат', value: new Intl.NumberFormat('ru-RU').format(Number(partner.payment_count || 0)) },
+    { label: 'Всего заработано', value: partnerRubles(earnedMinor) },
+  ].map(item => `<article class="partner-metric-card"><div class="partner-metric-top"><span>${item.label}</span></div><strong>${item.value}</strong></article>`).join('');
   const adminRows = state.partnerAdminRequests.map(request => `<article class="partner-admin-request">
     <div><strong>${escapeHtml(request.first_name || 'Партнёр')}${request.username ? ` (@${escapeHtml(request.username)})` : ''}</strong>
       <small>ID ${escapeHtml(request.partner_id)} · заявка ${escapeHtml(formatDate(request.requested_at))}</small></div>
@@ -802,7 +802,7 @@ function partnerProgramPage() {
       <section class="partner-balance-card" aria-label="Баланс партнёрской программы">
         <div class="partner-balance-top">
           <span class="partner-wallet-icon">${icon('wallet', 21)}</span>
-          <span class="partner-balance-main"><span class="partner-balance-label">Не выплачено</span><strong class="partner-balance-value">${partnerRubles(payoutProgressMinor)}</strong></span>
+          <span class="partner-balance-main"><span class="partner-balance-label">Накоплено</span><strong class="partner-balance-value">${partnerRubles(payoutProgressMinor)}</strong></span>
         </div>
         <div class="partner-progress" role="progressbar" aria-label="Прогресс до порога выплаты" aria-valuemin="0" aria-valuemax="${minimumMinor / 100}" aria-valuenow="${Math.min(payoutProgressMinor / 100, minimumMinor / 100)}"><span style="width:${progress}%"></span></div>
         <div class="partner-progress-copy"><span>${escapeHtml(progressText)}</span><strong>от ${partnerRubles(minimumMinor)}</strong></div>
