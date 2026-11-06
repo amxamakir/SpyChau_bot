@@ -206,7 +206,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.14.3" });
+      return json({ status: "ok", service: "spychau-api", version: "0.14.4" });
     }
 
     const partnerReferralLinkMatch = route.match(/^\/r\/([A-F0-9]{12})$/i);

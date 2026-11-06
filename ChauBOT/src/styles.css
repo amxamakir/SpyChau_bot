@@ -412,8 +412,7 @@ html,body{touch-action:pan-x pan-y}
 .partner-page{padding-bottom:30px}
 .profile-row .partner-profile-icon{background:rgba(255,165,151,.14);color:#ffa993}
 .partner-hero{position:relative;isolation:isolate;min-height:390px;overflow:hidden;padding:74px 22px 24px;border:1px solid rgba(255,255,255,.12);border-top:0;border-radius:0 0 27px 27px;background:linear-gradient(118deg,#ff9980 0%,#f16e80 52%,#d74791 100%);color:#fff}
-.partner-hero-badge{position:relative;z-index:2;display:inline-flex;align-items:center;min-height:31px;padding:6px 11px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(91,33,54,.34);color:#fff;font-size:11px;font-weight:750;letter-spacing:.15px}
-.partner-hero-copy{position:relative;z-index:2;width:62%;max-width:295px;margin-top:13px}
+.partner-hero-copy{position:relative;z-index:2;width:62%;max-width:295px;margin-top:143px}
 .partner-hero-copy h1{margin:0;color:#fff;font-size:30px;line-height:1.08;letter-spacing:-.9px}
 .partner-hero-copy p{max-width:285px;margin:9px 0 0;color:rgba(255,255,255,.94);font-size:13px;line-height:1.48;font-weight:550}
 .partner-hero-mascot{position:absolute;z-index:1;right:-7px;bottom:-7px;width:202px;height:auto;object-fit:contain;pointer-events:none}
@@ -431,7 +430,7 @@ html,body{touch-action:pan-x pan-y}
 .partner-explainer{display:flex;align-items:flex-start;gap:9px;margin:0 2px;color:#aab7d7;font-size:12px;line-height:1.5}
 .partner-explainer svg{flex:none;margin-top:1px;color:#ffc19a}
 .partner-metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.partner-metric-card{min-width:0;min-height:92px;display:grid;align-content:space-between;gap:9px;padding:12px;border:1px solid rgba(166,185,244,.13);border-radius:17px;background:linear-gradient(145deg,#141e3d,#10172f)}
+.partner-metric-card{min-width:0;min-height:92px;display:grid;align-content:start;gap:12px;padding:12px;border:1px solid rgba(166,185,244,.13);border-radius:17px;background:linear-gradient(145deg,#141e3d,#10172f)}
 .partner-metric-top{display:flex;align-items:center;gap:7px;min-width:0;color:#aab7d7}
 .partner-metric-top>span{font-size:11px;line-height:1.25;font-weight:650}
 .partner-metric-card>strong{overflow-wrap:anywhere;color:#f7f8ff;font-size:21px;line-height:1.05;font-weight:800;letter-spacing:-.3px}
@@ -495,7 +494,7 @@ html,body{touch-action:pan-x pan-y}
 .partner-qr-actions button:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:430px){
   .partner-hero{min-height:375px;padding:72px 17px 20px}
-  .partner-hero-copy{width:62%;margin-top:11px}
+  .partner-hero-copy{width:62%;margin-top:158px}
   .partner-hero-copy h1{font-size:26px}
   .partner-hero-copy p{font-size:12px;line-height:1.43}
   .partner-hero-mascot{right:-9px;bottom:-4px;width:167px}
@@ -514,7 +513,7 @@ html,body{touch-action:pan-x pan-y}
   .app-shell.has-partner-page .partner-content{margin-left:max(12px,env(safe-area-inset-left));margin-right:max(12px,env(safe-area-inset-right))}
 }
 @media(max-width:360px){
-  .partner-hero-copy{width:64%}
+  .partner-hero-copy{width:64%;margin-top:177px}
   .partner-hero-copy h1{font-size:24px}
   .partner-hero-mascot{width:146px}
   .partner-reward-card{gap:7px;padding:8px}

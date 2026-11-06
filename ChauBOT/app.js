@@ -777,7 +777,6 @@ function partnerProgramPage() {
       : `До порога выплаты осталось ${partnerRubles(remainingMinor)}`;
   return `<section class="page profile-page partner-page">
     <div class="partner-hero">
-      <span class="partner-hero-badge">Партнёрская программа</span>
       <div class="partner-hero-copy">
         <h1>Приводи друзей — зарабатывай</h1>
         <p>Получай 20% с первой оплаты друга и 10% со всех последующих. Навсегда</p>
