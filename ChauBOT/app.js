@@ -30,6 +30,7 @@ const icon = (name, size = 20) => {
     chevron: '<path d="m9 18 6-6-6-6"/>',
     arrow: '<path d="M5 12h14m-7-7 7 7-7 7"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+    copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
     chart: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/>'
   };
@@ -44,7 +45,9 @@ const state = {
   notificationPreferences: loadNotificationPreferences(),
   notificationPreferencesSaving: false,
   loading: false, eventFeedLoading: false, eventFeedError: '', archiveLoading: false, groupArchiveLoading: false, groupArchiveError: '', paymentLoading: false, paymentSheetOpen: false, paymentTermsAccepted: false, paymentProvider: null, paymentSelection: null, tributeCheckoutPending: false, tributeCheckoutPreviousEntitlements: '', paymentsAvailable: false, packagePaymentsAvailable: false, groupPaymentsAvailable: false, tributePlanAvailability: {}, packageBalance: null, ownerStatistics: null, ownerStatisticsLoading: false, ownerTestGroup: [], ownerTestGroupLoading: false, ownerTestGroupAdding: false, ownerTestGroupError: '', apiError: '', telegram: window.Telegram?.WebApp || null,
-  authenticated: false, preview: !window.Telegram?.WebApp?.initData
+  authenticated: false, preview: !window.Telegram?.WebApp?.initData,
+  partnerData: null, partnerLoading: false, partnerError: '',
+  partnerAdminRequests: [], partnerAdminLoading: false, partnerAdminActionLoading: ''
 };
 
 function pushNavigation() {
@@ -746,6 +749,27 @@ function profile() {
 }
 
 function partnerProgramPage() {
+  const partner = state.partnerData || {};
+  const earnedMinor = Number(partner.total_earned_minor || 0);
+  const minimumMinor = Number(partner.minimum_withdrawal_minor || 500000);
+  const pending = partner.pending_withdrawal || null;
+  const payoutProgressMinor = Math.max(0, Number(partner.payout_progress_minor ?? (earnedMinor - Number(partner.withdrawn_minor || 0))));
+  const progress = Math.min(100, Math.max(0, payoutProgressMinor / Math.max(1, minimumMinor) * 100));
+  const remainingMinor = Math.max(0, minimumMinor - payoutProgressMinor);
+  const referralCount = Number(partner.referral_count || 0);
+  const adminRows = state.partnerAdminRequests.map(request => `<article class="partner-admin-request">
+    <div><strong>${escapeHtml(request.first_name || 'Партнёр')}${request.username ? ` (@${escapeHtml(request.username)})` : ''}</strong>
+      <small>ID ${escapeHtml(request.partner_id)} · заявка ${escapeHtml(formatDate(request.requested_at))}</small></div>
+    <b>${partnerRubles(request.amount_minor)}</b>
+    <div class="partner-admin-actions">
+      <button type="button" class="subtle-button" data-action="partner-withdrawal-paid" data-request-id="${escapeHtml(request.request_id)}" ${state.partnerAdminActionLoading === request.request_id ? 'disabled' : ''}>Выплата переведена</button>
+    </div>
+  </article>`).join('');
+  const progressText = pending
+    ? `Выплата ${partnerRubles(pending.amount_minor)} сформирована и ожидает перевода`
+    : remainingMinor === 0
+      ? 'Порог достигнут — выплата сформирована'
+      : `До порога выплаты осталось ${partnerRubles(remainingMinor)}`;
   return `<section class="page profile-page partner-page">
     <div class="partner-hero">
       <span class="partner-hero-badge">Партнёрская программа</span>
@@ -769,24 +793,93 @@ function partnerProgramPage() {
       </div>
 
       <p class="partner-explainer">${icon('link', 16)}<span>Друг закрепляется за тобой навсегда — процент идёт с каждой его оплаты.</span></p>
+      <div class="partner-invite-count">${icon('people', 17)}<span>Приглашено друзей</span><strong>${new Intl.NumberFormat('ru-RU').format(referralCount)}</strong></div>
 
       <section class="partner-balance-card" aria-label="Баланс партнёрской программы">
         <div class="partner-balance-top">
           <span class="partner-wallet-icon">${icon('wallet', 21)}</span>
-          <span class="partner-balance-main"><span class="partner-balance-label">Баланс</span><strong class="partner-balance-value">0 ₽</strong></span>
-          <button class="partner-withdraw" type="button" disabled>${icon('lock', 15)}Вывести</button>
+          <span class="partner-balance-main"><span class="partner-balance-label">Заработано всего</span><strong class="partner-balance-value">${partnerRubles(earnedMinor)}</strong></span>
         </div>
-        <div class="partner-progress" role="progressbar" aria-label="Прогресс до минимальной суммы вывода" aria-valuemin="0" aria-valuemax="5000" aria-valuenow="0"><span></span></div>
-        <div class="partner-progress-copy"><span>До вывода осталось 5 000 ₽</span><strong>от 5 000 ₽</strong></div>
-        <p class="partner-balance-note">${icon('info', 19)}<span>Баланс можно потратить на свою подписку при оплате</span>${icon('chevron', 17)}</p>
+        <div class="partner-progress" role="progressbar" aria-label="Прогресс до порога выплаты" aria-valuemin="0" aria-valuemax="${minimumMinor / 100}" aria-valuenow="${Math.min(payoutProgressMinor / 100, minimumMinor / 100)}"><span style="width:${progress}%"></span></div>
+        <div class="partner-progress-copy"><span>${escapeHtml(progressText)}</span><strong>от ${partnerRubles(minimumMinor)}</strong></div>
+        <p class="partner-balance-note">${icon('info', 19)}<span>При достижении ${partnerRubles(minimumMinor)} выплата автоматически ставится в очередь. Сам перевод сейчас выполняется владельцем вручную.</span></p>
       </section>
 
       <div class="partner-invite-actions">
-        <button class="partner-share-button" type="button" disabled>${icon('link', 19)}<span>Поделиться ссылкой</span></button>
-        <button class="partner-qr-button" type="button" aria-label="QR-код" disabled>${icon('qr', 21)}</button>
+        <button class="partner-share-button" type="button" data-action="share-partner-link" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('link', 19)}<span>Поделиться ссылкой</span></button>
+        <button class="partner-copy-button" type="button" data-action="copy-partner-link" aria-label="Скопировать ссылку" title="Скопировать ссылку" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('copy', 21)}</button>
       </div>
+      ${state.partnerLoading ? '<p class="partner-state-message">Загружаю статистику партнёра…</p>' : ''}
+      ${state.partnerError ? `<p class="partner-state-message partner-state-error">${escapeHtml(state.partnerError)} <button type="button" data-action="refresh-partner">Повторить</button></p>` : ''}
+      ${state.preview ? '<p class="partner-state-message">Открой приложение через Telegram, чтобы получить свою ссылку и видеть начисления.</p>' : ''}
+      ${state.subscription?.can_test_override ? `<section class="partner-admin-card"><strong>Выплаты к обработке</strong>${state.partnerAdminLoading ? '<p>Загрузка…</p>' : adminRows || '<p>Ожидающих выплат нет.</p>'}</section>` : ''}
     </div>
   </section>`;
+}
+
+function partnerRubles(amountMinor) {
+  return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(Math.max(0, Number(amountMinor) || 0) / 100)} ₽`;
+}
+
+async function loadPartnerProgram() {
+  if (!state.authenticated || state.partnerLoading) return;
+  state.partnerLoading = true;
+  state.partnerError = '';
+  render();
+  try {
+    const result = await api('/api/partner');
+    state.partnerData = result;
+    if (state.subscription?.can_test_override) {
+      state.partnerAdminLoading = true;
+      try {
+        const admin = await api('/api/owner/partner-withdrawals');
+        state.partnerAdminRequests = admin.requests || [];
+      } catch {
+        state.partnerAdminRequests = [];
+      } finally {
+        state.partnerAdminLoading = false;
+      }
+    }
+  } catch (error) {
+    state.partnerError = error.message || 'Не удалось загрузить данные партнёрской программы.';
+  } finally {
+    state.partnerLoading = false;
+    render();
+  }
+}
+
+async function copyPartnerLink() {
+  const link = state.partnerData?.share_link;
+  if (!link) throw new Error('Сначала обнови свою партнёрскую ссылку.');
+  try {
+    await navigator.clipboard.writeText(link);
+    return;
+  } catch {}
+  const input = document.createElement('textarea');
+  input.value = link;
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand('copy');
+  input.remove();
+  if (!copied) throw new Error('Не удалось скопировать ссылку.');
+}
+
+async function processPartnerWithdrawal(requestId) {
+  if (!requestId || state.partnerAdminActionLoading) return;
+  if (!window.confirm('Подтверди, что перевод партнёру уже выполнен.')) return;
+  state.partnerAdminActionLoading = requestId;
+  render();
+  try {
+    await api(`/api/owner/partner-withdrawals/${encodeURIComponent(requestId)}`, { method: 'POST' });
+    toast('Выплата отмечена выполненной.');
+  } catch (error) {
+    toast(error.message || 'Не удалось обработать заявку.');
+  } finally {
+    state.partnerAdminActionLoading = '';
+    await loadPartnerProgram();
+  }
 }
 
 function ownerStatisticsPage() {
@@ -1609,6 +1702,7 @@ app.addEventListener('click', async event => {
     if (target.dataset.tab !== state.tab) pushNavigation();
     state.tab = target.dataset.tab;
     render();
+    if (state.tab === 'partner') await loadPartnerProgram();
     if (state.tab === 'owner-statistics') await loadOwnerStatistics();
     if (state.tab === 'owner-test-group') await loadOwnerTestGroup();
     return;
@@ -1658,6 +1752,30 @@ app.addEventListener('click', async event => {
   }
   const action = target.dataset.action;
   if (action === 'about') { pushNavigation(); state.tab = 'about'; render(); return; }
+  if (action === 'refresh-partner') { await loadPartnerProgram(); return; }
+  if (action === 'copy-partner-link') {
+    try { await copyPartnerLink(); toast('Партнёрская ссылка скопирована.'); }
+    catch (error) { toast(error.message || 'Не удалось скопировать ссылку.'); }
+    return;
+  }
+  if (action === 'share-partner-link') {
+    const link = state.partnerData?.share_link;
+    if (!link) { toast('Сначала обнови свою партнёрскую ссылку.'); return; }
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Попробуй SpySkaut — приложение сохраняет события из подключённых чатов Telegram.')}`;
+    if (state.telegram?.openTelegramLink) state.telegram.openTelegramLink(shareUrl);
+    else if (navigator.share) {
+      try { await navigator.share({ title: 'SpySkaut', text: 'Попробуй SpySkaut', url: link }); }
+      catch (error) { if (error.name !== 'AbortError') toast('Не удалось открыть меню отправки.'); }
+    } else {
+      try { await copyPartnerLink(); toast('Партнёрская ссылка скопирована.'); }
+      catch (error) { toast(error.message || 'Не удалось поделиться ссылкой.'); }
+    }
+    return;
+  }
+  if (action === 'partner-withdrawal-paid') {
+    await processPartnerWithdrawal(target.dataset.requestId);
+    return;
+  }
   if (action === 'refresh') { await loadMe(); return; }
   if (action === 'refresh-home-events') { await loadHomeEvents(); return; }
   if (action === 'refresh-archive') { await loadArchive(); return; }

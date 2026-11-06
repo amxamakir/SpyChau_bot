@@ -434,8 +434,6 @@ html,body{touch-action:pan-x pan-y}
 .partner-balance-main{display:grid;gap:3px;min-width:0}
 .partner-balance-label{color:#d0d7ea;font-size:12px;font-weight:600}
 .partner-balance-value{color:#f7f8ff;font-size:22px;line-height:1;font-weight:800;letter-spacing:-.5px;white-space:nowrap}
-.partner-withdraw{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-left:auto;padding:0 12px;border:1px solid rgba(166,185,244,.1);border-radius:14px;background:#1b2341;color:#8491b4;font-size:12px;font-weight:700;white-space:nowrap}
-.partner-withdraw:disabled{opacity:.72;cursor:not-allowed}
 .partner-progress{height:7px;margin-top:17px;overflow:hidden;border-radius:99px;background:#263252}
 .partner-progress span{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#ffc19a,#f4a9c3)}
 .partner-progress-copy{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;color:#aab7d7;font-size:11px;line-height:1.35}
@@ -445,10 +443,28 @@ html,body{touch-action:pan-x pan-y}
 .partner-balance-note span{flex:1}
 .partner-balance-note svg:last-child{flex:none;color:#8e9abd}
 .partner-invite-actions{display:grid;grid-template-columns:minmax(0,1fr) 54px;gap:10px}
-.partner-share-button,.partner-qr-button{height:60px;display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:24px;background:linear-gradient(110deg,#ff9980,#f06b85);color:#17142b;font:inherit;font-size:15px;font-weight:800;box-shadow:0 8px 20px rgba(242,107,133,.14)}
-.partner-share-button:disabled,.partner-qr-button:disabled{opacity:1;cursor:not-allowed}
-.partner-qr-button{border:1px solid rgba(255,255,255,.1);border-radius:19px;background:linear-gradient(145deg,#292447,#1c1b38);color:#f2edff;box-shadow:none}
-.partner-share-button svg,.partner-qr-button svg{flex:none}
+.partner-share-button{height:60px;display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:24px;background:linear-gradient(110deg,#ff9980,#f06b85);color:#17142b;font:inherit;font-size:15px;font-weight:800;box-shadow:0 8px 20px rgba(242,107,133,.14)}
+.partner-share-button:disabled{opacity:.55;cursor:not-allowed}
+.partner-share-button svg{flex:none}
+.partner-invite-count{display:flex;align-items:center;gap:9px;color:#aab7d7;font-size:13px}
+.partner-invite-count svg{color:#ffb899;flex:none}
+.partner-invite-count strong{margin-left:auto;color:#f7f8ff;font-size:16px;font-weight:800}
+.partner-copy-button{height:60px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:19px;background:linear-gradient(145deg,#292447,#1c1b38);color:#f2edff;box-shadow:none}
+.partner-copy-button:disabled{opacity:.55;cursor:not-allowed}
+.partner-state-message{margin:0 2px;color:#aab7d7;font-size:12px;line-height:1.45}
+.partner-state-error{color:#ffaaa5}
+.partner-state-error button{margin-left:5px;padding:0;border:0;background:none;color:#ffc19a;font:inherit;font-weight:750;text-decoration:underline}
+.partner-admin-card{display:grid;gap:12px;padding:15px;border:1px solid rgba(166,185,244,.13);border-radius:19px;background:linear-gradient(145deg,#141e3d,#10172f)}
+.partner-admin-card>strong{color:#f7f8ff;font-size:14px}
+.partner-admin-card>p{margin:0;color:#aab7d7;font-size:12px}
+.partner-admin-request{display:grid;gap:10px;padding:12px;border:1px solid rgba(166,185,244,.12);border-radius:14px;background:rgba(255,255,255,.035)}
+.partner-admin-request>div:first-child{display:grid;gap:4px;min-width:0}
+.partner-admin-request>div:first-child strong{overflow-wrap:anywhere;color:#f7f8ff;font-size:13px}
+.partner-admin-request small{color:#aab7d7;font-size:11px}
+.partner-admin-request>b{color:#ffc19a;font-size:17px}
+.partner-admin-actions{display:flex;flex-wrap:wrap;gap:8px}
+.partner-admin-actions button{min-height:36px;padding:0 11px}
+.partner-admin-actions button:disabled{opacity:.55}
 @media(max-width:430px){
   .partner-hero{min-height:375px;padding:72px 17px 20px}
   .partner-hero-copy{width:62%;margin-top:11px}
@@ -478,7 +494,6 @@ html,body{touch-action:pan-x pan-y}
   .partner-reward-copy>span{font-size:9px}
   .partner-balance-top{gap:7px}
   .partner-balance-value{font-size:20px}
-  .partner-withdraw{padding-inline:8px}
 }
 .privacy-point-icon.gold{color:#ffc247}
 .privacy-point-icon.orange{color:#f4ae48}

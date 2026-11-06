@@ -206,7 +206,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.12.5" });
+      return json({ status: "ok", service: "spychau-api", version: "0.13.0" });
     }
 
     const avatarMatch = route.match(/^\/api\/avatar\/(\d+)$/);
@@ -260,6 +260,44 @@ export default {
 
         if (route === "/api/me" && request.method === "GET") {
           return json(await getUserBootstrap(env, user));
+        }
+
+        if (route === "/api/partner" && request.method === "GET") {
+          const partnerId = String(user.id);
+          const account = await ensurePartnerAccount(env.DB, partnerId);
+          if (!account) return json({ error: "partner_account_unavailable" }, 503);
+          return json(await getPartnerDashboard(env.DB, partnerId, account.referral_code));
+        }
+
+        if (route === "/api/owner/partner-withdrawals" && request.method === "GET") {
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) return json({ error: "not found" }, 404);
+          const requests = await env.DB.prepare(`SELECT withdrawal.request_id, withdrawal.partner_id,
+              withdrawal.amount_minor, withdrawal.requested_at, profile.username, profile.first_name
+            FROM partner_withdrawals withdrawal
+            JOIN users profile ON profile.telegram_id = withdrawal.partner_id
+            WHERE withdrawal.status = 'pending'
+            ORDER BY withdrawal.requested_at ASC LIMIT 100`).all();
+          return json({ requests: requests.results || [] });
+        }
+
+        const partnerWithdrawalMatch = route.match(/^\/api\/owner\/partner-withdrawals\/([0-9a-f-]{36})$/i);
+        if (partnerWithdrawalMatch && request.method === "POST") {
+          const ownerId = String(user.id);
+          if (!env.SUBSCRIPTION_TEST_OWNER_ID || ownerId !== String(env.SUBSCRIPTION_TEST_OWNER_ID)) return json({ error: "not found" }, 404);
+          const updated = await env.DB.prepare(`UPDATE partner_withdrawals
+            SET status = 'paid', processed_at = CURRENT_TIMESTAMP, processed_by = ?
+            WHERE request_id = ? AND status = 'pending'`)
+            .bind(ownerId, partnerWithdrawalMatch[1]).run();
+          if (Number(updated.meta?.changes || 0) !== 1) return json({ error: "withdrawal_not_pending" }, 409);
+          const requestRow = await env.DB.prepare(`SELECT partner_id, amount_minor FROM partner_withdrawals WHERE request_id = ?`)
+            .bind(partnerWithdrawalMatch[1]).first();
+          if (requestRow && env.TELEGRAM_BOT_TOKEN) {
+            const text = `✅ Партнёрская выплата ${(Number(requestRow.amount_minor) / 100).toFixed(2)} ₽ обработана.`;
+            await callTelegramJson(env, "sendMessage", { chat_id: String(requestRow.partner_id), text }).catch(() => null);
+          }
+          if (requestRow) await queuePartnerPayout(env, String(requestRow.partner_id));
+          return json({ updated: true, status: "paid" });
         }
 
         if (route === "/api/payments/checkout" && request.method === "POST") {
@@ -619,6 +657,10 @@ async function handleTelegramWebhook(request, env) {
       let callbackUpdatesReady = false;
       if (!isHelp) {
         await saveUser(env.DB, incomingMessage.from || { id: incomingMessage.chat.id });
+        const referralStartMatch = startMatch?.[1]?.match(/^ref_([A-Za-z0-9]{12})$/i);
+        if (referralStartMatch) {
+          await attributePartnerReferral(env.DB, ownerId, referralStartMatch[1]);
+        }
         hasEnabledConnection = Boolean(await env.DB.prepare(
           "SELECT 1 AS connected FROM connections WHERE owner_id = ? AND enabled = 1 LIMIT 1",
         ).bind(ownerId).first());
@@ -923,6 +965,15 @@ async function handleTributeSubscriptionWebhook(eventName, event, payload, env) 
       updated_at = CURRENT_TIMESTAMP`)
       .bind(ownerId, plan.months, planId, subscriptionId, plan.months));
   } else {
+    statements.push(env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
+        purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency,
+        expires_at, groups_limit
+      ) SELECT ?, 'tribute_subscription', ?, ?, 'groups', ?, ?, 'RUB', datetime(
+        CASE WHEN julianday((SELECT expires_at FROM group_entitlements WHERE owner_id = ?)) > julianday('now')
+          THEN (SELECT expires_at FROM group_entitlements WHERE owner_id = ?) ELSE 'now' END,
+        printf('+%d months', ?)
+      ), ? WHERE changes() = 1`)
+      .bind(purchaseId, eventKey, ownerId, planId, amountMinor, ownerId, ownerId, plan.months, plan.groups));
     statements.push(env.DB.prepare(`INSERT INTO group_entitlements(
         owner_id, plan_id, groups_limit, starts_at, expires_at, provider_subscription_id, auto_renew, updated_at
       ) SELECT ?, ?, ?, CURRENT_TIMESTAMP,
@@ -943,7 +994,13 @@ async function handleTributeSubscriptionWebhook(eventName, event, payload, env) 
   try {
     const results = await env.DB.batch(statements);
     const eventRecorded = Number(results?.[0]?.meta?.changes || 0) === 1;
-    if (eventRecorded) await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventName);
+    // Re-run this idempotent insert on duplicate webhooks too. If an earlier
+    // invocation stored the payment but stopped before writing its commission,
+    // the retry repairs the missing ledger row without double-crediting it.
+    await recordPartnerCommission(env, ownerId, purchaseId, purchaseId);
+    if (eventRecorded) {
+      await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, eventName);
+    }
     return json({ ok: true, handled: eventName, service_key: serviceKey, plan_id: planId, duplicate: !eventRecorded });
   } catch (error) {
     console.error("Tribute subscription event processing failed", { serviceKey, planId, error: String(error?.message || error) });
@@ -1050,6 +1107,7 @@ async function handleTributeShopWebhook(eventName, event, payload, rawBody, env)
         env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'paid', updated_at = CURRENT_TIMESTAMP
           WHERE order_uuid = ? AND changes() = 1`).bind(orderUuid),
       ]);
+      await recordPartnerCommission(env, String(order.owner_id), purchaseId, `tribute-shop:${eventKey}`);
       if (Number(results?.[0]?.meta?.changes || 0) === 1) {
         await notifyPurchaseConfirmed(env, String(order.owner_id), serviceKey, planId, eventName, purchaseId);
       }
@@ -1095,6 +1153,7 @@ async function handleTributeShopWebhook(eventName, event, payload, rawBody, env)
     statements.push(env.DB.prepare(`UPDATE tribute_shop_orders SET status = 'paid', updated_at = CURRENT_TIMESTAMP
       WHERE order_uuid = ? AND changes() = 1`).bind(orderUuid));
     const results = await env.DB.batch(statements);
+    await recordPartnerCommission(env, String(order.owner_id), purchaseId, `tribute-shop:${eventKey}`);
     if (Number(results?.[1]?.meta?.changes || 0) === 1) {
       await notifyPurchaseConfirmed(env, String(order.owner_id), serviceKey, planId, eventName, purchaseId);
     }
@@ -1142,6 +1201,7 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
     return json({ ok: true, ignored: true, reason: "product_not_mapped" });
   }
   const amount = expectedProduct.amount_rub * 100;
+  const eventKey = `tribute:product:${purchaseId}`;
   const consent = serviceKey === "groups"
     ? await env.DB.prepare(`SELECT 1 AS accepted FROM service_payment_consents
         WHERE owner_id = ? AND plan_id = ? AND service_key = 'groups'
@@ -1158,11 +1218,11 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
     if (serviceKey === "groups") {
       const plan = GROUP_ACCESS_PLANS[planId];
       if (!plan) return json({ error: "unknown group plan" }, 400);
-      const eventKey = `tribute:product:${purchaseId}`;
       const inserted = await env.DB.prepare(`INSERT OR IGNORE INTO payment_purchases(
         purchase_id, provider, provider_event_id, owner_id, service_key, plan_id, amount_minor, currency, expires_at, groups_limit
       ) VALUES(?, 'tribute', ?, ?, 'groups', ?, ?, 'RUB', datetime('now', printf('+%d months', ?)), ?)`)
         .bind(eventKey, `product:${purchaseId}`, ownerId, planId, amount, plan.months, plan.groups).run();
+      await recordPartnerCommission(env, ownerId, eventKey, eventKey);
       if (Number(inserted.meta?.changes || 0) === 1) {
         await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, "new_digital_product", purchaseId);
       }
@@ -1188,6 +1248,7 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
         WHERE changes() = 1`)
           .bind(crypto.randomUUID(), ownerId, `tribute:product:${purchaseId}`, planId, plan.events, plan.events, ownerId),
       ]);
+      await recordPartnerCommission(env, ownerId, `tribute:product:${purchaseId}`, eventKey);
       if (Number(results?.[0]?.meta?.changes || 0) === 1) {
         await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, "new_digital_product", purchaseId);
       }
@@ -1196,7 +1257,6 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
 
     const plan = PERSONAL_SUBSCRIPTION_PLANS[planId];
     if (!plan) return json({ error: "unknown subscription plan" }, 400);
-    const eventKey = `tribute:product:${purchaseId}`;
     const results = await env.DB.batch([
       env.DB.prepare(`INSERT OR IGNORE INTO tribute_digital_product_events(
         provider_event_id, purchase_id, owner_id, product_id, service_key, plan_id, amount_minor, currency
@@ -1217,6 +1277,7 @@ async function handleTributeDigitalProduct(payload, rawBody, env) {
           WHEN julianday(subscriptions.expires_at) > julianday('now') THEN subscriptions.auto_renew ELSE 0 END`)
         .bind(ownerId, plan.months, planId, plan.months),
     ]);
+    await recordPartnerCommission(env, ownerId, eventKey, eventKey);
     if (Number(results?.[0]?.meta?.changes || 0) === 1) {
       await notifyPurchaseConfirmed(env, ownerId, serviceKey, planId, "new_digital_product", purchaseId);
     }
@@ -2172,6 +2233,148 @@ async function getUserBootstrap(env, user) {
     },
     group_payments_available: Boolean(tributePaymentsReady(env, "groups")),
   };
+}
+
+async function ensurePartnerAccount(db, ownerId) {
+  const existing = await db.prepare("SELECT owner_id, referral_code FROM partner_accounts WHERE owner_id = ?")
+    .bind(String(ownerId)).first();
+  if (existing) return existing;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const referralCode = crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+    await db.prepare("INSERT OR IGNORE INTO partner_accounts(owner_id, referral_code) VALUES(?, ?)")
+      .bind(String(ownerId), referralCode).run();
+    const account = await db.prepare("SELECT owner_id, referral_code FROM partner_accounts WHERE owner_id = ?")
+      .bind(String(ownerId)).first();
+    if (account) return account;
+  }
+  return null;
+}
+
+async function getPartnerDashboard(db, partnerId, referralCode) {
+  const [referrals, earnings, withdrawals, pending] = await Promise.all([
+    db.prepare("SELECT COUNT(*) AS total FROM partner_referrals WHERE partner_id = ?").bind(String(partnerId)).first(),
+    db.prepare(`SELECT COALESCE(SUM(commission.amount_minor), 0) AS total
+      FROM partner_commissions commission
+      JOIN payment_purchases purchase ON purchase.purchase_id = commission.purchase_id
+      WHERE commission.partner_id = ? AND purchase.refunded_at IS NULL`).bind(String(partnerId)).first(),
+    db.prepare(`SELECT
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount_minor ELSE 0 END), 0) AS paid
+      FROM partner_withdrawals WHERE partner_id = ?`).bind(String(partnerId)).first(),
+    db.prepare(`SELECT request_id, amount_minor, requested_at FROM partner_withdrawals
+      WHERE partner_id = ? AND status = 'pending' LIMIT 1`).bind(String(partnerId)).first(),
+  ]);
+  const totalEarnedMinor = Number(earnings?.total || 0);
+  const minimumWithdrawalMinor = 500000;
+  return {
+    referral_code: referralCode,
+    share_link: `https://t.me/SpySkaut_bot?start=ref_${referralCode}`,
+    referral_count: Number(referrals?.total || 0),
+    total_earned_minor: totalEarnedMinor,
+    payout_progress_minor: Math.max(0, totalEarnedMinor - Number(withdrawals?.paid || 0)),
+    withdrawn_minor: Number(withdrawals?.paid || 0),
+    minimum_withdrawal_minor: minimumWithdrawalMinor,
+    pending_withdrawal: pending ? {
+      request_id: String(pending.request_id),
+      amount_minor: Number(pending.amount_minor || 0),
+      requested_at: String(pending.requested_at || ""),
+    } : null,
+  };
+}
+
+async function queuePartnerPayout(env, partnerId) {
+  const db = env.DB;
+  const requestId = crypto.randomUUID();
+  const inserted = await db.prepare(`INSERT OR IGNORE INTO partner_withdrawals(request_id, partner_id, amount_minor)
+    SELECT ?, ?, MAX(0,
+      (SELECT COALESCE(SUM(commission.amount_minor), 0)
+        FROM partner_commissions commission
+        JOIN payment_purchases purchase ON purchase.purchase_id = commission.purchase_id
+        WHERE commission.partner_id = ? AND purchase.refunded_at IS NULL)
+      - (SELECT COALESCE(SUM(amount_minor), 0) FROM partner_withdrawals
+        WHERE partner_id = ? AND status = 'paid')
+    )
+    WHERE NOT EXISTS (SELECT 1 FROM partner_withdrawals WHERE partner_id = ? AND status = 'pending')
+      AND MAX(0,
+        (SELECT COALESCE(SUM(commission.amount_minor), 0)
+          FROM partner_commissions commission
+          JOIN payment_purchases purchase ON purchase.purchase_id = commission.purchase_id
+          WHERE commission.partner_id = ? AND purchase.refunded_at IS NULL)
+        - (SELECT COALESCE(SUM(amount_minor), 0) FROM partner_withdrawals
+          WHERE partner_id = ? AND status = 'paid')
+      ) >= 500000`)
+    .bind(requestId, String(partnerId), String(partnerId), String(partnerId), String(partnerId), String(partnerId), String(partnerId)).run();
+  if (Number(inserted.meta?.changes || 0) !== 1) return false;
+
+  const payout = await db.prepare(`SELECT request_id, amount_minor FROM partner_withdrawals WHERE request_id = ?`)
+    .bind(requestId).first();
+  const partner = await db.prepare("SELECT username, first_name FROM users WHERE telegram_id = ?")
+    .bind(String(partnerId)).first();
+  const amount = Number(payout?.amount_minor || 0);
+  const profile = `${partner?.first_name || "пользователь"}${partner?.username ? ` (@${partner.username})` : ""}`;
+  if (env.TELEGRAM_BOT_TOKEN && env.SUBSCRIPTION_TEST_OWNER_ID) {
+    await callTelegramJson(env, "sendMessage", {
+      chat_id: String(env.SUBSCRIPTION_TEST_OWNER_ID),
+      text: `💸 Автоматически сформирована партнёрская выплата\n\nПартнёр: ${profile}\nTelegram ID: ${partnerId}\nСумма: ${(amount / 100).toFixed(2)} ₽\nВыплата: ${requestId}\n\nПереведи сумму партнёру и отметь её выполненной в приложении SpySkaut → Партнёрская программа.`,
+    }).catch(() => null);
+  }
+  if (env.TELEGRAM_BOT_TOKEN) {
+    await callTelegramJson(env, "sendMessage", {
+      chat_id: String(partnerId),
+      text: `🎉 Достигнут порог партнёрской выплаты. ${new Intl.NumberFormat("ru-RU").format(amount / 100)} ₽ автоматически поставлены в очередь. Мы свяжемся с тобой для перевода.`,
+    }).catch(() => null);
+  }
+  return true;
+}
+
+async function recordPartnerCommission(env, ownerId, purchaseId, eventKey) {
+  const db = env.DB;
+  if (!eventKey || !purchaseId) return;
+  await db.prepare(`WITH eligible AS (
+      SELECT ? AS event_key, purchase.purchase_id, referral.partner_id, referral.referred_id,
+        CASE WHEN (
+          SELECT COUNT(*) FROM partner_commissions prior
+          JOIN payment_purchases paid_purchase ON paid_purchase.purchase_id = prior.purchase_id
+          WHERE prior.referred_id = referral.referred_id AND paid_purchase.refunded_at IS NULL
+        ) = 0 THEN 2000 ELSE 1000 END AS rate_basis_points,
+        purchase.amount_minor, purchase.currency
+      FROM payment_purchases purchase
+      JOIN partner_referrals referral ON referral.referred_id = purchase.owner_id
+      WHERE purchase.purchase_id = ? AND purchase.owner_id = ?
+        AND purchase.currency = 'RUB' AND purchase.amount_minor > 0
+        AND purchase.refunded_at IS NULL
+    )
+    INSERT OR IGNORE INTO partner_commissions(
+      event_key, purchase_id, partner_id, referred_id, rate_basis_points, amount_minor, currency
+    )
+    SELECT event_key, purchase_id, partner_id, referred_id, rate_basis_points,
+      CAST((amount_minor * rate_basis_points + 5000) / 10000 AS INTEGER), currency
+    FROM eligible`)
+    .bind(String(eventKey), String(purchaseId), String(ownerId)).run();
+
+  const commission = await db.prepare("SELECT partner_id FROM partner_commissions WHERE event_key = ?")
+    .bind(String(eventKey)).first();
+  if (commission?.partner_id) await queuePartnerPayout(env, String(commission.partner_id));
+}
+
+async function attributePartnerReferral(db, referredId, referralCode) {
+  const normalizedCode = String(referralCode || "").trim().toUpperCase();
+  if (!/^[A-F0-9]{12}$/.test(normalizedCode)) return false;
+  const account = await db.prepare("SELECT owner_id FROM partner_accounts WHERE referral_code = ?")
+    .bind(normalizedCode).first();
+  if (!account || String(account.owner_id) === String(referredId)) return false;
+  const priorPayment = await db.prepare("SELECT 1 FROM payment_purchases WHERE owner_id = ? LIMIT 1")
+    .bind(String(referredId)).first();
+  if (priorPayment) return false;
+
+  const inserted = await db.prepare(`INSERT OR IGNORE INTO partner_referrals(referred_id, partner_id, referral_code)
+    SELECT ?, ?, ? WHERE NOT EXISTS (
+      SELECT 1 FROM partner_referrals WHERE referred_id = ?
+    ) AND NOT EXISTS (
+      SELECT 1 FROM payment_purchases WHERE owner_id = ?
+    )`)
+    .bind(String(referredId), String(account.owner_id), normalizedCode, String(referredId), String(referredId)).run();
+  return Number(inserted.meta?.changes || 0) === 1;
 }
 
 async function sendEventNotification(env, { ownerId, updateId, messageId, event }) {
