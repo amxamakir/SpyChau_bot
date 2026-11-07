@@ -2,6 +2,8 @@
 
 ## Recent releases
 
+- `v0.14.9: Explain one-time notification controls` — добавить в поддержку инструкции по переключению уведомлений из приложения и настроек плашки Telegram.
+
 - `v0.14.8: Move referral link label above its card` — вынести подпись личной пригласительной ссылки из карточки и расположить над ней.
 
 - `v0.14.7: Highlight referral program in profile` — выделить пункт партнёрской программы в профиле персиково-розовой рамкой и мягкой подложкой.
