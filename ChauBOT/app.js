@@ -750,6 +750,7 @@ function profile() {
 
 function partnerProgramPage() {
   const partner = state.partnerData || {};
+  const inviteLink = String(partner.share_link || '');
   const earnedMinor = Number(partner.total_earned_minor || 0);
   const minimumMinor = Number(partner.minimum_withdrawal_minor || 500000);
   const pending = partner.pending_withdrawal || null;
@@ -774,7 +775,7 @@ function partnerProgramPage() {
     ? `Выплата ${partnerRubles(pending.amount_minor)} сформирована и ожидает перевода`
     : remainingMinor === 0
       ? 'Порог достигнут — выплата сформирована'
-      : `До порога выплаты осталось ${partnerRubles(remainingMinor)}`;
+      : `До выплаты осталось ${partnerRubles(remainingMinor)}`;
   return `<section class="page profile-page partner-page">
     <div class="partner-hero">
       <div class="partner-hero-copy">
@@ -798,6 +799,11 @@ function partnerProgramPage() {
 
       <p class="partner-explainer">${icon('link', 16)}<span>Друг закрепляется за тобой навсегда — процент идёт с каждой его оплаты.</span></p>
 
+      <section class="partner-link-card" aria-label="Твоя пригласительная ссылка">
+        <div class="partner-link-copy"><strong>Твоя пригласительная ссылка</strong><span class="partner-link-value">${escapeHtml(inviteLink || (state.partnerLoading ? 'Загружаю ссылку…' : 'Открой приложение через Telegram, чтобы получить ссылку'))}</span></div>
+        <button type="button" class="partner-link-copy-button" data-action="copy-partner-link" aria-label="Скопировать пригласительную ссылку" ${!inviteLink ? 'disabled' : ''}>${icon('copy', 17)}<span>Копировать</span></button>
+      </section>
+
       <section class="partner-balance-card" aria-label="Баланс партнёрской программы">
         <div class="partner-balance-top">
           <span class="partner-wallet-icon">${icon('wallet', 21)}</span>
@@ -805,22 +811,36 @@ function partnerProgramPage() {
         </div>
         <div class="partner-progress" role="progressbar" aria-label="Прогресс до порога выплаты" aria-valuemin="0" aria-valuemax="${minimumMinor / 100}" aria-valuenow="${Math.min(payoutProgressMinor / 100, minimumMinor / 100)}"><span style="width:${progress}%"></span></div>
         <div class="partner-progress-copy"><span>${escapeHtml(progressText)}</span><strong>от ${partnerRubles(minimumMinor)}</strong></div>
-        <p class="partner-balance-note">${icon('info', 19)}<span>При достижении ${partnerRubles(minimumMinor)} выплата автоматически ставится в очередь. Сам перевод сейчас выполняется владельцем вручную.</span></p>
+        <p class="partner-balance-note">${icon('info', 19)}<span>Баланс можно вывести после достижения суммы на балансе ${partnerRubles(minimumMinor)}.</span></p>
       </section>
 
       <section class="partner-metrics-grid" aria-label="Статистика партнёрской программы">${partnerStats}</section>
       <p class="partner-metrics-note">Считаются открытия пригласительной ссылки; повторные переходы тоже учитываются.</p>
 
-      <div class="partner-invite-actions">
-        <button class="partner-share-button" type="button" data-action="share-partner-link" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('link', 19)}<span>Поделиться ссылкой</span></button>
-        <button class="partner-copy-button" type="button" data-action="open-partner-qr" aria-label="Показать QR-код приглашения" title="Показать QR-код приглашения" ${!state.authenticated || state.partnerLoading || !partner.share_link ? 'disabled' : ''}>${icon('qr', 21)}</button>
-      </div>
+      <section class="partner-how-card" aria-labelledby="partner-how-title">
+        <h2 id="partner-how-title">Как это работает</h2>
+        <ol>
+          <li>Поделись личной ссылкой или QR-кодом.</li>
+          <li>Друг перейдёт по ссылке и закрепится за тобой навсегда.</li>
+          <li>Ты получишь 20% с первой оплаты друга и 10% с каждой следующей.</li>
+          <li>Баланс можно вывести после достижения суммы ${partnerRubles(minimumMinor)}.</li>
+        </ol>
+      </section>
       ${state.partnerLoading ? '<p class="partner-state-message">Загружаю статистику партнёра…</p>' : ''}
       ${state.partnerError ? `<p class="partner-state-message partner-state-error">${escapeHtml(state.partnerError)} <button type="button" data-action="refresh-partner">Повторить</button></p>` : ''}
       ${state.preview ? '<p class="partner-state-message">Открой приложение через Telegram, чтобы получить свою ссылку и видеть начисления.</p>' : ''}
       ${state.subscription?.can_test_override ? `<section class="partner-admin-card"><strong>Выплаты к обработке</strong>${state.partnerAdminLoading ? '<p>Загрузка…</p>' : adminRows || '<p>Ожидающих выплат нет.</p>'}</section>` : ''}
     </div>
   </section>`;
+}
+
+function partnerInviteDock() {
+  if (state.tab !== 'partner') return '';
+  const linkReady = Boolean(state.authenticated && !state.partnerLoading && state.partnerData?.share_link);
+  return `<div class="partner-invite-dock"><div class="partner-invite-actions">
+    <button class="partner-share-button" type="button" data-action="share-partner-link" ${!linkReady ? 'disabled' : ''}>${icon('link', 19)}<span>Поделиться ссылкой</span></button>
+    <button class="partner-copy-button" type="button" data-action="open-partner-qr" aria-label="Поделиться QR-кодом" title="Поделиться QR-кодом" ${!linkReady ? 'disabled' : ''}>${icon('qr', 19)}<span>QR-кодом</span></button>
+  </div></div>`;
 }
 
 function createPartnerQrSvg(link) {
@@ -1138,8 +1158,9 @@ function render() {
   const mainTabs = ['home', 'services', 'profile'];
   const tariffDockActive = ['tariffs', 'group-tariffs'].includes(state.tab);
   const partnerPageActive = ['partner', 'partner-qr'].includes(state.tab);
+  const partnerDockActive = state.tab === 'partner';
   const telegramSettingsDockActive = state.tab === 'connection-tutorial' && state.tutorialType !== 'groups';
-  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${partnerPageActive ? 'has-partner-page' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.paymentSheetOpen ? paymentSheet() : ''}<div class="toast" role="status" aria-live="polite"></div></div>`;
+  app.innerHTML = `<div class="app-shell ${tariffDockActive ? 'has-tariff-dock' : ''} ${partnerPageActive ? 'has-partner-page' : ''} ${partnerDockActive ? 'has-partner-dock' : ''} ${telegramSettingsDockActive ? 'has-telegram-settings-dock' : ''}"><div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>${state.tab === 'home' ? topbar() : ''}<main>${page}</main>${partnerInviteDock()}${tariffPaymentDock()}${telegramSettingsDock()}${telegramSettingsDockActive ? '' : nav()}${state.paymentSheetOpen ? paymentSheet() : ''}<div class="toast" role="status" aria-live="polite"></div></div>`;
   const settingsButton = app.querySelector('.tutorial-open-settings');
   const settingsHelp = app.querySelector('.tutorial-help-link');
   const settingsDock = app.querySelector('.telegram-settings-dock');
