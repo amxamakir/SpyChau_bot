@@ -740,12 +740,41 @@ function profile() {
   const user = state.user;
   const testOverride = state.subscription?.test_override;
   const testActive = testOverride === null || testOverride === undefined ? Boolean(state.subscription?.active) : Boolean(testOverride);
-  const activeCount = state.connections.filter(connection => Number(connection.enabled) === 1).length;
   const title = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Пользователь Telegram' : 'Предпросмотр';
   const secondary = user?.username ? `@${user.username}` : 'Аккаунт Telegram';
   const telegramId = state.authenticated && user?.id ? String(user.id) : null;
   const photoUrl = state.authenticated && typeof user?.photo_url === 'string' && /^https:\/\//i.test(user.photo_url) ? user.photo_url : null;
-  return `<section class="page profile-page"><div class="profile-intro"><div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div><h1>${escapeHtml(title)}</h1><div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div></div><span class="list-label">МОЙ АККАУНТ</span><div class="profile-card"><button class="profile-row" data-tab="subscription"><span class="service-icon purple">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="notifications"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Уведомления</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="partner"><span class="service-icon partner-profile-icon">${icon('link', 19)}</span><span class="row-copy"><strong>Партнёрская программа</strong></span>${icon('chevron', 18)}</button><button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button></div>${state.subscription?.can_test_override ? `<span class="list-label">ХОЗЯЙСКИЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Хозяйская подписка</strong></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button><button type="button" class="profile-row" data-tab="owner-statistics"><span class="service-icon yellow">${icon('chart', 19)}</span><span class="row-copy"><strong>Статистика</strong></span>${icon('chevron', 18)}</button><button type="button" class="profile-row" data-tab="owner-test-group"><span class="service-icon purple">${icon('people', 19)}</span><span class="row-copy"><strong>Тестовая группа</strong></span>${icon('chevron', 18)}</button></div>` : ''}<span class="list-label">СЕРВИС И ПОДДЕРЖКА</span><div class="profile-card"><button class="profile-row" data-tab="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong></span>${icon('chevron', 18)}</button><button class="profile-row" data-tab="support"><span class="service-icon green">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong></span>${icon('chevron', 18)}</button></div><div class="profile-footer"><span>SpySkaut · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div></section>`;
+  const ownerMode = state.subscription?.can_test_override ? `<span class="list-label">ХОЗЯЙСКИЙ РЕЖИМ</span><div class="profile-card"><button class="profile-row test-subscription-row" role="switch" aria-checked="${testActive}" data-action="toggle-test-subscription" ${state.subscriptionToggleLoading ? 'disabled' : ''}><span class="service-icon ${testActive ? 'green' : 'muted'}">${icon('spark', 19)}</span><span class="row-copy"><strong>Хозяйская подписка</strong></span><span class="test-switch ${testActive ? 'on' : ''}" aria-hidden="true"><i></i></span></button><button type="button" class="profile-row" data-tab="owner-statistics"><span class="service-icon yellow">${icon('chart', 19)}</span><span class="row-copy"><strong>Статистика</strong></span>${icon('chevron', 18)}</button><button type="button" class="profile-row" data-tab="owner-test-group"><span class="service-icon purple">${icon('people', 19)}</span><span class="row-copy"><strong>Тестовая группа</strong></span>${icon('chevron', 18)}</button></div>` : '';
+  return `<section class="page profile-page">
+    <div class="profile-intro">
+      <div class="avatar">${escapeHtml(title.slice(0, 1).toUpperCase())}${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" referrerpolicy="no-referrer">` : ''}<span class="${state.authenticated ? '' : 'offline'}"></span></div>
+      <h1>${escapeHtml(title)}</h1>
+      <div class="profile-account-line" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-top:5px"><span>${escapeHtml(secondary)}</span><span class="profile-telegram-id">ID: ${telegramId ? escapeHtml(telegramId) : 'не подтверждён'}</span></div>
+    </div>
+
+    <span class="list-label">МОЙ АККАУНТ</span>
+    <div class="profile-card">
+      <button class="profile-row" data-tab="subscription"><span class="service-icon purple">${icon('lock', 19)}</span><span class="row-copy"><strong>Моя подписка</strong></span>${icon('chevron', 18)}</button>
+      <button class="profile-row" data-tab="services"><span class="service-icon blue">${icon('chat', 19)}</span><span class="row-copy"><strong>Мои подключения</strong></span>${icon('chevron', 18)}</button>
+      <button class="profile-row" data-tab="notifications"><span class="service-icon yellow">${icon('bell', 19)}</span><span class="row-copy"><strong>Уведомления</strong></span>${icon('chevron', 18)}</button>
+    </div>
+
+    <span class="list-label">ПАРТНЁРСТВО И ЧЕКИ</span>
+    <div class="profile-card">
+      <button class="profile-row" data-tab="partner"><span class="service-icon partner-profile-icon">${icon('link', 19)}</span><span class="row-copy"><strong>Партнёрская программа</strong></span>${icon('chevron', 18)}</button>
+      <button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button>
+    </div>
+
+    ${ownerMode}
+
+    <span class="list-label">СЕРВИС И ПОДДЕРЖКА</span>
+    <div class="profile-card">
+      <button class="profile-row" data-tab="privacy"><span class="service-icon green">${icon('shield', 19)}</span><span class="row-copy"><strong>Безопасность и данные</strong></span>${icon('chevron', 18)}</button>
+      <button class="profile-row" data-tab="support"><span class="service-icon green">${icon('help', 19)}</span><span class="row-copy"><strong>Поддержка</strong></span>${icon('chevron', 18)}</button>
+    </div>
+
+    <div class="profile-footer"><span>SpySkaut · ранняя версия</span><span>Данные привязаны к твоему Telegram ID</span></div>
+  </section>`;
 }
 
 function partnerProgramPage() {
@@ -815,7 +844,7 @@ function partnerProgramPage() {
       </section>
 
       <section class="partner-metrics-grid" aria-label="Статистика партнёрской программы">${partnerStats}</section>
-      <p class="partner-metrics-note">Считаются открытия пригласительной ссылки; повторные переходы тоже учитываются.</p>
+      <p class="partner-metrics-note">Переходы считаются, когда приглашённый открывает бота по ссылке; повторные открытия тоже учитываются.</p>
 
       <section class="partner-how-card" aria-labelledby="partner-how-title">
         <h2 id="partner-how-title">Как это работает</h2>
@@ -843,10 +872,16 @@ function partnerInviteDock() {
   </div></div>`;
 }
 
+function partnerLinkUrl(link) {
+  const value = String(link || '').trim();
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
 function createPartnerQrSvg(link) {
   if (typeof window.qrcode !== 'function') throw new Error('QR-код пока недоступен. Обнови приложение и попробуй ещё раз.');
   const qr = window.qrcode(0, 'M');
-  qr.addData(link, 'Byte');
+  qr.addData(partnerLinkUrl(link), 'Byte');
   qr.make();
   return qr.createSvgTag({ cellSize: 8, margin: 4, scalable: false });
 }
@@ -1881,10 +1916,11 @@ app.addEventListener('click', async event => {
   if (action === 'share-partner-link') {
     const link = state.partnerData?.share_link;
     if (!link) { toast('Сначала обнови свою партнёрскую ссылку.'); return; }
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Попробуй SpySkaut — приложение сохраняет события из подключённых чатов Telegram.')}`;
+    const absoluteLink = partnerLinkUrl(link);
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(absoluteLink)}&text=${encodeURIComponent('Попробуй SpySkaut — приложение сохраняет события из подключённых чатов Telegram.')}`;
     if (state.telegram?.openTelegramLink) state.telegram.openTelegramLink(shareUrl);
     else if (navigator.share) {
-      try { await navigator.share({ title: 'SpySkaut', text: 'Попробуй SpySkaut', url: link }); }
+      try { await navigator.share({ title: 'SpySkaut', text: 'Попробуй SpySkaut', url: absoluteLink }); }
       catch (error) { if (error.name !== 'AbortError') toast('Не удалось открыть меню отправки.'); }
     } else {
       try { await copyPartnerLink(); toast('Партнёрская ссылка скопирована.'); }

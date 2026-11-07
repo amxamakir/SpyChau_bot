@@ -206,7 +206,7 @@ export default {
     const route = url.pathname;
 
     if (route === "/health" && request.method === "GET") {
-      return json({ status: "ok", service: "spychau-api", version: "0.14.5" });
+      return json({ status: "ok", service: "spychau-api", version: "0.14.6" });
     }
 
     const partnerReferralLinkMatch = route.match(/^\/r\/([A-F0-9]{12})$/i);
@@ -289,7 +289,7 @@ export default {
           const partnerId = String(user.id);
           const account = await ensurePartnerAccount(env.DB, partnerId);
           if (!account) return json({ error: "partner_account_unavailable" }, 503);
-          return json(await getPartnerDashboard(env.DB, partnerId, account.referral_code, url.origin));
+          return json(await getPartnerDashboard(env.DB, partnerId, account.referral_code));
         }
 
         if (route === "/api/owner/partner-withdrawals" && request.method === "GET") {
@@ -2288,7 +2288,7 @@ async function recordLegacyPartnerLinkClick(db, referralCode) {
   if (account?.owner_id) await incrementPartnerLinkClick(db, String(account.owner_id));
 }
 
-async function getPartnerDashboard(db, partnerId, referralCode, appOrigin) {
+async function getPartnerDashboard(db, partnerId, referralCode) {
   const [referrals, clicks, purchases, earnings, withdrawals, pending] = await Promise.all([
     db.prepare("SELECT COUNT(*) AS total FROM partner_referrals WHERE partner_id = ?").bind(String(partnerId)).first(),
     db.prepare("SELECT COALESCE(SUM(click_count), 0) AS total FROM partner_link_clicks WHERE partner_id = ?").bind(String(partnerId)).first(),
@@ -2311,7 +2311,7 @@ async function getPartnerDashboard(db, partnerId, referralCode, appOrigin) {
   const minimumWithdrawalMinor = 500000;
   return {
     referral_code: referralCode,
-    share_link: `${appOrigin}/r/${referralCode}`,
+    share_link: `t.me/SpySkaut_bot?start=ref_${referralCode}`,
     referral_count: Number(referrals?.total || 0),
     link_click_count: Number(clicks?.total || 0),
     paying_referral_count: Number(purchases?.paying_referrals || 0),
