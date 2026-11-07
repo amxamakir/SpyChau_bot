@@ -761,7 +761,7 @@ function profile() {
 
     <span class="list-label">ПАРТНЁРСТВО И ЧЕКИ</span>
     <div class="profile-card">
-      <button class="profile-row" data-tab="partner"><span class="service-icon partner-profile-icon">${icon('link', 19)}</span><span class="row-copy"><strong>Партнёрская программа</strong></span>${icon('chevron', 18)}</button>
+      <button class="profile-row partner-program-highlight" data-tab="partner"><span class="service-icon partner-profile-icon">${icon('link', 19)}</span><span class="row-copy"><strong>Партнёрская программа</strong></span>${icon('chevron', 18)}</button>
       <button class="profile-row receipt-email-row" data-tab="receipt-email"><span class="service-icon blue">${icon('mail', 19)}</span><span class="row-copy"><span class="receipt-email-heading"><strong>Почта для чеков</strong>${state.user?.receipt_email ? `<span class="receipt-email-value">${escapeHtml(state.user.receipt_email)}</span>` : ''}</span></span>${icon('chevron', 18)}</button>
     </div>
 

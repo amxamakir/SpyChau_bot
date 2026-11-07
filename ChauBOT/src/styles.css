@@ -1718,3 +1718,7 @@ body{background:#101827;color:#f4f6f9}
 :root .payment-sheet,
 :root .payment-order-card,
 :root .package-balance-card{border-color:transparent!important}
+
+/* Peach-pink outline makes the referral program easier to find in the profile. */
+.profile-page .profile-card .partner-program-highlight{width:calc(100% + 14px);margin:5px -7px;padding:11px 9px;border:1px solid rgba(255,153,128,.58);border-radius:15px;background:linear-gradient(105deg,rgba(255,153,128,.12),rgba(241,110,128,.09),rgba(215,71,145,.1));box-shadow:0 0 0 1px rgba(241,110,128,.1),0 4px 14px rgba(215,71,145,.1)}
+.profile-page .profile-card .partner-program-highlight+.profile-row{border-top:0}
