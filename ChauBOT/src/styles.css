@@ -430,8 +430,8 @@ html,body{touch-action:pan-x pan-y}
 .partner-explainer{display:flex;align-items:flex-start;gap:9px;margin:0 2px;color:#aab7d7;font-size:12px;line-height:1.5}
 .partner-explainer svg{flex:none;margin-top:1px;color:#ffc19a}
 .partner-link-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:14px;border-radius:18px;background:linear-gradient(145deg,#141e3d,#10172f)}
-.partner-link-copy{display:grid;gap:6px;min-width:0}
-.partner-link-copy>strong{color:#dce4f8;font-size:12px;font-weight:700}
+.partner-link-label{margin:0 4px -8px;color:#dce4f8;font-size:12px;font-weight:700}
+.partner-link-copy{display:grid;min-width:0}
 .partner-link-value{min-width:0;color:#aab7d7;font-size:12px;line-height:1.4;overflow-wrap:anywhere;user-select:text}
 .partner-link-copy-button{min-height:40px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px;border:0;border-radius:12px;background:#232d4e;color:#e6ebf8;font-size:11px;font-weight:750;white-space:nowrap}
 .partner-link-copy-button:disabled{opacity:.55;cursor:not-allowed}

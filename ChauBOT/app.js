@@ -828,8 +828,9 @@ function partnerProgramPage() {
 
       <p class="partner-explainer">${icon('link', 16)}<span>Друг закрепляется за тобой навсегда — процент идёт с каждой его оплаты.</span></p>
 
+      <p class="partner-link-label">Твоя пригласительная ссылка</p>
       <section class="partner-link-card" aria-label="Твоя пригласительная ссылка">
-        <div class="partner-link-copy"><strong>Твоя пригласительная ссылка</strong><span class="partner-link-value">${escapeHtml(inviteLink || (state.partnerLoading ? 'Загружаю ссылку…' : 'Открой приложение через Telegram, чтобы получить ссылку'))}</span></div>
+        <div class="partner-link-copy"><span class="partner-link-value">${escapeHtml(inviteLink || (state.partnerLoading ? 'Загружаю ссылку…' : 'Открой приложение через Telegram, чтобы получить ссылку'))}</span></div>
         <button type="button" class="partner-link-copy-button" data-action="copy-partner-link" aria-label="Скопировать пригласительную ссылку" ${!inviteLink ? 'disabled' : ''}>${icon('copy', 17)}<span>Копировать</span></button>
       </section>
 

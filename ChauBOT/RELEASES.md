@@ -2,6 +2,8 @@
 
 ## Recent releases
 
+- `v0.14.8: Move referral link label above its card` — вынести подпись личной пригласительной ссылки из карточки и расположить над ней.
+
 - `v0.14.7: Highlight referral program in profile` — выделить пункт партнёрской программы в профиле персиково-розовой рамкой и мягкой подложкой.
 
 - `v0.14.6: Organize profile and use Telegram referral links` — разделить профиль на три пользовательские группы, вынести хозяйский режим отдельно и заменить партнёрские ссылки на `t.me/SpySkaut_bot?start=ref_…`.
